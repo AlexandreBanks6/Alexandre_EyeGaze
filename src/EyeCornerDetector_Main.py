@@ -16,10 +16,11 @@ from utils.torch_utils import select_device, load_classifier, time_synchronized,
 
 #------------------------<Setting Variables>---------------------
 img_path="../resources/P18.avi"
-model_path="../resources/yolov7_tiny.pt"
-INPUT_WIDTH,INPUT_HEIGHT=640
-
-
+model_path="../resources/yolov7_tiny_custom.pt"
+INPUT_WIDTH=640
+INPUT_HEIGHT=640
+CONF_THRESH=0.3
+IOU_THRESH=0.4
 #------------------<Function Definitions>----------------
 #Letterbox
 #It scales the image to INPUT_WIDTHxINPUT_HEIGHT and pads with zeros
@@ -58,7 +59,7 @@ def letterbox(img, new_shape=(640, 640), color=(114, 114, 114), auto=True, scale
 
 #Subfunction to pre-process one left/right frames from raw video
 def process_oneframe(cropped_frame):
-    gray=cv.cvtColor(cropped_frame,cv.COLOR_BGR2GRAY)
+    gray=cv2.cvtColor(cropped_frame,cv2.COLOR_BGR2GRAY)
     restructured=np.zeros_like(cropped_frame)
 
     #Passing the gray image to each channel of the image
@@ -82,6 +83,7 @@ def process_frame(frame):
 
 
 def detect(frame,model,device,imgsz,old_img_b,old_img_h,old_img_w):
+    #Make sure to return old_img_b, old_img_h, and old_img_w
     img=torch.from_numpy(frame).to(device) #Loads in the image and casts to device
     img=img.float()     #Converts it to fp32
     img/=255.0 #Normalizes the image to 0.0-1.0
@@ -95,27 +97,32 @@ def detect(frame,model,device,imgsz,old_img_b,old_img_h,old_img_w):
         for i in range(3):
             model(img,augment=False)[0]
     
-
+    #Run Inference
+    with torch.no_grad():
+        pred=model(img,augment=False)
     
-
-
-
+    #Apply nms
+    pred=non_max_suppression(pred,CONF_THRESH,IOU_THRESH)
+    
+    return pred,old_img_b,old_img_h,old_img_w
 
 #-----------------------<Video Loading>----------------------
-video=cv.VideoCapture(img_path)
+video=cv2.VideoCapture(img_path)
 #Checking Paths
 if(video.isOpened()==False):
     print("Video Cannot be Opened")
 
 #----------------------<Model Loading>-------------------
+
 device=select_device('0')
 model=attempt_load(model_path,map_location=device)
-stride=int(model.stride.max())
-imgsz=check_img_size((INPUT_HEIGHT,INPUT_WIDTH),s=stride)
+stride_size=int(model.stride.max())
+imgsz=check_img_size(INPUT_HEIGHT,s=stride_size)
+
 #Setup model
 if device.type != 'cpu':
     model(torch.zeros(1,3,imgsz,imgsz).to(device).type_as(next(model.parameters()))) #runs it once
-old_img_w=old_img_h=INPUT_HEIGHT
+old_img_w=old_img_h=imgsz
 old_img_b=1
 
 
@@ -128,12 +135,22 @@ while(video.isOpened()):    #Loops for each frame in the video
     if ret==True:
     #--------------------<Frame pre-processing>---------------------------
         left_restructured,right_restructured=process_frame(frame)
+        left_restructured=letterbox(left_restructured,(INPUT_HEIGHT,INPUT_WIDTH),stride=stride_size)
+        right_restructured=letterbox(right_restructured,(INPUT_HEIGHT,INPUT_WIDTH),stride=stride_size)
+
+        #Convert the image
+        left_restructured=left_restructured[:,:,::-1].transpose(2,0,1)
+        right_restructured=right_restructured[:,:,::-1].transpose(2,0,1)
+
+        left_restructured=np.ascontiguousarray(left_restructured)
+        right_restructured=np.ascontiguousarray(right_restructured)
 
 
+    #-------------------------<Running Inference>-----------------------
+        pred,old_img_b,old_img_h,old_img_w=detect(left_restructured,model,device,imgsz,old_img_b,old_img_h,old_img_w)
 
-
-        cv.imshow('Frame',left_restructured)
-        cv.waitKey(0)
+        #cv2.imshow('Frame',left_restructured)
+        #cv2.waitKey(0)
 
     else:
         print("Frame Not Read Correctly")
