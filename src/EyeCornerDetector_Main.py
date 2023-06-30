@@ -1,3 +1,12 @@
+'''
+Author: Alexandre Banks
+Date: June 30, 2023
+Institution: UBC Robotics and Control Laboratory
+Description: Script that uses yolov7 to create eye corner bounding boxes, then finds eye corner
+landmarks using conventional computer vision techniques.
+'''
+
+
 #---------------------<Library Imports>-------------------
 import os
 import cv2
