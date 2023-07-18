@@ -3,8 +3,10 @@ clear
 clc
 close all
 
+%% 
 %{
-Description: Takes in a .txt file from an eye gaze calibration, as well as a .csv file from the corresponding NDI tool measurements. Synchronizes the two and creates a merged file called eye_NDI_merged.csv in working directory.
+Description: Takes in a .csv file from an eye gaze calibration, as well as a .csv file from the corresponding NDI tool measurements. Synchronizes the two and creates a merged file called eye_NDI_merged.csv 
+saved in a specified directory.
 Also creates a merged csv with only the part with calibration information. Also trims the corresponding video accordingly.
 
 Author: Alexandre Banks
@@ -17,6 +19,10 @@ Affiliation: Robotics and Control Laboratory
 GAZE_DATAPATH="/ubc/ece/home/ts/grads/alexandre/Documents/eye_gaze_data/test2_july17/Quaternions/gazelog_17-07-2023_08-51-00.csv";
 VIDEO_DATAPATH="/ubc/ece/home/ts/grads/alexandre/Documents/eye_gaze_data/test2_july17/Quaternions/eyeVideo_07-17-2023_08-51-00.avi";
 NDI_DATAPATH="/ubc/ece/home/ts/grads/alexandre/Documents/eye_gaze_data/test2_july17/Quaternions/ndi_headpose_17-07-2023_08-50-51.csv";
+FULL_DATAPATH="/ubc/ece/home/ts/grads/alexandre/Documents/eye_gaze_data/test2_july17/Quaternions/full_data.csv";
+CALIB_ONLY_DATAPATH="/ubc/ece/home/ts/grads/alexandre/Documents/eye_gaze_data/test2_july17/Quaternions/calib_only.csv";
+OUTPUT_VIDEO_DATAPATH="/ubc/ece/home/ts/grads/alexandre/Documents/eye_gaze_data/test2_july17/Quaternions/eyeVideo_calib_only.avi";
+
 
 FREQUENCY=60; 
 PERIOD=1/FREQUENCY;
@@ -208,11 +214,11 @@ for i=[1:num_tools]
     end
 
 end
-%% Displaying Pose (for testing)
+%% Displaying Pose before interpolation
 figname='Position Before Interpolation';
 figure('Name',figname);
-%[num_data,~]=size(ndi_data_new{1});
-for i=[1:400]
+[num_data,~]=size(ndi_data_new{1});
+for i=[1:num_data-1]
     
     pos=ndi_data_new{1}(1,4:6);
     quat=quaternion(ndi_data_new{1}(i,7),ndi_data_new{1}(i,8),ndi_data_new{1}(i,9),ndi_data_new{1}(i,10));
@@ -224,8 +230,7 @@ for i=[1:400]
     hold on;
     poseplot(quat2,pos2);
     hold off;
-    disp(i);
-    pause(30/1000);
+    pause(ndi_data_new{1}(i+1,2)-ndi_data_new{1}(i,2));
 end
 
 
@@ -240,15 +245,11 @@ end
 trunc_ind=min(smaller_ind);
 gaze_data_new(trunc_ind:end,:)=[];
 
-%% Fixing rows with NaNs in ndi_data_new -> Look into this, interpolate rows with NaN, or take average over interval
-%Any rows with NaNs are replaces with value of average of nearest row
+%% Fixing rows with NaNs in ndi_data_new
+%Any rows with NaNs are deleted
 for i=[1:num_tools]
     nan_vals=find(isnan(ndi_data_new{i}(:,4))); %Finds rows with NaN values
-    non_nanvals=find(~isnan(ndi_data_new{i}(:,4)));
-    for j=[1:length(nan_vals)] %Looping through all nan vals and replacing with closes non-nan row
-        [~,min_ind]=min(abs(non_nanvals-nan_vals(j)));
-        ndi_data_new{i}(nan_vals(j),:)=ndi_data_new{i}(min_ind,:);
-    end
+    ndi_data_new{i}(nan_vals,:)=[];
 end
 
 %% Running Interpolation (to make equal data lengths)
@@ -262,21 +263,26 @@ for i=[1:num_tools]
     interp_trans=interp1(sample_time,ndi_data_new{i}(:,4:6),query_time,'spline');
     ndi_data_interp{i}(:,4:6)=interp_trans;
 end
-
-
-%% 
 %Running interpolation on quaternion part
-ndi_count=2;
 for i=[1:num_tools] %Does interpolation for each tool
     [num_gaze,~]=size(gaze_data_new);
     [num_ndi,~]=size(ndi_data_new{i}); 
+    ndi_count=2;
     for j=[1:num_gaze]
-        if gaze_data_new(j,1)>ndi_data_new{i}(ndi_count,2)
-            ndi_count=ndi_count+1;
-        end
         if ndi_count>num_ndi
             break;
         end
+
+        if gaze_data_new(j,1)>ndi_data_new{i}(ndi_count,2)
+            while(1)
+                ndi_count=ndi_count+1; %Loops until we find time in ndi_data_new greater than gaze data
+                if gaze_data_new(j,1)<=ndi_data_new{i}(ndi_count,2)
+                    break;
+                end
+
+            end
+        end
+
         quat_start=quaternion(ndi_data_new{i}(ndi_count-1,7),ndi_data_new{i}(ndi_count-1,8),ndi_data_new{i}(ndi_count-1,9),ndi_data_new{i}(ndi_count-1,10));
         quat_end=quaternion(ndi_data_new{i}(ndi_count,7),ndi_data_new{i}(ndi_count,8),ndi_data_new{i}(ndi_count,9),ndi_data_new{i}(ndi_count,10));
         interval_frac=(gaze_data_new(j,1)-ndi_data_new{i}(ndi_count-1,2))/(ndi_data_new{i}(ndi_count,2)-ndi_data_new{i}(ndi_count-1,2));
@@ -285,7 +291,7 @@ for i=[1:num_tools] %Does interpolation for each tool
         quat_array=compact(qi);
         ndi_data_interp{i}(j,7:10)=quat_array; %Updates quaternion
         ndi_data_interp{i}(j,1)=ndi_data_new{i}(ndi_count-1,1); %Updates tool ID
-        ndi_data_interp{i}(j,2)=ndi_data_new{i}(ndi_count-1,2)+interval_frac; %Updates time
+        ndi_data_interp{i}(j,2)=gaze_data_new(j,1); %Updates time
         ndi_data_interp{i}(j,3)=ndi_data_new{i}(ndi_count-1,3); %Updates frame number
         ndi_data_interp{i}(j,11)=ndi_data_new{i}(ndi_count-1,end); %Updates quality measure
      %   ndi_data_interp{i}=
@@ -293,22 +299,72 @@ for i=[1:num_tools] %Does interpolation for each tool
 end
 
 
-
-%% 
-%Extracting rows of gaze_data that correspond to calibration point
-calib_ind=find(gaze_data_new(:,5)==1);
-%Updating gaze data to only have these rows
-gaze_data_new=gaze_data_new(calib_ind,:);
-
-
-%Creating a new ndi_data_trimmed with rows corresponding to rows with
-%closest timestamp to gaze_data_new
-[row,col]=size(gaze_data_new);
-ndi_data_trimmed=zeros(row,11);
-for i=[1:row]
+%% Displaying Results to Check Interpolation
+figname='Position After Interpolation';
+figure('Name',figname);
+[num_data,~]=size(ndi_data_interp{1});
+for i=[1:num_data-1]
     
-    [min_val,index]=min(abs(gaze_data_new))
-
+    pos=ndi_data_interp{1}(1,4:6);
+    quat=quaternion(ndi_data_interp{1}(i,7),ndi_data_interp{1}(i,8),ndi_data_interp{1}(i,9),ndi_data_interp{1}(i,10));
+    
+    pos2=ndi_data_interp{2}(1,4:6);
+    quat2=quaternion(ndi_data_interp{2}(i,7),ndi_data_interp{2}(i,8),ndi_data_interp{2}(i,9),ndi_data_interp{2}(i,10));
+    
+    poseplot(quat,pos);
+    hold on;
+    poseplot(quat2,pos2);
+    hold off;
+    pause(ndi_data_interp{1}(i+1,2)-ndi_data_interp{1}(i,2));
+end
+%% Formating All Interpolated data
+%Data saved as a .csv with gaze_data,tool_1_data,tool_2_data...
+%so: timestamp,video_frame,calib_x,calib_y,calib_valid,tool ID 1, NDI
+%frame, Tx,Ty,Tz,Q0,Qx,Qy,Qz,tracking quality, Tool ID 2, NDI Frame, Tx,...
+[data_rows,~]=size(gaze_data_new);
+full_data=gaze_data_new;
+for i=[1:num_tools]
+    full_data=[full_data,ndi_data_interp{i}(:,1),ndi_data_interp{i}(:,3:end)];
 end
 
+
+%% Calibration Only Data
+%Extracting rows of full_data that correspond to calibration points only
+calib_ind=find(full_data(:,5)==1);
+calib_only_data=full_data(calib_ind,:);
+[num_rows,~]=size(calib_only_data);
+
+%Extracting frames of the video that correspond only to calibration points
+counter=1;
+output_video=VideoWriter(OUTPUT_VIDEO_DATAPATH); %Creates Video Writer Object
+open(output_video);
+num_frames=video_data.NumFrames;
+for i=[1:num_frames]
+    frame=readFrame(video_data);
+    if(counter==num_rows)
+        break
+    end
+    if(i==calib_only_data(counter,2))
+        counter=counter+1;
+        writeVideo(output_video,frame);
+    end
+end
+close(output_video);
+
+%% Saving Synchronized/Interpolated Data
+%Creating data header
+data_header={'timestamp','video_frame','calib_x','calib_y','calib_valid'};
+for i=[1:num_tools]
+    data_header=[data_header,{['Tool ID',num2str(i)],['NDI Frame',num2str(i)],['Tx',num2str(i)],['Ty',num2str(i)],['Tz',num2str(i)],['Q0',num2str(i)],['Qx',num2str(i)],['Qy',num2str(i)],['Qz',num2str(i)],['Track Quality',num2str(i)]}];
+
+end
+%Saving Full Data
+full_data_table=array2table(full_data,'VariableNames',data_header);
+%full_data_table.Properties.VariableNames(1:length(data_header))=data_header;
+writetable(full_data_table,FULL_DATAPATH);
+
+%Saving Calibration Only .csv
+calib_only_table=array2table(calib_only_data,'VariableNames',data_header);
+%calib_only_table.VariableNames=data_header;
+writetable(calib_only_table,CALIB_ONLY_DATAPATH);
 
