@@ -66,33 +66,30 @@ dilation_element_inner=cv2.getStructuringElement(cv2.MORPH_RECT,(dilation_size_i
 #Curvature Calculation Parameters
 #step_size_inner=18 
 
-
 #--------Outer Eye Corner Params
-#Pre-process For Corner Detector Param
-filter_size_forcorner_outer=19
-corner_thresh_outer=0.1
-blocksize_outer=2
-ksize_outer=3
-harris_param_outer=0.09
-
-#Canny Edge Detector Parameters
-filter_size_outer=19
-low_threshold_outer=14
-ratio_val_outer=3
-upper_threshold_outer=low_threshold_outer*ratio_val_outer
-canny_kernel_size_outer=3
-
-
-#Morph op parameters
-dilation_size_outer_refine=5
-erosion_size_outer_refine=5
-erosion_element_outer_refine=cv2.getStructuringElement(cv2.MORPH_RECT,(erosion_size_outer_refine,erosion_size_outer_refine))
-dilation_element_outer_refine=cv2.getStructuringElement(cv2.MORPH_RECT,(dilation_size_outer_refine,dilation_size_outer_refine))
-
-dilation_size_outer=3
+#Thresholding Params
+FILTER_SIZE_OUTER=11
+BLOCK_SIZE_OUTER=19
+THRESH_CONSTANT_OUTER=1
 erosion_size_outer=3
-erosion_element_outer=cv2.getStructuringElement(cv2.MORPH_RECT,(erosion_size_outer,erosion_size_outer))
-dilation_element_outer=cv2.getStructuringElement(cv2.MORPH_RECT,(dilation_size_outer,dilation_size_outer))
+THRESHOLD_DILATION_ELEMENT_OUTER=cv2.getStructuringElement(cv2.MORPH_RECT,(erosion_size_outer,erosion_size_outer))
+#Canny Edge Detection and Post-Processing Parameters
+CANNY_THRESH_LOW_OUTER=17
+ratio_val_outer=3
+CANNY_THRESH_UP_OUTER=CANNY_THRESH_LOW_OUTER*ratio_val_outer
+CANNY_SIZE_OUTER=3
+dilation_size_outer=4
+erosion_size_outer=4
+DILATION_ELEMENT_OUTER=cv2.getStructuringElement(cv2.MORPH_RECT,(erosion_size_outer,erosion_size_outer))
+DILATION_ELEMENT_INNER=cv2.getStructuringElement(cv2.MORPH_RECT,(dilation_size_outer,dilation_size_outer))
+
+#Pre-process For Corner Detector Param
+#filter_size_forcorner_outer=19
+#filter_size_forcorner_outer=9
+#corner_thresh_outer=0.1
+#blocksize_outer=2
+#ksize_outer=3
+#harris_param_outer=0.09
 
 #Curvature Calculation Parameters
 step_size=18
@@ -102,15 +99,22 @@ step_size=18
 mav_length=10 #Length of the moving average filter for the eye corners
 
 
-'''
+
 #Trackbar stuff
 def nothing(x):
     pass
 
+
+'''
 window_name='Processed Outer Edges'
 cv2.namedWindow(window_name)
-cv2.createTrackbar('dilation_size',window_name,0,20,nothing)
-cv2.createTrackbar('erosion_size',window_name,0,20,nothing)
+cv2.createTrackbar('filter_size',window_name,11,30,nothing)
+cv2.createTrackbar('block_size',window_name,19,30,nothing)
+cv2.createTrackbar('threshold_constant',window_name,1,30,nothing)
+cv2.createTrackbar('erosion_size',window_name,3,11,nothing)
+cv2.createTrackbar('lower_canny',window_name,17,50,nothing)
+cv2.createTrackbar('canny_kernel',window_name,3,50,nothing)
+cv2.createTrackbar('ratio_val',window_name,10,20,nothing)
 cv2.waitKey(0)
 '''
 #----------------------------------------------<Function Definitions>-------------------------------
@@ -178,7 +182,7 @@ def detect(frame,model,device,old_img_b,old_img_h,old_img_w):
     return pred,old_img_b,old_img_h,old_img_w
 
 
-def process_detections(pred,img0,dw,dh):
+def process_detections(pred,img0,dw,dh,left_right):
     pred_results=pred_res() #Creates class object
     for i,det in enumerate(pred): #Loops through all detections in the prediction results
        
@@ -195,8 +199,7 @@ def process_detections(pred,img0,dw,dh):
                 xyxy_list[3]=xyxy_list[3]*(1/dh)   
 
                 #Converting the list to integer             
-                xyxy_list=[int(item) for item in xyxy_list]
-                               
+                xyxy_list=[int(item) for item in xyxy_list]                               
                 #Cropping the eyecorner ROI                
                 cropped_eyecorner=img0[xyxy_list[1]:xyxy_list[3],xyxy_list[0]:xyxy_list[2]]
                 #Adding Results to prediction results class
@@ -219,12 +222,22 @@ def refine_contours(corners,contours):
 
 #Function that stretching the image to span all values between 0->255
 def contrast_stretching(old_img):
+    '''
     MaxVal=old_img.max()
     MinVal=old_img.min()
     factor=(255/(MaxVal-MinVal))
-    img_stretch=old_img*factor
-    img_stretch=(img_stretch/img_stretch.max())*255 
-    return img_stretch
+    img_stretch=(old_img-MinVal)*factor
+    img_stretch=(img_stretch/img_stretch.max())*255
+    '''
+    #Normalizing Input Image
+    norm_img=cv2.normalize(old_img,None,alpha=0,beta=1,norm_type=cv2.NORM_MINMAX,dtype=cv2.CV_32F)
+    #Scaling back to 0->255 as uint8
+    norm_img=(255*norm_img).astype(np.uint8)
+
+    cv2.imshow('Stretched',norm_img)
+    cv2.waitKey(0)
+
+    return norm_img
 
 
 #Funcions that performs pre-processing on the cropped eye-corner image
@@ -270,30 +283,131 @@ def process_innercorner(cropped_corner):
 
 
 
-def CannyThresholds(eye_grey,window_name):
-    filtersize=cv2.getTrackbarPos('filter_size',window_name)
+
+#def CannyThresholds(eye_grey,window_name):
+#    filtersize=cv2.getTrackbarPos('filter_size',window_name)
+#    block_size=cv2.getTrackbarPos('block_size',window_name)
+#    thresh_constant=cv2.getTrackbarPos('threshold_constant',window_name)
+#    erosion_size=cv2.getTrackbarPos('erosion_size',window_name)
+#    thresh=cv2.getTrackbarPos('lower_canny',window_name)
+#    canny_kernel=cv2.getTrackbarPos('canny_kernel',window_name)
+#    ratio=cv2.getTrackbarPos('ratio_val',window_name)
+#    ratio=2+ratio/10.0
+#    thresh_up=ratio*thresh
+    
+
+'''
     thresh=cv2.getTrackbarPos('lower_canny',window_name)
-    thresh_up=ratio_val_outer*thresh
-    eye_grey=cv2.GaussianBlur(eye_grey,(filtersize,filtersize), cv2.BORDER_DEFAULT) #FIlters image
-    detected_edges=cv2.Canny(eye_grey,thresh,thresh_up,apertureSize=canny_kernel_size_outer,L2gradient=True) #Runs edge detector
+    canny_kernel=cv2.getTrackbarPos('canny_kernel',window_name)
+    ratio=cv2.getTrackbarPos('ratio_val',window_name)
+    ratio=2+ratio/10.0
+    thresh_up=ratio*thresh
+    '''
+    
+    #First find glints and extract from image (turn those regions black)
+    #erosion_element_glintmask=cv2.getStructuringElement(cv2.MORPH_RECT,(5,5))
+    #_,glint_mask=cv2.threshold(eye_grey,190,255,cv2.THRESH_BINARY_INV)
+    #glint_mask=cv2.erode(glint_mask,erosion_element_glintmask)
+    ##cv2.imshow('glint mask',glint_mask)
+    #cv2.waitKey(0)
+
+    #eye_masked=cv2.bitwise_and(eye_grey,glint_mask)
+
+    #cv2.imshow('masked eye',eye_masked)
+    #cv2.waitKey(0)
+
+    #Blur the image first
+    #eye_grey=cv2.equalizeHist(eye_grey) 
+    #cv2.imshow('Equalized',eye_grey)
+    #cv2.waitKey(0)
+
+#    eye_grey=cv2.GaussianBlur(eye_grey,(filtersize,filtersize), cv2.BORDER_DEFAULT) #FIlters image
+    #cv2.imshow('Blurred',eye_grey)
+    #cv2.waitKey(0)
+
+    #Adaptive Threshold to increase contrast between sclera and edge
+#    thresholded=cv2.adaptiveThreshold(eye_grey,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY,block_size,thresh_constant)
+    #cv2.imshow('thresholded',thresholded)
+    #cv2.waitKey(0)
+
+    #Erosion First (de-noising)
+    #erosion_element_glintmask=cv2.getStructuringElement(cv2.MORPH_RECT,(erosion_size,erosion_size))
+    #eroded=cv2.erode(thresholded,erosion_element_glintmask)
+    #cv2.imshow('eroded',eroded)
+    #cv2.waitKey(0)
+    
+
+    #Dilation Next
+#    dilation_element_glintmask=cv2.getStructuringElement(cv2.MORPH_RECT,(erosion_size,erosion_size))
+#    dilated=cv2.dilate(thresholded,dilation_element_glintmask)
+    #cv2.imshow('dilated',dilated)
+    #cv2.waitKey(0)
+
+
+#    detected_edges=cv2.Canny(dilated,thresh,thresh_up,apertureSize=canny_kernel,L2gradient=True) #Runs edge detector
+#    dilated_edges=cv2.dilate(detected_edges,dilation_element_outer)
+#    eroded_edges=cv2.erode(dilated_edges,erosion_element_outer)
+#    cv2.imshow(window_name,detected_edges)
+#    cv2.waitKey(0)
+
+#    cv2.imshow('eroded edges',eroded_edges)
+
+    #Detects Edges
+    #detected_edges=cv2.Canny(eye_grey,low_threshold_inner,upper_threshold_inner,apertureSize=canny_kernel_size_inner,L2gradient=True) #Runs edge detector
+    #Dilation of edges followed by erosion
+    #dilated_edges=cv2.dilate(detected_edges,dilation_element_inner)
+    #eroded_edges=cv2.erode(dilated_edges,erosion_element_inner)
+
+    #eye_grey=cv2.equalizeHist(eye_grey) 
+    #cv2.imshow('Equalized',eye_grey)
+    #cv2.waitKey(0)
+    #kernel=np.array([[0,-1,0],[-1,5,-1],[0,-1,0]])
+    #eye_grey=cv2.filter2D(src=eye_grey,ddepth=-1,kernel=kernel)
+    #cv2.imshow('Sharpened',eye_grey)
+    #cv2.waitKey(0)
+
+
+    #eye_sharp=cv2.addWeighted(src1=eye_blur,alpha=1.5,src2=eye_grey,beta=-0.5,gamma=0)
+    #cv2.imshow('Sharpened',eye_sharp)
+    #cv2.waitKey(0)
+
+'''
+    detected_edges=cv2.Canny(eye_grey,thresh,thresh_up,apertureSize=canny_kernel,L2gradient=True) #Runs edge detector
     dilated_edges=cv2.dilate(detected_edges,dilation_element_outer)
     eroded_edges=cv2.erode(dilated_edges,erosion_element_outer)
-    cv2.imshow(window_name,eroded_edges)
+    cv2.imshow(window_name,detected_edges)
+    cv2.waitKey(0)
+    '''
 
-#Outer corner needs work
+
 def process_outercorner(cropped_corner):
 
-    #cv2.imshow('Original',cropped_corner)
-    #cv2.waitKey(0)
+    cv2.imshow('Original',cropped_corner)
+    cv2.waitKey(0)
     
     eye_grey=cv2.cvtColor(cropped_corner,cv2.COLOR_BGR2GRAY) #Converts to grayscale (already grayscale but for check)
 
+    eye_grey=cv2.GaussianBlur(eye_grey,(FILTER_SIZE_OUTER,FILTER_SIZE_OUTER), cv2.BORDER_DEFAULT)
+
+    thresholded=cv2.adaptiveThreshold(eye_grey,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY,BLOCK_SIZE_OUTER,THRESH_CONSTANT_OUTER)
+
+    dilated=cv2.dilate(thresholded,THRESHOLD_DILATION_ELEMENT_OUTER)
+
+    detected_edges=cv2.Canny(dilated,CANNY_THRESH_LOW_OUTER,CANNY_THRESH_UP_OUTER,apertureSize=CANNY_SIZE_OUTER,L2gradient=True) #Runs edge detector
+    dilated_edges=cv2.dilate(detected_edges,DILATION_ELEMENT_OUTER)
+    eroded_edges=cv2.erode(dilated_edges,DILATION_ELEMENT_INNER)
+    contours,hierarchy=cv2.findContours(eroded_edges,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
+    return contours
+
+    #CannyThresholds(eye_grey,window_name)
+
+
     #Perform histogram equalization (normalizes brightness and increases image contrast)
-    eye_grey=cv2.equalizeHist(eye_grey)
+    #eye_grey=cv2.equalizeHist(eye_grey)
     #cv2.imshow('Adjusted Brightness/Contrast',eye_grey)
     #cv2.waitKey(0)
     
-    eye_grey_corner=eye_grey.copy()
+    #eye_grey_corner=eye_grey.copy()
     ''' Maybe Do Refinement with corners later
     #---------------<Corner Detector to refine Contours>--------------
     eye_grey_corner=cv2.GaussianBlur(eye_grey_corner,(filter_size_forcorner_outer,filter_size_forcorner_outer), cv2.BORDER_DEFAULT) #FIlters image
@@ -337,27 +451,30 @@ def process_outercorner(cropped_corner):
     cv2.destroyWindow('Morph Edges')
     '''
     
-    eye_grey=cv2.GaussianBlur(eye_grey,(filter_size_outer,filter_size_outer), cv2.BORDER_DEFAULT) #FIlters image
+    # Uncomment this after trackbar
+    
+    #eye_grey=cv2.GaussianBlur(eye_grey,(filter_size_outer,filter_size_outer), cv2.BORDER_DEFAULT) #FIlters image
 
     #cv2.imshow('Gray Blurred Canny',eye_grey)
     #cv2.waitKey(0)
-    detected_edges=cv2.Canny(eye_grey,low_threshold_outer,upper_threshold_outer,apertureSize=canny_kernel_size_outer,L2gradient=True) #Runs edge detector
+    #detected_edges=cv2.Canny(eye_grey,low_threshold_outer,upper_threshold_outer,apertureSize=canny_kernel_size_outer,L2gradient=True) #Runs edge detector
 
     #Perform Morphological Closing before refining contours
-    dilated_edges=cv2.dilate(detected_edges,dilation_element_outer)
-    eroded_edges=cv2.erode(dilated_edges,erosion_element_outer)
+    #dilated_edges=cv2.dilate(detected_edges,dilation_element_outer)
+    #eroded_edges=cv2.erode(dilated_edges,erosion_element_outer)
     #cv2.imshow('Morph Edges',eroded_edges)
     #cv2.waitKey(0)
 
-    contours,hierarchy=cv2.findContours(eroded_edges,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
+    
 
     
     #refine_contours(corner_mask,contours)
     
-    contour_mask=cv2.drawContours(eye_grey,contours,-1,(0,255,0),1)
+    #contour_mask=cv2.drawContours(eye_grey,contours,-1,(0,255,0),1)
+    
     #cv2.imshow('Contours',contour_mask)
     #cv2.waitKey(0)
-    
+    #cv2.destroyAllWindows()
     
 
     #Morphological operations on edges
@@ -386,8 +503,7 @@ def process_outercorner(cropped_corner):
     cv2.destroyWindow('Edges')
     cv2.destroyWindow('Morph Edge')
     '''
-
-    return contours
+    
 
 
     
@@ -465,23 +581,20 @@ def process_eyecorner(pred_results=pred_res()):
             
             contours=process_innercorner(pred_results.cropped_eyecorner[i])
             pred_results.contours_eyecorner.append(contours)
-        else:
-            pred_results.contours_eyecorner.append([])
-        '''
         elif pred_results.ids[i]==1: #Outer corner
             #continue #-----------------------------<Added tHIS>
             #process_outercorner(pred_results.cropped_eyecorner[i])
             contours=process_outercorner(pred_results.cropped_eyecorner[i])
-            #contours=[]
             pred_results.contours_eyecorner.append(contours)
-        '''
+        else:
+            pred_results.contours_eyecorner.append([])
         
     return pred_results
 
 def process_contour(pred_results=pred_res()):
     for k in range(len(pred_results.ids)): #Loops for inner (0) and outer (1) eye corners
-        if pred_results.ids[k]==1: #Outer Corner
-            continue #-----------------------------<Added tHIS>
+   #     if pred_results.ids[k]==1: #Outer Corner
+     #       continue #-----------------------------<Added tHIS>
         contours=pred_results.contours_eyecorner[k]
         cont_len=len(contours)
         #contours_new=[[] for i in range(cont_len)]
@@ -586,9 +699,9 @@ def getCurvature(contour_points,step):
 
 def maxCurve(step,pred_results=pred_res()):
     for k in range(len(pred_results.ids)): #Loops for the inner/outer eye corners
-        if pred_results.ids[k]==1: #Outer Corner
-            pred_results.eyecorner_point.append([])
-            continue #-----------------------------<Added tHIS>
+        #if pred_results.ids[k]==1: #Outer Corner
+          #  pred_results.eyecorner_point.append([])
+            #continue #-----------------------------<Added tHIS>
         contours=list(pred_results.contours_eyecorner[k]) #List of list containing all the contours
         num_contours=len(contours)
         if num_contours>0: #Checks that we have contours
@@ -604,8 +717,11 @@ def maxCurve(step,pred_results=pred_res()):
                     if contour_mag[i][j]>max_curvature:
                         max_curvature=contour_mag[i][j]
                         max_point=contours[i][j]
-            
             pred_results.eyecorner_point.append(max_point[0]) #Adds the detected eye corner
+        else:
+            pred_results.eyecorner_point.append([])
+
+            
     return pred_results
 
 
@@ -699,8 +815,8 @@ while(video.isOpened()):    #Loops for each frame in the video
         pred_left,left_old_img_b,left_old_img_h,left_old_img_w=detect(left_restructured,model,device,left_old_img_b,left_old_img_h,left_old_img_w)
         pred_right,right_old_img_b,right_old_img_h,right_old_img_w=detect(right_restructured,model,device,right_old_img_b,right_old_img_h,right_old_img_w)
     #----------------------------------------------<Process Detections>--------------------------------------
-        left_results=process_detections(pred_left,left_cropped,dw_l,dh_l)
-        right_results=process_detections(pred_right,right_cropped,dw_r,dh_r)
+        left_results=process_detections(pred_left,left_cropped,dw_l,dh_l,'left')
+        right_results=process_detections(pred_right,right_cropped,dw_r,dh_r,'right')
         t1=time.time()
         process_time=t1-t0
 
@@ -725,6 +841,7 @@ while(video.isOpened()):    #Loops for each frame in the video
             left_results=maxCurve(step_size,left_results)
             right_results=maxCurve(step_size,right_results)
 
+            '''
 
             for i in range(len(left_results.eyecorner_point)):
                 if left_results.ids[i]==1:
@@ -735,6 +852,7 @@ while(video.isOpened()):    #Loops for each frame in the video
                 if right_results.ids[i]==1:
                     continue
                 right_corners.append(right_results.eyecorner_point[i])
+            '''
             t3=time.time()
             curve_time=t3-t2
 
@@ -757,34 +875,39 @@ while(video.isOpened()):    #Loops for each frame in the video
             left_results=process_eyecorner(left_results)
             left_results=process_contour(left_results)
             left_results=maxCurve(step_size,left_results)
+            '''
             for i in range(len(left_results.eyecorner_point)):
                 if left_results.ids[i]==1:
                     continue
                 left_corners.append(left_results.eyecorner_point[i])
+            '''
 
         elif len(right_results.ids): #Got results for the right eye
             right_results.original=right_cropped
             right_results=process_eyecorner(right_results)
             right_results=process_contour(right_results)
             right_results=maxCurve(step_size,right_results)
+            '''
             for i in range(len(right_results.eyecorner_point)):
                 if right_results.ids[i]==1:
                     continue
                 right_corners.append(right_results.eyecorner_point[i])
+            '''
 
         else: #No corner ROIs detected for this frame
             continue
 
         #Computing filtered eye corner and displaying results for left/right
+        '''
         t4=time.time()
         left_corner=mavFilter(left_corners)
         right_corner=mavFilter(right_corners)
         t5=time.time()
         filter_time=t5-t4
         time_list.append(process_time+curve_time+filter_time)
+        '''
 
-
-
+        '''
          #Displaying the left eye corner result
         if len(left_results.ids):
             for i in range(len(left_results.ids)):
@@ -804,7 +927,7 @@ while(video.isOpened()):    #Loops for each frame in the video
                 cv2.waitKey(16)
                 
 
-                 #Displaying the left eye corner result
+                 #Displaying the right eye corner result
         if len(right_results.ids):
             for i in range(len(right_results.ids)):
                 if right_results.ids[i]==1:
@@ -817,16 +940,18 @@ while(video.isOpened()):    #Loops for each frame in the video
                 superimposed=cv2.circle(right_cropped,right_corner_new,1,(0,0,255),3)
                 cv2.imshow('Right Eye Corner',superimposed)
                 cv2.waitKey(16)
-
+        '''
     else:
         print("Frame Not Read Correctly")
         break
     
+    '''
     if frame_num==200:
         print('Computation Time:')
         av_time=sum(time_list)/(len(time_list))
         print(av_time)
     frame_num=frame_num+1
+    '''
     
 
 
