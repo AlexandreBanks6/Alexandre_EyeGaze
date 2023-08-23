@@ -1,3 +1,12 @@
+'''
+Used to rename the data collection files based on a csv file with a list of the participants and the order of the data collections.
+venv: custom_model_venv
+
+
+'''
+
+
+
 import os
 import re
 from datetime import datetime

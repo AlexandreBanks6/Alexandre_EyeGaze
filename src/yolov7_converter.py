@@ -7,6 +7,7 @@ import math
 #Converts bounding boxes for the two eyes that are in yolo format, and 
 #Keypoints of the eye corners that are in a .json, into 6 bounding boxes
 #With the following id's:
+#Uses venv: custom_model_venv
 '''
 id:         label:
 

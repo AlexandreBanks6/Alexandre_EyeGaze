@@ -16,6 +16,7 @@ import time
 
 import os
 import numpy as np
+import re
 
 import torch
 import torch.backends.cudnn as cudnn
@@ -29,7 +30,7 @@ from utils.torch_utils import select_device
 
 #---------------<Initializing Variables>--------------------
 
-data_root="/media/alexandre/My Passport2/Alexandre_EyeGazeProject/eyecorner_userstudy_converted"
+data_root="C:/Users/playf/OneDrive/Documents/UBC/Thesis/Code/Main_Repo/data/eyecorner_userstudy_converted"
 YOLOV7_MODEL_PATH='resources/eyegaze_model_new_aug18.pt'
 PI=3.1415926535
 
@@ -948,7 +949,7 @@ def showCorners(corners,frame):
 
 
 #-----------------------------<Main>-------------------------------
-device=select_device('0') #Sets up the GPU Cuda device
+device=select_device('cpu') #Sets up the GPU Cuda device
 model=attempt_load(YOLOV7_MODEL_PATH,map_location=device)
 stride_size=int(model.stride.max())
 imgsz=check_img_size(INPUT_IMAGE_SIZE,s=stride_size) #Checks that stride requirements are met
@@ -970,26 +971,27 @@ for entry in os.scandir(data_root):
     if entry.is_dir():
         part_name=entry.name
         video_dir=data_root+'/'+part_name+'/EyeGaze_Data'
-
-        for file in os.listdir(video_dir): #Loops for all the eye videos in the directory
-            if file.endswith('.avi'):
-                root,ext=os.path.splitext(file)
-                video=cv2.VideoCapture(video_dir+'/'+file)
-                if(video.isOpened()==False):
-                    print("video "+file+" cannot be opened")
-                    continue
-                #Creates a csv file to store the eyecorners
-                csv_name=data_root+'/'+part_name+'/'+'eyecorners_'+root[9:]+'.csv'
-                print('Current File:',csv_name)
-                csv_eyecorner=open(csv_name,mode='w')
-                #Writing Header:
-                csv_eyecorner.write('Frame_No,Right_Inner_x,Right_Inner_y,Right_Outer_x,Right_Outer_y,Left_Outer_x,Left_Outer_y,Left_Inner_x,Left_Inner_y\n')
-                
-                #frame_count=0
-                while(video.isOpened):
-                    ret,frame=video.read()
-                    frame_no=video.get(cv2.CAP_PROP_POS_FRAMES)
-                    if ret==True: #We have a video frame to analyze
+        entry_num=re.sub("[P]","",part_name)
+        entry_num=int(entry_num)
+        if entry_num>3:
+            for file in os.listdir(video_dir): #Loops for all the eye videos in the directory
+                if file.endswith('.avi'):
+                    root,ext=os.path.splitext(file)
+                    video=cv2.VideoCapture(video_dir+'/'+file)
+                    if(video.isOpened()==False):
+                        print("video "+file+" cannot be opened")
+                        continue
+                    #Creates a csv file to store the eyecorners
+                    csv_name=data_root+'/'+part_name+'/'+'eyecorners_'+root[9:]+'.csv'
+                    print('Current File:',csv_name)
+                    csv_eyecorner=open(csv_name,mode='w')
+                    #Writing Header:
+                    csv_eyecorner.write('Frame_No,Right_Inner_x,Right_Inner_y,Right_Outer_x,Right_Outer_y,Left_Outer_x,Left_Outer_y,Left_Inner_x,Left_Inner_y\n')
+                    sucess,frame=video.read()
+                    #frame_count=0
+                    print('Current File is: ',csv_name)
+                    while(sucess):
+                        frame_no=video.get(cv2.CAP_PROP_POS_FRAMES)
                         #frame_count+=1
                         #print(frame_count)
                         frame_processed,dw,dh=preprocessFrame(frame)
@@ -1000,7 +1002,7 @@ for entry in os.scandir(data_root):
                         bounding_boxes,is_detect=process_detections(predictions,dw,dh)
                         if is_detect==False: #Checks that we have a detection
                             continue
-        
+
                         eye_images,eye_found=cropBothEyes(frame,bounding_boxes)
                         if eye_found==False: #No eyes are found
                             continue
@@ -1057,13 +1059,14 @@ for entry in os.scandir(data_root):
                                     results_list[8]=corner_point[1]
                                 else:
                                     continue
+                        print('Frame_no: ',results_list[0])
                         #print(results_list)
                         csv_eyecorner.write('{},{},{},{},{},{},{},{},{}\n'.format(results_list[0],results_list[1],results_list[2],results_list[3],results_list[4],results_list[5],results_list[6],results_list[7],results_list[8]))
-                                    
+                        sucess,frame=video.read()
+                                
                             
-                        
-                        
-                csv_eyecorner.close()
+                            
+                    csv_eyecorner.close()
                 
                 
                 
