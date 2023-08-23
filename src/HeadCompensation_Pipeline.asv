@@ -1,0 +1,29 @@
+clear
+clc
+close all
+
+%Setting Parameters
+data_root='E:/Alexandre_EyeGazeProject/eyecorner_userstudy_converted';
+extensions={'Calib_Init','Eval_Init','Calib_Right','Calib_Left','Calib_Up',...
+    'Calib_Down','Eval_Straight','Eval_Right','Eval_Left','Eval_Up','Eval_Down'};
+
+
+
+%Getting list of subfolders
+folder_list=dir(data_root);
+dirnames={folder_list([folder_list.isdir]).name};
+num_dir=length(dirnames);
+
+for m=[1:num_dir]
+    if dirnames{m}(1)=='P'
+        for j=[1:length(extensions)]
+            if (strcmp(dirnames{m},'P12')) && (strcmp(extensions{j},'Eval_Right')||strcmp(extensions{j},'Eval_Left')||strcmp(extensions{j},'Eval_Down'))
+                continue
+            end
+
+        end
+
+    end
+
+
+end
