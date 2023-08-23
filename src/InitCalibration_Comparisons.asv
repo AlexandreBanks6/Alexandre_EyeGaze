@@ -51,26 +51,7 @@ end
 
 
 %% Evaluating Results
-
-
-%Descriptive Stats
-%mean and standard deviation of classic results, with col1=right,
-%col2=left, col3=combined
-
-
-avg_classic=mean(accuracy_classic_subjects(:,[2:end]),1,"omitnan");
-avg_robust=mean(accuracy_robust_subjects(:,[2:end]),1,"omitnan");
-
-std_classic=std(accuracy_classic_subjects(:,[2:end]),1,"omitnan");
-std_robust=std(accuracy_robust_subjects(:,[2:end]),1,"omitnan");
-
-
-
-
-
-
-
-
+%M
 
 
 
@@ -608,16 +589,6 @@ function [mean_accuracy,total_right,total_left,total_combined]=evalModel(model_c
         total_left=NaN;
         total_combined=NaN;
     end
-    if isempty(total_right)
-        total_right=NaN;
-    end
-    if isempty(total_left)
-        total_left=NaN;
-    end
-    if isempty(total_combined)
-        total_combined=NaN;
-    end
-
     mean_accuracy=[mean(total_right(:,1)),mean(total_left(:,1)),mean(total_combined(:,1))];
 
 
