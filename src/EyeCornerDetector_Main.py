@@ -64,7 +64,7 @@ erosion_element_inner=cv2.getStructuringElement(cv2.MORPH_RECT,(erosion_size_inn
 dilation_element_inner=cv2.getStructuringElement(cv2.MORPH_RECT,(dilation_size_inner,dilation_size_inner))
 
 #Curvature Calculation Parameters
-#step_size_inner=18 
+STEP_SIZE_INNER=18 
 
 #--------Outer Eye Corner Params
 #Thresholding Params
@@ -82,6 +82,7 @@ dilation_size_outer=4
 erosion_size_outer=4
 DILATION_ELEMENT_OUTER=cv2.getStructuringElement(cv2.MORPH_RECT,(erosion_size_outer,erosion_size_outer))
 DILATION_ELEMENT_INNER=cv2.getStructuringElement(cv2.MORPH_RECT,(dilation_size_outer,dilation_size_outer))
+STEP_SIZE_OUTER=3
 
 #Pre-process For Corner Detector Param
 #filter_size_forcorner_outer=19
@@ -92,10 +93,6 @@ DILATION_ELEMENT_INNER=cv2.getStructuringElement(cv2.MORPH_RECT,(dilation_size_o
 #harris_param_outer=0.09
 
 #Curvature Calculation Parameters
-step_size=18
-
-
-
 mav_length=10 #Length of the moving average filter for the eye corners
 
 
@@ -268,7 +265,16 @@ def process_innercorner(cropped_corner):
         #cv2.waitKey(0)
         #Clustering contour points
         contours,hierarchy=cv2.findContours(eroded_edges,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
-        
+        cnt=sorted(contours,key=cv2.contourArea)[-1] #Gets contour with the largest area
+        #Fits the contour with a polynomial curve (not closed)
+        arclen=cv2.arcLength(cnt,True)
+        eps = 0.005
+        epsilon = arclen * eps
+        approx = cv2.approxPolyDP(cnt, epsilon, False)
+
+        canvas = eye_grey.copy()
+        #for pt in approx:
+        #    cv2.circle(canvas, (pt[0][0], pt[0][1]), 1, (0,255,0),thickness=1)
 
 
         #cv2.imshow('Edges',detected_edges)
@@ -277,7 +283,7 @@ def process_innercorner(cropped_corner):
         #cv2.imshow('Morph Edges',eroded_edges)
         #cv2.waitKey(0)
         #cv2.destroyAllWindows()
-        return contours
+        return approx
 
 
 
@@ -380,11 +386,23 @@ def process_innercorner(cropped_corner):
     '''
 
 
+def imshow_components(labels):
+    # Map component labels to hue val
+    label_hue = np.uint8(179*labels/np.max(labels))
+    blank_ch = 255*np.ones_like(label_hue)
+    labeled_img = cv2.merge([label_hue, blank_ch, blank_ch])
+
+    # cvt to BGR for display
+    labeled_img = cv2.cvtColor(labeled_img, cv2.COLOR_HSV2BGR)
+
+    # set bg label to black
+    labeled_img[label_hue==0] = 0
+
+    cv2.imshow('labeled.png', labeled_img)
+    cv2.waitKey(0)
+
 def process_outercorner(cropped_corner):
 
-    cv2.imshow('Original',cropped_corner)
-    cv2.waitKey(0)
-    
     eye_grey=cv2.cvtColor(cropped_corner,cv2.COLOR_BGR2GRAY) #Converts to grayscale (already grayscale but for check)
 
     eye_grey=cv2.GaussianBlur(eye_grey,(FILTER_SIZE_OUTER,FILTER_SIZE_OUTER), cv2.BORDER_DEFAULT)
@@ -396,8 +414,34 @@ def process_outercorner(cropped_corner):
     detected_edges=cv2.Canny(dilated,CANNY_THRESH_LOW_OUTER,CANNY_THRESH_UP_OUTER,apertureSize=CANNY_SIZE_OUTER,L2gradient=True) #Runs edge detector
     dilated_edges=cv2.dilate(detected_edges,DILATION_ELEMENT_OUTER)
     eroded_edges=cv2.erode(dilated_edges,DILATION_ELEMENT_INNER)
-    contours,hierarchy=cv2.findContours(eroded_edges,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
-    return contours
+    cv2.imshow('Dilated Edges',dilated_edges)
+    cv2.imshow('Eroded Edges',eroded_edges)
+    cv2.waitKey(0)
+    #num_labels,labels_im=cv2.connectedComponents(eroded_edges)
+    #imshow_components(labels_im)
+
+    #Extracts the contours
+    contours,hierarchy=cv2.findContours(eroded_edges,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)  
+    cnt=sorted(contours,key=len)[-1] #Gets contour with the largest area
+    #Fits the contour with a polynomial curve (not closed)
+    arclen=cv2.arcLength(cnt,True)
+    eps = 0.005
+    epsilon = arclen * eps
+    approx = cv2.approxPolyDP(cnt, epsilon, False)
+
+    canvas = eye_grey.copy()
+    for pt in approx:
+        cv2.circle(canvas, (pt[0][0], pt[0][1]), 1, (0,255,0),thickness=1)
+
+    cv2.drawContours(canvas, [approx], -1, (0,0,255), thickness=1)
+    cv2.imshow('Contours',canvas)
+    cv2.waitKey(0)
+
+
+    #contour_mask=cv2.drawContours(eye_grey,contours,-1,(0,255,0),1)
+    #cv2.imshow('Contours',contour_mask)
+    #cv2.waitKey(0)
+    return approx
 
     #CannyThresholds(eye_grey,window_name)
 
@@ -593,19 +637,28 @@ def process_eyecorner(pred_results=pred_res()):
 
 def process_contour(pred_results=pred_res()):
     for k in range(len(pred_results.ids)): #Loops for inner (0) and outer (1) eye corners
-   #     if pred_results.ids[k]==1: #Outer Corner
-     #       continue #-----------------------------<Added tHIS>
         contours=pred_results.contours_eyecorner[k]
         cont_len=len(contours)
-        #contours_new=[[] for i in range(cont_len)]
+        cont_trim=[]
+        if cont_len>1:
+            #Get rid of small contours
+            avg_len=0 #Average length of all contours
+            for i in range(cont_len):
+                avg_len=avg_len+len(contours[i])
+            avg_len=int(avg_len/cont_len)
+            for i in range(cont_len):
+                if len(contours[i])>=avg_len: #Keep contour
+                    cont_trim.append(list(contours[i]))
+        else:
+            cont_trim=contours
         contours_new=[]
-
+        cont_len=len(cont_trim)
         for i in range(cont_len): #Loops for the number of contours
             #for j in range(math.floor(len(contours[i])/2)):
-            middle_list=math.floor(len(contours[i])/2)
+            middle_list=math.floor(len(cont_trim[i])/2)
             if middle_list<1:
                 continue
-            contours_new.append(list(contours[i][:middle_list]))
+            contours_new.append(list(cont_trim[i][:middle_list]))
         pred_results.contours_eyecorner[k]=contours_new
     
     return pred_results
@@ -617,7 +670,7 @@ def getCurvature(contour_points,step):
     num_contour_points=len(contour_points)
     vec_curvature=[0]*num_contour_points
 
-    #Checks that the number of contour points is less than the step size
+    #Checks that the number of contour points is greater than the step size
     if(num_contour_points<step):
         return vec_curvature
     
@@ -633,14 +686,13 @@ def getCurvature(contour_points,step):
     f2ndDerivative=[0,0]
 
     for i in range(num_contour_points): #Loops for the number of contour points
-        fpos=contour_points[i]
-        pos=fpos[0][0]
+        fpos=list(contour_points[i])
 
         if isClosed: #Closed Curve
             iminus=i-step
             iplus=i+step
-            fminus=contour_points[iminus+num_contour_points if (iminus<0) else iminus]
-            fplus=contour_points[iplus-num_contour_points if (iplus>=num_contour_points) else iplus]
+            fminus=list(contour_points[iminus+num_contour_points if (iminus<0) else iminus])
+            fplus=list(contour_points[iplus-num_contour_points if (iplus>=num_contour_points) else iplus])
 
             #Derivative Approximations
             f1stDerivative[0]=(fplus[0][0]-fminus[0][0])/(2*step) #0=x direction
@@ -651,8 +703,8 @@ def getCurvature(contour_points,step):
             if ((i-step)<0) and ((i+2*step)<num_contour_points): #We are at start of curve
                 iplus=i+step
                 i2plus=i+2*step
-                fplus=contour_points[iplus]
-                f2plus=contour_points[i2plus]
+                fplus=list(contour_points[iplus])
+                f2plus=list(contour_points[i2plus])
                 
                 
                 #One Sided Derivative Approximations (forward)
@@ -665,8 +717,8 @@ def getCurvature(contour_points,step):
             elif ((i+step)>=num_contour_points) and ((i-2*step)>=0): #End of curve
                 iminus=i-step
                 i2minus=i-2*step
-                fminus=contour_points[iminus]
-                f2minus=contour_points[i2minus]
+                fminus=list(contour_points[iminus])
+                f2minus=list(contour_points[i2minus])
 
                 #One Sided Derivative Approximations (backward)
                 f1stDerivative[0]=(3*fpos[0][0]-4*fminus[0][0]+f2minus[0][0])/(2*step)
@@ -677,8 +729,8 @@ def getCurvature(contour_points,step):
             elif ((i+step)<num_contour_points) and ((i-step)>=0):  #Middle of curve
                 iminus=i-step
                 iplus=i+step
-                fminus=contour_points[iminus+num_contour_points if (iminus<0) else iminus]
-                fplus=contour_points[iplus-num_contour_points if (iplus>=num_contour_points) else iplus]
+                fminus=list(contour_points[iminus+num_contour_points if (iminus<0) else iminus])
+                fplus=list(contour_points[iplus-num_contour_points if (iplus>=num_contour_points) else iplus])
 
                 #Derivative Approximations
                 f1stDerivative[0]=(fplus[0][0]-fminus[0][0])/(2*step) #0=x direction
@@ -691,19 +743,21 @@ def getCurvature(contour_points,step):
         #Calculating Curvature
         divisor=f1stDerivative[0]**2+f1stDerivative[1]**2
         if abs(divisor)>10e-10:
-            curvature2D=abs(f2ndDerivative[1]*f1stDerivative[0]-f2ndDerivative[0]*f1stDerivative[1])/(divisor**(3/2))
+            curvature2D=abs(f2ndDerivative[1]*f1stDerivative[0]-f2ndDerivative[0]*f1stDerivative[1])/(math.sqrt(divisor)**3)
         else:
             curvature2D=float('inf')
         vec_curvature[i]=curvature2D
     return vec_curvature
 
-def maxCurve(step,pred_results=pred_res()):
+def maxCurve(pred_results=pred_res()):
     for k in range(len(pred_results.ids)): #Loops for the inner/outer eye corners
-        #if pred_results.ids[k]==1: #Outer Corner
-          #  pred_results.eyecorner_point.append([])
-            #continue #-----------------------------<Added tHIS>
         contours=list(pred_results.contours_eyecorner[k]) #List of list containing all the contours
         num_contours=len(contours)
+        if pred_results.ids[k]==1: #Outer Corner
+            step=STEP_SIZE_OUTER
+        else:
+            step=STEP_SIZE_INNER
+
         if num_contours>0: #Checks that we have contours
             max_curvature=0 #Init max curvature value
             #contour_mag=[[] for i in range(num_contours)]
@@ -834,12 +888,26 @@ while(video.isOpened()):    #Loops for each frame in the video
             left_results=process_eyecorner(left_results)
             right_results=process_eyecorner(right_results)
             #Processes the extracted contour points
-            left_results=process_contour(left_results)
-            right_results=process_contour(right_results)
-
+            #left_results=process_contour(left_results)
+            #right_results=process_contour(right_results)
             #Extract the eye corner
-            left_results=maxCurve(step_size,left_results)
-            right_results=maxCurve(step_size,right_results)
+            left_results=maxCurve(left_results)
+            right_results=maxCurve(right_results)
+            
+            #Displaying Results
+            for i in range(len(left_results.eyecorner_point)):
+                if left_results.ids[i]==1: #Outer
+                    eye_img=left_results.cropped_eyecorner[i]
+                    superimposed=cv2.circle(eye_img,left_results.eyecorner_point[i],1,(0,0,255),3)
+                    cv2.imshow('Left Eye',superimposed)
+                    cv2.waitKey(0)
+            for i in range(len(right_results.eyecorner_point)):
+                if right_results.ids[i]==1: #Outer
+                    eye_img=right_results.cropped_eyecorner[i]
+                    superimposed=cv2.circle(eye_img,right_results.eyecorner_point[i],1,(0,0,255),3)
+                    cv2.imshow('Right Eye',superimposed)
+                    cv2.waitKey(0)
+
 
             '''
 
@@ -874,7 +942,7 @@ while(video.isOpened()):    #Loops for each frame in the video
             left_results.original=left_cropped
             left_results=process_eyecorner(left_results)
             left_results=process_contour(left_results)
-            left_results=maxCurve(step_size,left_results)
+            left_results=maxCurve(left_results)
             '''
             for i in range(len(left_results.eyecorner_point)):
                 if left_results.ids[i]==1:
@@ -886,7 +954,7 @@ while(video.isOpened()):    #Loops for each frame in the video
             right_results.original=right_cropped
             right_results=process_eyecorner(right_results)
             right_results=process_contour(right_results)
-            right_results=maxCurve(step_size,right_results)
+            right_results=maxCurve(right_results)
             '''
             for i in range(len(right_results.eyecorner_point)):
                 if right_results.ids[i]==1:
