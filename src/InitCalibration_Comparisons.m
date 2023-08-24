@@ -1,6 +1,6 @@
-clear
-clc
-close all
+%clear
+%clc
+%close all
 
 %Note: We define the PG vector as Glint-Pupil
 
@@ -17,7 +17,7 @@ num_dir=length(dirnames);
 %participant number, mean accuracy right, mean accuracy left, combined
 %accuracy
 
-%% Getting Accuracy
+%%Getting Accuracy
 accuracy_robust_subjects=[];
 accuracy_classic_subjects=[];
 
@@ -50,13 +50,13 @@ for m=[1:num_dir]
 end
 
 
-%% Evaluating Results
+%%Evaluating Results
 
 
-%Descriptive Stats
+%-------------Descriptive Stats
 %mean and standard deviation of classic results, with col1=right,
 %col2=left, col3=combined
-
+sig_level=0.05/3;
 
 avg_classic=mean(accuracy_classic_subjects(:,[2:end]),1,"omitnan");
 avg_robust=mean(accuracy_robust_subjects(:,[2:end]),1,"omitnan");
@@ -64,8 +64,36 @@ avg_robust=mean(accuracy_robust_subjects(:,[2:end]),1,"omitnan");
 std_classic=std(accuracy_classic_subjects(:,[2:end]),1,"omitnan");
 std_robust=std(accuracy_robust_subjects(:,[2:end]),1,"omitnan");
 
+%-----------Paired t-Test for right,left, and combined
+classic_right=accuracy_classic_subjects(:,2);
+classic_right=classic_right(~isnan(classic_right));
+
+robust_right=accuracy_robust_subjects(:,2);
+robust_right=robust_right(~isnan(robust_right));
+
+[h_right,p_right,ci_right,stats_right]=ttest(classic_right,robust_right,'Alpha',sig_level);
 
 
+classic_left=accuracy_classic_subjects(:,3);
+classic_left=classic_left(~isnan(classic_left));
+
+robust_left=accuracy_robust_subjects(:,3);
+robust_left=robust_left(~isnan(robust_left));
+
+[h_left,p_left,ci_left,stats_left]=ttest(classic_left,robust_left,'Alpha',sig_level);
+
+
+classic_combined=accuracy_classic_subjects(:,4);
+classic_combined=classic_combined(~isnan(classic_combined));
+
+robust_combined=accuracy_robust_subjects(:,4);
+robust_combined=robust_combined(~isnan(robust_combined));
+
+[h_combined,p_combined,ci_combined,stats_combined]=ttest(classic_combined,robust_combined,'Alpha',sig_level);
+
+
+
+disp([p_right,p_left,p_combined]);
 
 
 
@@ -86,16 +114,17 @@ function valid=checkDetection(calib_data,thresh)
     switched=false;
     valid=false;
     for i=[1:row_n] %Loops for the number of rows
-        if ((calib_data(i,8)==1)||(calib_data(i,20)==1)) && (~switched)
-            switched=true;
-            pupil_detect_count=pupil_detect_count+1;
-        end
         if (calib_data(i,27)~=calib_pastx)||(calib_data(i,28)~=calib_pasty)
             switched=false;
             calib_pastx=calib_data(i,27);
             calib_pasty=calib_data(i,28);
 
         end
+        if ((calib_data(i,8)==1)||(calib_data(i,20)==1)) && (~switched)
+            switched=true;
+            pupil_detect_count=pupil_detect_count+1;
+        end
+
 
     end
     if pupil_detect_count>=thresh
@@ -160,6 +189,13 @@ function train_matrix=getIndividualRegressionData(data_matrix,pg_type,thresh)
     switched=false;
     train_matrix=[];
     for i=[1:row_n]
+        if (data_matrix(i,27)~=calib_pastx)||(data_matrix(i,28)~=calib_pasty)
+            switched=false;
+            calib_pastx=data_matrix(i,27);
+            calib_pasty=data_matrix(i,28);
+
+        end
+
         if (~anynan(data_raw(i,[1:4]))) && (~switched) %We have a new target point and a valid glint detection
             switched=true;
             train_matrix=[train_matrix;[data_raw(i,2)-data_raw(i,1),data_raw(i,4)-data_raw(i,3),data_raw(i,5),data_raw(i,6)]];
@@ -167,12 +203,7 @@ function train_matrix=getIndividualRegressionData(data_matrix,pg_type,thresh)
         elseif ~anynan(data_raw(i,[1:4]))
             train_matrix=[train_matrix;[data_raw(i,2)-data_raw(i,1),data_raw(i,4)-data_raw(i,3),data_raw(i,5),data_raw(i,6)]];
         end
-        if (data_matrix(i,27)~=calib_pastx)||(data_matrix(i,28)~=calib_pasty)
-            switched=false;
-            calib_pastx=data_matrix(i,27);
-            calib_pasty=data_matrix(i,28);
 
-        end
 
     end
     if pupil_detect_count<thresh
@@ -190,6 +221,8 @@ function [rmse_x,rmse_y,b_x,b_y]=customRegressor(train_data)
     %The model parameters are such that
     %b(1)+b(2)*pg_x^2+b(3)*pg_x*pg_y+b(4)*pg_y^2+b(5)*pg_x+b(6)*pg_y
     %The tuning constant is set to 4.685 for bisquare
+    REGRESS_TUNE=1;
+    REGRESS_FUNC='bisquare';
     pg_x=train_data(:,1);
     pg_y=train_data(:,2);
 
@@ -199,10 +232,10 @@ function [rmse_x,rmse_y,b_x,b_y]=customRegressor(train_data)
     predictors=[pg_x.^2,pg_x.*pg_y,pg_y.^2,pg_x,pg_y];
 
         %Fitting POGx
-    [b_x,stats_x]=robustfit(predictors,t_x,'bisquare');
+    [b_x,stats_x]=robustfit(predictors,t_x,REGRESS_FUNC,REGRESS_TUNE);
 
     %Fitting POGy
-    [b_y,stats_y]=robustfit(predictors,t_y,'bisquare');
+    [b_y,stats_y]=robustfit(predictors,t_y,REGRESS_FUNC,REGRESS_TUNE);
     
     residual_x=stats_x.resid;
     residual_y=stats_y.resid;
@@ -255,7 +288,7 @@ function [rmse_x,rmse_y,b_x,b_y]=customRegressor(train_data)
 
     
     %Checking results
-    %{
+    
     test_results=[b_x(1)+b_x(2).*pg_x.^2+b_x(3).*pg_x.*pg_y+b_x(4).*pg_y.^2+b_x(5).*pg_x+b_x(6).*pg_y,...
         b_y(1)+b_y(2).*pg_x.^2+b_y(3).*pg_x.*pg_y+b_y(4).*pg_y.^2+b_y(5).*pg_x+b_y(6).*pg_y];
     figure;
@@ -263,11 +296,11 @@ function [rmse_x,rmse_y,b_x,b_y]=customRegressor(train_data)
     hold on
     plot(test_results(:,1),test_results(:,2),'rx');
     hold off;
-    title(fittypes{m});
+    title('Robust Regressor');
     xlabel('screen x');
     ylabel('screen y');
     legend('Data','Fit');
-    %}
+    
 
     %end
 
@@ -291,7 +324,7 @@ function robust_regressor_output=robustRegressor(train_cell)
     if num_pg_detect==0
         robust_regressor_output=nan;
     else %We have detections and proceed
-        robust_regressor_output=cell(num_pg_detect*2,3); %Final six columns are the model parameters
+        robust_regressor_output=cell(num_pg_detect*2,3); %Final entry are the model parameters
         for i=[1:num_pg_detect] %Looping for the detections
             train_data=train_cell{i}{2};
             [rmse_x,rmse_y,b_x,b_y]=customRegressor(train_data);
@@ -324,16 +357,10 @@ function [b_x,b_y]=customLeastSquares(train_data)
 
     t_x=train_data(:,3);
     t_y=train_data(:,4);
-    
-    predictors=[pg_x.^2,pg_x.*pg_y,pg_y.^2,pg_x,pg_y,ones(length(pg_x),1)];
+    predictors=[ones(length(pg_x),1),pg_x.^2,pg_x.*pg_y,pg_y.^2,pg_x,pg_y];
 
     b_x=predictors\t_x;
     b_y=predictors\t_y;
-    b_x=[b_x(end);b_x];
-    b_x(end)=[];
-
-    b_y=[b_y(end);b_y];
-    b_y(end)=[];
     
     %{
     figure;
@@ -344,6 +371,7 @@ function [b_x,b_y]=customLeastSquares(train_data)
     title('Data and Fit on x-values');
     legend('Data','Fit');
     %}
+    
     %{
     test_results=[b_x(1)+b_x(2).*pg_x.^2+b_x(3).*pg_x.*pg_y+b_x(4).*pg_y.^2+b_x(5).*pg_x+b_x(6).*pg_y,...
         b_y(1)+b_y(2).*pg_x.^2+b_y(3).*pg_x.*pg_y+b_y(4).*pg_y.^2+b_y(5).*pg_x+b_y(6).*pg_y];

@@ -1,9 +1,11 @@
-clear
-clc
-close all
+%clear
+%clc
+%close all
 
 %Note: We define the PG vector as Glint-Pupil
 
+REGRESS_FUNC='huber';
+REGRESS_TUNE=1.345;
 
 data_root='../../data/eyecorner_userstudy_converted';
 %Getting list of subfolders
@@ -17,7 +19,7 @@ num_dir=length(dirnames);
 %participant number, mean accuracy right, mean accuracy left, combined
 %accuracy
 
-%% Getting Accuracy
+%%Getting Accuracy
 accuracy_robust_subjects=[];
 accuracy_classic_subjects=[];
 
@@ -50,8 +52,55 @@ for m=[1:num_dir]
 end
 
 
-%% Evaluating Results
-%M
+%%Evaluating Results
+
+
+%-------------Descriptive Stats
+%mean and standard deviation of classic results, with col1=right,
+%col2=left, col3=combined
+sig_level=0.05/3;
+
+avg_classic=mean(accuracy_classic_subjects(:,[2:end]),1,"omitnan");
+avg_robust=mean(accuracy_robust_subjects(:,[2:end]),1,"omitnan");
+
+std_classic=std(accuracy_classic_subjects(:,[2:end]),1,"omitnan");
+std_robust=std(accuracy_robust_subjects(:,[2:end]),1,"omitnan");
+
+%-----------Paired t-Test for right,left, and combined
+classic_right=accuracy_classic_subjects(:,2);
+classic_right=classic_right(~isnan(classic_right));
+
+robust_right=accuracy_robust_subjects(:,2);
+robust_right=robust_right(~isnan(robust_right));
+
+[h_right,p_right,ci_right,stats_right]=ttest(classic_right,robust_right,'Alpha',sig_level);
+
+
+classic_left=accuracy_classic_subjects(:,3);
+classic_left=classic_left(~isnan(classic_left));
+
+robust_left=accuracy_robust_subjects(:,3);
+robust_left=robust_left(~isnan(robust_left));
+
+[h_left,p_left,ci_left,stats_left]=ttest(classic_left,robust_left,'Alpha',sig_level);
+
+
+classic_combined=accuracy_classic_subjects(:,4);
+classic_combined=classic_combined(~isnan(classic_combined));
+
+robust_combined=accuracy_robust_subjects(:,4);
+robust_combined=robust_combined(~isnan(robust_combined));
+
+[h_combined,p_combined,ci_combined,stats_combined]=ttest(classic_combined,robust_combined,'Alpha',sig_level);
+
+
+
+disp([p_right,p_left,p_combined]);
+
+
+
+
+
 
 
 
@@ -171,6 +220,8 @@ function [rmse_x,rmse_y,b_x,b_y]=customRegressor(train_data)
     %The model parameters are such that
     %b(1)+b(2)*pg_x^2+b(3)*pg_x*pg_y+b(4)*pg_y^2+b(5)*pg_x+b(6)*pg_y
     %The tuning constant is set to 4.685 for bisquare
+    REGRESS_TUNE=6;
+    REGRESS_FUNC='bisquare';
     pg_x=train_data(:,1);
     pg_y=train_data(:,2);
 
@@ -180,10 +231,10 @@ function [rmse_x,rmse_y,b_x,b_y]=customRegressor(train_data)
     predictors=[pg_x.^2,pg_x.*pg_y,pg_y.^2,pg_x,pg_y];
 
         %Fitting POGx
-    [b_x,stats_x]=robustfit(predictors,t_x,'bisquare');
+    [b_x,stats_x]=robustfit(predictors,t_x,REGRESS_FUNC,REGRESS_TUNE);
 
     %Fitting POGy
-    [b_y,stats_y]=robustfit(predictors,t_y,'bisquare');
+    [b_y,stats_y]=robustfit(predictors,t_y,REGRESS_FUNC,REGRESS_TUNE);
     
     residual_x=stats_x.resid;
     residual_y=stats_y.resid;
@@ -272,7 +323,7 @@ function robust_regressor_output=robustRegressor(train_cell)
     if num_pg_detect==0
         robust_regressor_output=nan;
     else %We have detections and proceed
-        robust_regressor_output=cell(num_pg_detect*2,3); %Final six columns are the model parameters
+        robust_regressor_output=cell(num_pg_detect*2,3); %Final entry are the model parameters
         for i=[1:num_pg_detect] %Looping for the detections
             train_data=train_cell{i}{2};
             [rmse_x,rmse_y,b_x,b_y]=customRegressor(train_data);
@@ -589,6 +640,16 @@ function [mean_accuracy,total_right,total_left,total_combined]=evalModel(model_c
         total_left=NaN;
         total_combined=NaN;
     end
+    if isempty(total_right)
+        total_right=NaN;
+    end
+    if isempty(total_left)
+        total_left=NaN;
+    end
+    if isempty(total_combined)
+        total_combined=NaN;
+    end
+
     mean_accuracy=[mean(total_right(:,1)),mean(total_left(:,1)),mean(total_combined(:,1))];
 
 
