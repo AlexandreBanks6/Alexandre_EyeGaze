@@ -36,8 +36,8 @@ for m=[1:num_dir]
         if (check_calib==true) && (check_eval==true)
             %Setting up to three PG vector predictor variables with corresponding
             %targets
-            pg_cell=getRegressionData(calib_init_data,CALIB_THRESHOLD);
-            
+            [train_cell,dist_cell]=getRegressionData(calib_init_data,CALIB_THRESHOLD);
+
             model_robust=robustRegressor(train_cell); %Robust Regressor model params
             model_least_square=leastSquaresRegressor(train_cell);
 
@@ -150,23 +150,91 @@ function valid=checkDetection(calib_data,thresh)
     end
 
 end
+function [dist]=findPgDistance(distance_type,train_cell)
+    dist_header={'d_01_right','d_02_right','d_12_right','d_01_left','d_02_left','d_12_left'};
+    switch distance_type
+        case dist_header{1}
+            search_pgs={'pg0_right','pg1_right'};
+        case dist_header{2}
+            search_pgs={'pg0_right','pg2_right'};
+        case dist_header{3}
+            search_pgs={'pg1_right','pg2_right'};
+        case dist_header{4}
+            search_pgs={'pg0_left','pg1_left'};
+        case dist_header{5}
+            search_pgs={'pg0_left','pg2_left'};
+        case dist_header{6}
+            search_pgs={'pg1_left','pg2_left'};
+    end
 
+    ind_2=NaN;
+    ind_1=NaN;
 
-function trainCell=getRegressionData(data_matrix,thresh)
-pg_types={'pg0_left','pg1_left','pg2_left','pg0_right','pg1_right','pg2_right'};
-trainCell={};
-for i=[1:length(pg_types)]
-    trainMatrix=getIndividualRegressionData(data_matrix,pg_types{i},thresh);
-    %if anynan(trainMatrix)
-     %   continue
+    for i=[1:length(train_cell)]
+        if strcmp(train_cell{i}(1),search_pgs(1))
+            ind_1=i;
+        end
+        if strcmp(train_cell{i}(1),search_pgs(2))
+            ind_2=i;
+        end
 
-    %else
-        trainCell{end+1}={pg_types{i},trainMatrix};
-    %end
-       
+    end
+
+    if isnan(ind_1)||isnan(ind_2)
+        dist=NaN;
+
+    else
+        dist=mean(sqrt((train_cell{ind_2}{2}(:,1)-train_cell{ind_1}{2}(:,1)).^2+(train_cell{ind_2}{2}(:,2)-train_cell{ind_1}{2}(:,2)).^2),"omitnan");
+    end
+    
+
 
 
 end
+
+function [trainCell,dist_cell]=getRegressionData(data_matrix,thresh)
+%Returns trainCell which has a cell for each of the training types, as well
+%as dist_cell which has up to six cells for the distance between each of
+%the pg vectors for the left and right eyes such that:
+%d_01_right,d_02_right,d_12_right,d_01_left,d_02_left,d_12_left
+
+pg_types={'pg0_left','pg1_left','pg2_left','pg0_right','pg1_right','pg2_right'};
+trainCell={};
+    for i=[1:length(pg_types)]
+        trainMatrix=getIndividualRegressionData(data_matrix,pg_types{i},thresh);
+        if all(isnan(trainMatrix))
+            continue
+    
+        else
+            trainCell{end+1}={pg_types{i},trainMatrix};
+        end
+           
+    
+    
+    end
+    
+    %Finding inter-glint distance
+    dist_header={'d_01_right','d_02_right','d_12_right','d_01_left','d_02_left','d_12_left'};
+    cell_count=1;
+    for i=[1:length(dist_header)]
+        [dist]=findPgDistance(dist_header{i},trainCell);
+        if all(isnan(dist))
+            continue    
+        else
+            dist_cell{cell_count,1}=dist_header{i};
+            dist_cell{cell_count,2}=dist;
+            cell_count=cell_count+1;
+
+        end
+
+    end
+    for i=[1:length(train_cell)]
+        old_train_cell=train_cell{i}(2);
+        train_cell{i}(2)=old_train_cell()
+
+
+    end
+
 
 
 end
@@ -233,7 +301,6 @@ function train_matrix=getIndividualRegressionData(data_matrix,pg_type,thresh)
 
 
 end
-
 
 function [rmse_x,rmse_y,b_x,b_y]=customRegressor(train_data)
     %Training data is a nx4 vector where col1=pg_x, col2=pg_y, col3=target_x, col4=target_y
