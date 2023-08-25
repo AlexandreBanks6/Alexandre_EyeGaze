@@ -1,6 +1,6 @@
-%clear
-%clc
-%close all
+clear
+clc
+close all
 
 %Note: We define the PG vector as Glint-Pupil
 
@@ -36,7 +36,8 @@ for m=[1:num_dir]
         if (check_calib==true) && (check_eval==true)
             %Setting up to three PG vector predictor variables with corresponding
             %targets
-            train_cell=getRegressionData(calib_init_data,CALIB_THRESHOLD);
+            pg_cell=getRegressionData(calib_init_data,CALIB_THRESHOLD);
+            
             model_robust=robustRegressor(train_cell); %Robust Regressor model params
             model_least_square=leastSquaresRegressor(train_cell);
 
@@ -156,12 +157,12 @@ pg_types={'pg0_left','pg1_left','pg2_left','pg0_right','pg1_right','pg2_right'};
 trainCell={};
 for i=[1:length(pg_types)]
     trainMatrix=getIndividualRegressionData(data_matrix,pg_types{i},thresh);
-    if anynan(trainMatrix)
-        continue
+    %if anynan(trainMatrix)
+     %   continue
 
-    else
+    %else
         trainCell{end+1}={pg_types{i},trainMatrix};
-    end
+    %end
        
 
 
@@ -219,6 +220,8 @@ function train_matrix=getIndividualRegressionData(data_matrix,pg_type,thresh)
             pupil_detect_count=pupil_detect_count+1;
         elseif ~anynan(data_raw(i,[1:4]))
             train_matrix=[train_matrix;[data_raw(i,2)-data_raw(i,1),data_raw(i,4)-data_raw(i,3),data_raw(i,5),data_raw(i,6)]];
+        else
+            train_matrix=[train_matrix;[NaN,NaN,NaN,NaN]];
         end
 
 
@@ -503,7 +506,7 @@ function [accuracy_results]=evalAccuracy(model_cell,reformatted_data,header,type
         %Index of values in row that are not NaN
         nan_indexs=isnan(curr_row(2:7));
         nan_indx_values=find(nan_indexs);
-        if length(nan_indx_values)<5 %At least one x,y pair are detected
+        if length(nan_indx_values)<3 %At least two x,y pairs are detected
             valid_header=header(~nan_indexs); %Extracts the pg type that is valid for this frame
             model_valid_indexes=ismember(model_cell(:,1),valid_header);
             updated_model_cell=model_cell(model_valid_indexes,:);
@@ -573,7 +576,7 @@ function [accuracy_results]=evalAccuracyCombined(model_cell,right_data,left_data
         %Index of values in row that are not NaN
         nan_indexs=isnan(curr_row_right(2:7));
         nan_indx_values=find(nan_indexs);
-        if length(nan_indx_values)<5 %At least one x,y pair are detected
+        if length(nan_indx_values)<3 %At least one x,y pair are detected
             valid_header=header_right(~nan_indexs); %Extracts the pg type that is valid for this frame
             model_valid_indexes=ismember(model_cell(:,1),valid_header);
             updated_model_cell=model_cell(model_valid_indexes,:);
@@ -626,7 +629,7 @@ function [accuracy_results]=evalAccuracyCombined(model_cell,right_data,left_data
         %Index of values in row that are not NaN
         nan_indexs=isnan(curr_row_left(2:7));
         nan_indx_values=find(nan_indexs);
-        if length(nan_indx_values)<5 %At least one x,y pair are detected
+        if length(nan_indx_values)<3 %At least one x,y pair are detected
             valid_header=header_left(~nan_indexs); %Extracts the pg type that is valid for this frame
             model_valid_indexes=ismember(model_cell(:,1),valid_header);
             updated_model_cell=model_cell(model_valid_indexes,:);
