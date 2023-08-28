@@ -2,7 +2,7 @@
 %clc
 %close all
 
-%Note: We define the PG vector as Glint-Pupil
+%Note: We define the PG vector as Glint-Pupil Glint "minus" Pupil
 
 
 data_root='../../data/eyecorner_userstudy_converted';
@@ -106,8 +106,10 @@ disp(p_results);
 %----------------------------<Function Definitions>------------------------
 function [predictors_x,predictors_y]=customPolynomial(pg_x,pg_y)
     %predictors=[pg_x.^2,pg_x.*pg_y,pg_y.^2,pg_x,pg_y];
-    predictors_x=[pg_x,pg_y,pg_x.^2];
-    predictors_y=[pg_y,pg_x.^2,pg_x.*pg_y,pg_x.^2.*pg_y];
+%     predictors_x=[pg_x,pg_y,pg_x.^2];
+%     predictors_y=[pg_y,pg_x.^2,pg_x.*pg_y,pg_x.^2.*pg_y];
+    predictors_x=[pg_x.^2,pg_x.*pg_y,pg_y.^2,pg_x,pg_y];
+    predictors_y=[pg_x.^2,pg_x.*pg_y,pg_y.^2,pg_x,pg_y];
 
 end
 

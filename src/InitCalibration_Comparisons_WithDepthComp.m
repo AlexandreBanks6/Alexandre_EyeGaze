@@ -4,7 +4,7 @@ close all
 
 %Note: We define the PG vector as Glint-Pupil
 
-
+%% Finding Accuracy
 data_root='../../data/eyecorner_userstudy_converted';
 %Getting list of subfolders
 folder_list=dir(data_root);
@@ -37,12 +37,14 @@ for m=[1:num_dir]
             %Setting up to three PG vector predictor variables with corresponding
             %targets
             [train_cell,dist_cell]=getRegressionData(calib_init_data,CALIB_THRESHOLD);
-
+            if length(dist_cell)==0
+                continue
+            end
             model_robust=robustRegressor(train_cell); %Robust Regressor model params
             model_least_square=leastSquaresRegressor(train_cell);
 
-            [mean_accuracy_robust,total_right_robust,total_left_robust,total_combined_robust]=evalModel(model_robust,eval_init_data,'robust');
-            [mean_accuracy_classic,total_right_classic,total_left_classic,total_combined_classic]=evalModel(model_least_square,eval_init_data,'classic');
+            [mean_accuracy_robust,total_right_robust,total_left_robust,total_combined_robust]=evalModel(model_robust,eval_init_data,'robust',dist_cell);
+            [mean_accuracy_classic,total_right_classic,total_left_classic,total_combined_classic]=evalModel(model_least_square,eval_init_data,'classic',dist_cell);
             
             accuracy_robust_subjects=[accuracy_robust_subjects;str2num(dirnames{m}(2:3)),mean_accuracy_robust];
             accuracy_classic_subjects=[accuracy_classic_subjects;str2num(dirnames{m}(2:3)),mean_accuracy_classic];
@@ -51,7 +53,7 @@ for m=[1:num_dir]
 end
 
 
-%%Evaluating Results
+%% Evaluating Results
 
 
 %-------------Descriptive Stats
@@ -94,8 +96,24 @@ robust_combined=robust_combined(~isnan(robust_combined));
 
 
 p_results=[p_right,p_left,p_combined];
-disp(p_results);
+disp(p_results)
 
+
+%Plotting Box Plot 
+
+box_results=[accuracy_classic_subjects(:,2),accuracy_robust_subjects(:,2),...
+    accuracy_classic_subjects(:,3),accuracy_robust_subjects(:,3),...
+    accuracy_classic_subjects(:,4),accuracy_robust_subjects(:,4)];
+
+boxplot(box_results)
+
+
+
+%Saving Results so that we can plot the results in separate file
+%We save the left/right eye results for classic and robust
+%(accuracy_classic_subjects and accuracy_robust_subjects are saved)
+
+%save('ModifiedPolynomialResults.mat','accuracy_classic_subjects','accuracy_robust_subjects');
 
 
 
@@ -107,8 +125,12 @@ disp(p_results);
 %----------------------------<Function Definitions>------------------------
 function [predictors_x,predictors_y]=customPolynomial(pg_x,pg_y)
     %predictors=[pg_x.^2,pg_x.*pg_y,pg_y.^2,pg_x,pg_y];
-    predictors_x=[pg_x,pg_y,pg_x.^2];
-    predictors_y=[pg_y,pg_x.^2,pg_x.*pg_y,pg_x.^2.*pg_y];
+    %predictors_x=[pg_x,pg_y,pg_x.^2];
+    %predictors_y=[pg_y,pg_x.^2,pg_x.*pg_y,pg_x.^2.*pg_y];
+    predictors_x=[pg_x.^2,pg_x.*pg_y,pg_y.^2,pg_x,pg_y];
+    predictors_y=[pg_x.^2,pg_x.*pg_y,pg_y.^2,pg_x,pg_y];
+    %predictors_x=[pg_x.^2,pg_x.*pg_y,pg_y.^2,pg_x,pg_y];
+    %predictors_y=[pg_x.^2,pg_x.*pg_y,pg_y.^2,pg_x,pg_y];
 
 end
 
@@ -200,6 +222,7 @@ function [trainCell,dist_cell]=getRegressionData(data_matrix,thresh)
 
 pg_types={'pg0_left','pg1_left','pg2_left','pg0_right','pg1_right','pg2_right'};
 trainCell={};
+
     for i=[1:length(pg_types)]
         trainMatrix=getIndividualRegressionData(data_matrix,pg_types{i},thresh);
         if all(isnan(trainMatrix))
@@ -217,7 +240,7 @@ trainCell={};
     dist_header={'d_01_right','d_02_right','d_12_right','d_01_left','d_02_left','d_12_left'};
     cell_count=1;
     for i=[1:length(dist_header)]
-        [dist]=findPgDistance(dist_header{i},trainCell);
+        dist=findPgDistance(dist_header{i},trainCell);
         if all(isnan(dist))
             continue    
         else
@@ -236,7 +259,9 @@ trainCell={};
 
     end
 
-
+    if cell_count==1
+        dist_cell=cell(0);
+    end
 
 end
 
@@ -303,6 +328,7 @@ function train_matrix=getIndividualRegressionData(data_matrix,pg_type,thresh)
 
 end
 
+
 function [rmse_x,rmse_y,b_x,b_y]=customRegressor(train_data)
     %Training data is a nx4 vector where col1=pg_x, col2=pg_y, col3=target_x, col4=target_y
     %Output are 6 model parameters and the residual error for x and y
@@ -317,6 +343,8 @@ function [rmse_x,rmse_y,b_x,b_y]=customRegressor(train_data)
     t_x=train_data(:,3);
     t_y=train_data(:,4);
     
+
+    %--------------Iteratively Weighted Least Squares---------------
     [predictors_x,predictors_y]=customPolynomial(pg_x,pg_y);
     
     
@@ -337,19 +365,21 @@ function [rmse_x,rmse_y,b_x,b_y]=customRegressor(train_data)
 
 
 
+
+
     %Use RANSAC
-    %sampleSize=5;
-    %maxDistance=20;
-    %train_vals_x=[pg_x,pg_y,t_x];
-    %train_vals_y=[pg_x,pg_y,t_y];
-    %fitLineFcn=@(points) ([ones(size(points,1),1),points(:,1).^2,points(:,1).*points(:,2),points(:,2).^2,points(:,1),points(:,2)]\points(:,3));
-    %evalLineFcn=@(model,points) (sqrt((points(:,3)-model(1).*ones(size(points,1),1)+model(2).*points(:,1).^2+model(3).*points(:,1).*points(:,2)+model(4).*points(:,2).^2+model(5).*points(:,1)+model(6).*points(:,2)).^2)); 
-    
-    %[b_x,~]=ransac(train_vals_x,fitLineFcn,evalLineFcn,sampleSize,maxDistance);
-    %[b_y,~]=ransac(train_vals_y,fitLineFcn,evalLineFcn,sampleSize,maxDistance);
-    
-    %rmse_x=[];
-    %rmse_y=[];
+%     sampleSize=5;
+%     maxDistance=20;
+%     train_vals_x=[pg_x,pg_y,t_x];
+%     train_vals_y=[pg_x,pg_y,t_y];
+%     fitLineFcn=@(points) ([ones(size(points,1),1),points(:,1).^2,points(:,1).*points(:,2),points(:,2).^2,points(:,1),points(:,2)]\points(:,3));
+%     evalLineFcn=@(model,points) (sqrt((points(:,3)-model(1).*ones(size(points,1),1)+model(2).*points(:,1).^2+model(3).*points(:,1).*points(:,2)+model(4).*points(:,2).^2+model(5).*points(:,1)+model(6).*points(:,2)).^2)); 
+%     
+%     [b_x,~]=ransac(train_vals_x,fitLineFcn,evalLineFcn,sampleSize,maxDistance);
+%     [b_y,~]=ransac(train_vals_y,fitLineFcn,evalLineFcn,sampleSize,maxDistance);
+%     
+%     rmse_x=[];
+%     rmse_y=[];
 
 
 
@@ -448,13 +478,13 @@ function robust_regressor_output=robustRegressor(train_cell)
             [rmse_x,rmse_y,b_x,b_y]=customRegressor(train_data);
             %Saving x-results
             robust_regressor_output{i*2-1,1}=strcat(train_cell{i}{1},'_x');
-            robust_regressor_output{i*2-1,2}=(rmse_x+rmse_y)/2;
-            %robust_regressor_output{i*2-1,2}=size(train_data,1);
+            %robust_regressor_output{i*2-1,2}=(rmse_x+rmse_y)/2;
+            robust_regressor_output{i*2-1,2}=size(train_data,1);
             robust_regressor_output{i*2-1,3}=b_x;
 
             robust_regressor_output{i*2,1}=strcat(train_cell{i}{1},'_y');
-            robust_regressor_output{i*2,2}=(rmse_x+rmse_y)/2;
-            %robust_regressor_output{i*2,2}=size(train_data,1);
+            %robust_regressor_output{i*2,2}=(rmse_x+rmse_y)/2;
+            robust_regressor_output{i*2,2}=size(train_data,1);
             robust_regressor_output{i*2,3}=b_y;
 
         end
@@ -565,7 +595,120 @@ function [reformatted_data_right,reformatted_data_left]=reformatDataEval(eval_da
 
 end
 
-function [accuracy_results]=evalAccuracy(model_cell,reformatted_data,header,type)
+function valid_header=findPgWithAssociatedDistance(header,dist_cell)
+valid_header=cell(0);
+    for i=[1:length(dist_cell(:,1))]
+        switch dist_cell{i,1}
+            case 'd_01_right'
+                check_pgs={'pg0_right_x','pg0_right_y','pg1_right_x','pg1_right_y'};
+                check_inds=ismember(header,check_pgs);
+                valid_header=[valid_header,header{check_inds}];
+            case 'd_02_right'
+                check_pgs={'pg0_right_x','pg0_right_y','pg2_right_x','pg2_right_y'};
+                check_inds=ismember(header,check_pgs);
+                valid_header=[valid_header,header{check_inds}];
+            case 'd_12_right'
+                check_pgs={'pg1_right_x','pg1_right_y','pg2_right_x','pg2_right_y'};
+                check_inds=ismember(header,check_pgs);
+                valid_header=[valid_header,header{check_inds}];
+            case 'd_01_left'
+                check_pgs={'pg0_left_x','pg0_left_y','pg1_left_x','pg1_left_y'};
+                check_inds=ismember(header,check_pgs);
+                valid_header=[valid_header,header{check_inds}];
+            case 'd_02_left'
+                check_pgs={'pg0_right_x','pg0_right_y','pg2_left_x','pg2_left_y'};
+                check_inds=ismember(header,check_pgs);
+                valid_header=[valid_header,header{check_inds}];
+            case 'd_12_left'
+                check_pgs={'pg1_left_x','pg1_left_y','pg2_left_x','pg2_left_y'};
+                check_inds=ismember(header,check_pgs);
+                valid_header=[valid_header,header{check_inds}];
+        end
+
+
+    end
+    valid_header=unique(valid_header);
+
+
+end
+
+function [d_calib,d_curr]=findScalingFactors(header_x,header_y,dist_cell,valid_header,overall_header,pgs_only)
+    %Finding distance of calibration
+
+    if any(ismember(valid_header,'pg0_right_x')) && any(ismember(valid_header,'pg1_right_x')) && any(ismember(valid_header,'pg2_right_x'))
+        dist_names={'d_01_right','d_02_right','d_12_right'};
+    elseif any(ismember(valid_header,'pg0_right_x')) && any(ismember(valid_header,'pg1_right_x'))
+        dist_names={'d_01_right'};
+    elseif any(ismember(valid_header,'pg0_right_x')) && any(ismember(valid_header,'pg2_right_x'))
+        dist_names={'d_02_right'};
+    elseif any(ismember(valid_header,'pg1_right_x')) && any(ismember(valid_header,'pg2_right_x'))
+        dist_names={'d_12_right'};
+
+    elseif any(ismember(valid_header,'pg0_left_x')) && any(ismember(valid_header,'pg1_left_x')) && any(ismember(valid_header,'pg2_left_x'))
+        dist_names={'d_01_left','d_02_left','d_12_left'};
+    elseif any(ismember(valid_header,'pg0_left_x')) && any(ismember(valid_header,'pg1_left_x'))
+        dist_names={'d_01_left'};
+    elseif any(ismember(valid_header,'pg0_left_x')) && any(ismember(valid_header,'pg2_left_x'))
+        dist_names={'d_02_left'};
+    elseif any(ismember(valid_header,'pg1_left_x')) && any(ismember(valid_header,'pg2_left_x'))
+        dist_names={'d_12_left'};
+
+    end
+
+    %{
+    switch header_x
+        case 'pg0_right_x'
+            
+        case 'pg1_right_x'
+            dist_names={'d_01_right','d_02_right','d_12_right'};
+        case 'pg2_right_x'
+            dist_names={'d_01_right','d_02_right','d_12_right'};
+        case 'pg0_left_x'
+            dist_names={'d_01_left','d_02_left','d_12_left'};
+        case 'pg1_left_x'
+            dist_names={'d_01_left','d_02_left','d_12_left'};
+        case 'pg2_left_x'
+            dist_names={'d_01_left','d_02_left','d_12_left'};
+
+    end
+    %}
+    dist_ind=ismember(dist_cell(:,1),dist_names);
+    if all(~dist_ind) %We don't have any corresponding distances in the calibration
+        d_calib=nan;
+        d_curr=nan;
+    else
+        dist_vec=cell2mat(dist_cell(dist_ind,2));
+        d_calib=mean(dist_vec);
+    
+        %Finding the current inter-glint distance
+    
+        valid_inds=ismember(overall_header,valid_header);
+        valid_pgs=pgs_only(valid_inds);
+        x_vals=[];
+        y_vals=[];
+        for i=[1:2:length(valid_pgs)]
+            x_vals=[x_vals,valid_pgs(i)];
+            y_vals=[y_vals,valid_pgs(i+1)];
+    
+        end
+        if length(x_vals)==2
+            d_curr=sqrt((y_vals(1)-y_vals(2)).^2+(x_vals(1)-x_vals(2)).^2);
+    
+        elseif length(x_vals)==3
+            diff_1=sqrt((y_vals(1)-y_vals(2)).^2+(x_vals(1)-x_vals(2)).^2);
+            diff_2=sqrt((y_vals(1)-y_vals(3)).^2+(x_vals(1)-x_vals(3)).^2);
+            diff_3=sqrt((y_vals(2)-y_vals(3)).^2+(x_vals(2)-x_vals(3)).^2);
+            d_curr=(diff_1+diff_2+diff_3)/3;
+        else
+            d_curr=nan;
+            d_calib=nan;
+    
+        end
+    end
+    
+
+end
+function [accuracy_results]=evalAccuracy(model_cell,reformatted_data,header,type,dist_cell)
     [row_n,~]=size(reformatted_data);
     accuracy_results=[];
     for i=[1:row_n]
@@ -575,48 +718,58 @@ function [accuracy_results]=evalAccuracy(model_cell,reformatted_data,header,type
         nan_indexs=isnan(curr_row(2:7));
         nan_indx_values=find(nan_indexs);
         if length(nan_indx_values)<3 %At least two x,y pairs are detected
-            valid_header=header(~nan_indexs); %Extracts the pg type that is valid for this frame
-            model_valid_indexes=ismember(model_cell(:,1),valid_header);
-            updated_model_cell=model_cell(model_valid_indexes,:);
-            [row_new,~]=size(updated_model_cell);
-            %Loops for all the RMSE accuracies and returns index of largest
-            cur_val=updated_model_cell{1,2};
-            cur_ind=1;
-            for j=[1:2:row_new]
-                if (updated_model_cell{j,2}<cur_val) && (strcmp(type,'robust')) %Change > to < if using iteratively least squares
-                    cur_val=updated_model_cell{j,2};
-                    cur_ind=j;
-                elseif (updated_model_cell{j,2}>cur_val) && (strcmp(type,'classic'))
-                    cur_val=updated_model_cell{j,2};
-                    cur_ind=j;
-                end
-            end
-            model_x=updated_model_cell{cur_ind,3};
-            model_y=updated_model_cell{cur_ind+1,3};
-            header_x=valid_header{cur_ind};
-            header_y=valid_header{cur_ind+1};
-            pg_x_ind=ismember(header,header_x);
-            pg_y_ind=ismember(header,header_y);
-            pgsonly=curr_row(2:7);
-            pg_x=pgsonly(pg_x_ind);
-            pg_y=pgsonly(pg_y_ind);
-            if strcmp(type,'robust')
-                [predictors_x,predictors_y]=customPolynomial(pg_x,pg_y);
-            else
-                [predictors_x,predictors_y]=classicPolynomial(pg_x,pg_y);
-            end
+            stripped_header=header(~nan_indexs); %Extracts the pg type that is valid for this frame
             
-            POG_x=findPOG(model_x,predictors_x);
-            POG_y=findPOG(model_y,predictors_y);
-%             POG_x=model_x(1)+model_x(2)*predictors_x(1)+model_x(3)*predictors_x(2)+model_x(4)*predictors_x(3)+...
-%                 model_x(5)*predictors_x(4)+model_x(6)*predictors_x(5);
-%             POG_y=model_y(1)+model_y(2)*predictors_y(1)+model_y(3)*predictors_y(2)+model_y(4)*predictors_y(3)+...
-%                 model_y(5)*predictors_y(4)+model_y(6)*predictors_y(5);
-            t_x=curr_row(8);
-            t_y=curr_row(9);
+            valid_header=findPgWithAssociatedDistance(stripped_header,dist_cell);
+            if length(valid_header)>2
+                model_valid_indexes=ismember(model_cell(:,1),valid_header);
+                updated_model_cell=model_cell(model_valid_indexes,:);
+                [row_new,~]=size(updated_model_cell);
+                %Loops for all the RMSE accuracies and returns index of largest
+                cur_val=updated_model_cell{1,2};
+                cur_ind=1;
+                for j=[1:2:row_new]
+                    if (updated_model_cell{j,2}>cur_val) && (strcmp(type,'robust')) %Change > to < if using iteratively least squares
+                        cur_val=updated_model_cell{j,2};
+                        cur_ind=j;
+                    elseif (updated_model_cell{j,2}>cur_val) && (strcmp(type,'classic'))
+                        cur_val=updated_model_cell{j,2};
+                        cur_ind=j;
+                    end
+                end
+                model_x=updated_model_cell{cur_ind,3};
+                model_y=updated_model_cell{cur_ind+1,3};
+                header_x=valid_header{cur_ind};
+                header_y=valid_header{cur_ind+1};
+                pg_x_ind=ismember(header,header_x);
+                pg_y_ind=ismember(header,header_y);
+                pgsonly=curr_row(2:7);
 
-            accuracy_results=[accuracy_results;[sqrt((t_x-POG_x)^2+(t_y-POG_y)^2),t_x,t_y]]; %Appends the accuracy as well as the target locations
-
+                [d_calib,d_curr]=findScalingFactors(header_x,header_y,dist_cell,valid_header,header,pgsonly);
+                if isnan(d_calib)||isnan(d_curr)
+                    continue
+                end
+                pg_x=(d_calib/d_curr).*pgsonly(pg_x_ind);
+                pg_y=(d_calib/d_curr).*pgsonly(pg_y_ind);
+                if strcmp(type,'robust')
+                    [predictors_x,predictors_y]=customPolynomial(pg_x,pg_y);
+                else
+                    [predictors_x,predictors_y]=classicPolynomial(pg_x,pg_y);
+                end
+                
+                POG_x=findPOG(model_x,predictors_x);
+                POG_y=findPOG(model_y,predictors_y);
+    %             POG_x=model_x(1)+model_x(2)*predictors_x(1)+model_x(3)*predictors_x(2)+model_x(4)*predictors_x(3)+...
+    %                 model_x(5)*predictors_x(4)+model_x(6)*predictors_x(5);
+    %             POG_y=model_y(1)+model_y(2)*predictors_y(1)+model_y(3)*predictors_y(2)+model_y(4)*predictors_y(3)+...
+    %                 model_y(5)*predictors_y(4)+model_y(6)*predictors_y(5);
+                t_x=curr_row(8);
+                t_y=curr_row(9);
+    
+                accuracy_results=[accuracy_results;[sqrt((t_x-POG_x)^2+(t_y-POG_y)^2),t_x,t_y]]; %Appends the accuracy as well as the target locations
+            else
+                continue
+            end
 
 
         else
@@ -627,7 +780,7 @@ function [accuracy_results]=evalAccuracy(model_cell,reformatted_data,header,type
 
 end
 
-function [accuracy_results]=evalAccuracyCombined(model_cell,right_data,left_data,header_right,header_left,type)
+function [accuracy_results]=evalAccuracyCombined(model_cell,right_data,left_data,header_right,header_left,type,dist_cell)
     [row_right,~]=size(right_data);
     [row_left,~]=size(left_data);
     row_n=row_right;
@@ -645,47 +798,55 @@ function [accuracy_results]=evalAccuracyCombined(model_cell,right_data,left_data
         nan_indexs=isnan(curr_row_right(2:7));
         nan_indx_values=find(nan_indexs);
         if length(nan_indx_values)<3 %At least one x,y pair are detected
-            valid_header=header_right(~nan_indexs); %Extracts the pg type that is valid for this frame
-            model_valid_indexes=ismember(model_cell(:,1),valid_header);
-            updated_model_cell=model_cell(model_valid_indexes,:);
-            [row_new,~]=size(updated_model_cell);
-            %Loops for all the RMSE accuracies and returns index of largest
-            cur_val=updated_model_cell{1,2};
-            cur_ind=1;
-            for j=[1:2:row_new]
-                if (updated_model_cell{j,2}<cur_val) && (strcmp(type,'robust')) %Change > to < if using iteratively least squares
-                    cur_val=updated_model_cell{j,2};
-                    cur_ind=j;
-                elseif (updated_model_cell{j,2}>cur_val) && (strcmp(type,'classic'))
-                    cur_val=updated_model_cell{j,2};
-                    cur_ind=j;
+            stripped_header=header_right(~nan_indexs); %Extracts the pg type that is valid for this frame
+            valid_header=findPgWithAssociatedDistance(stripped_header,dist_cell);
+            if length(valid_header)>2           
+                model_valid_indexes=ismember(model_cell(:,1),valid_header);
+                updated_model_cell=model_cell(model_valid_indexes,:);
+                [row_new,~]=size(updated_model_cell);
+                %Loops for all the RMSE accuracies and returns index of largest
+                cur_val=updated_model_cell{1,2};
+                cur_ind=1;
+                for j=[1:2:row_new]
+                    if (updated_model_cell{j,2}>cur_val) && (strcmp(type,'robust')) %Change > to < if using iteratively least squares
+                        cur_val=updated_model_cell{j,2};
+                        cur_ind=j;
+                    elseif (updated_model_cell{j,2}>cur_val) && (strcmp(type,'classic'))
+                        cur_val=updated_model_cell{j,2};
+                        cur_ind=j;
+                    end
                 end
-            end
-            model_x=updated_model_cell{cur_ind,3};
-            model_y=updated_model_cell{cur_ind+1,3};
-            header_x=valid_header{cur_ind};
-            header_y=valid_header{cur_ind+1};
-            pg_x_ind=ismember(header_right,header_x);
-            pg_y_ind=ismember(header_right,header_y);
-            pgsonly=curr_row_right(2:7);
-            pg_x=pgsonly(pg_x_ind);
-            pg_y=pgsonly(pg_y_ind);
-            
-            if strcmp(type,'robust')
-                [predictors_x,predictors_y]=customPolynomial(pg_x,pg_y);
-            else
-                [predictors_x,predictors_y]=classicPolynomial(pg_x,pg_y);
-            end
-            POG_x_right=findPOG(model_x,predictors_x);
-            POG_y_right=findPOG(model_y,predictors_y);
-            %POG_x_right=model_x(1)+model_x(2)*predictors_x(1)+model_x(3)*predictors_x(2)+model_x(4)*predictors_x(3)+...
-                %model_x(5)*predictors_x(4)+model_x(6)*predictors_x(5);
-            %POG_y_right=model_y(1)+model_y(2)*predictors_y(1)+model_y(3)*predictors_y(2)+model_y(4)*predictors_y(3)+...
-                %model_y(5)*predictors_y(4)+model_y(6)*predictors_y(5);
-            t_x=curr_row_right(8);
-            t_y=curr_row_right(9);
+                model_x=updated_model_cell{cur_ind,3};
+                model_y=updated_model_cell{cur_ind+1,3};
+                header_x=valid_header{cur_ind};
+                header_y=valid_header{cur_ind+1};
+                pg_x_ind=ismember(header_right,header_x);
+                pg_y_ind=ismember(header_right,header_y);
+                pgsonly=curr_row_right(2:7);
 
-            
+                [d_calib,d_curr]=findScalingFactors(header_x,header_y,dist_cell,valid_header,header_right,pgsonly);
+                if isnan(d_calib)||isnan(d_curr)
+                    continue
+                end
+                pg_x=(d_calib/d_curr)*pgsonly(pg_x_ind);
+                pg_y=(d_calib/d_curr)*pgsonly(pg_y_ind);
+                
+                if strcmp(type,'robust')
+                    [predictors_x,predictors_y]=customPolynomial(pg_x,pg_y);
+                else
+                    [predictors_x,predictors_y]=classicPolynomial(pg_x,pg_y);
+                end
+                POG_x_right=findPOG(model_x,predictors_x);
+                POG_y_right=findPOG(model_y,predictors_y);
+                %POG_x_right=model_x(1)+model_x(2)*predictors_x(1)+model_x(3)*predictors_x(2)+model_x(4)*predictors_x(3)+...
+                    %model_x(5)*predictors_x(4)+model_x(6)*predictors_x(5);
+                %POG_y_right=model_y(1)+model_y(2)*predictors_y(1)+model_y(3)*predictors_y(2)+model_y(4)*predictors_y(3)+...
+                    %model_y(5)*predictors_y(4)+model_y(6)*predictors_y(5);
+                t_x=curr_row_right(8);
+                t_y=curr_row_right(9);
+            else
+                continue
+            end           
 
 
         else
@@ -698,44 +859,55 @@ function [accuracy_results]=evalAccuracyCombined(model_cell,right_data,left_data
         nan_indexs=isnan(curr_row_left(2:7));
         nan_indx_values=find(nan_indexs);
         if length(nan_indx_values)<3 %At least one x,y pair are detected
-            valid_header=header_left(~nan_indexs); %Extracts the pg type that is valid for this frame
-            model_valid_indexes=ismember(model_cell(:,1),valid_header);
-            updated_model_cell=model_cell(model_valid_indexes,:);
-            [row_new,~]=size(updated_model_cell);
-            %Loops for all the RMSE accuracies and returns index of largest
-            cur_val=updated_model_cell{1,2};
-            cur_ind=1;
-            for j=[1:2:row_new]
-                if (updated_model_cell{j,2}<cur_val) && (strcmp(type,'robust')) %Change > to < if using iteratively least squares
-                    cur_val=updated_model_cell{j,2};
-                    cur_ind=j;
-                elseif (updated_model_cell{j,2}>cur_val) && (strcmp(type,'classic'))
-                    cur_val=updated_model_cell{j,2};
-                    cur_ind=j;
+            stripped_header=header_left(~nan_indexs); %Extracts the pg type that is valid for this frame
+            valid_header=findPgWithAssociatedDistance(stripped_header,dist_cell);
+            if length(valid_header)>2            
+                model_valid_indexes=ismember(model_cell(:,1),valid_header);
+                updated_model_cell=model_cell(model_valid_indexes,:);
+                [row_new,~]=size(updated_model_cell);
+                %Loops for all the RMSE accuracies and returns index of largest
+                cur_val=updated_model_cell{1,2};
+                cur_ind=1;
+                for j=[1:2:row_new]
+                    if (updated_model_cell{j,2}>cur_val) && (strcmp(type,'robust')) %Change > to < if using iteratively least squares
+                        cur_val=updated_model_cell{j,2};
+                        cur_ind=j;
+                    elseif (updated_model_cell{j,2}>cur_val) && (strcmp(type,'classic'))
+                        cur_val=updated_model_cell{j,2};
+                        cur_ind=j;
+                    end
                 end
-            end
-            model_x=updated_model_cell{cur_ind,3};
-            model_y=updated_model_cell{cur_ind+1,3};
-            header_x=valid_header{cur_ind};
-            header_y=valid_header{cur_ind+1};
-            pg_x_ind=ismember(header_left,header_x);
-            pg_y_ind=ismember(header_left,header_y);
-            pgsonly=curr_row_left(2:7);
-            pg_x=pgsonly(pg_x_ind);
-            pg_y=pgsonly(pg_y_ind);
-            if strcmp(type,'robust')
-                [predictors_x,predictors_y]=customPolynomial(pg_x,pg_y);
-            else
-                [predictors_x,predictors_y]=classicPolynomial(pg_x,pg_y);
-            end
-            
-            POG_x_left=findPOG(model_x,predictors_x);
-            POG_y_left=findPOG(model_y,predictors_y);
+                model_x=updated_model_cell{cur_ind,3};
+                model_y=updated_model_cell{cur_ind+1,3};
+                header_x=valid_header{cur_ind};
+                header_y=valid_header{cur_ind+1};
+                pg_x_ind=ismember(header_left,header_x);
+                pg_y_ind=ismember(header_left,header_y);
+                pgsonly=curr_row_left(2:7);
 
-%             POG_x_left=model_x(1)+model_x(2)*predictors_x(1)+model_x(3)*predictors_x(2)+model_x(4)*predictors_x(3)+...
-%                 model_x(5)*predictors_x(4)+model_x(6)*predictors_x(5);
-%             POG_y_left=model_y(1)+model_y(2)*predictors_y(1)+model_y(3)*predictors_y(2)+model_y(4)*predictors_y(3)+...
-%                 model_y(5)*predictors_y(4)+model_y(6)*predictors_y(5);
+                [d_calib,d_curr]=findScalingFactors(header_x,header_y,dist_cell,valid_header,header_left,pgsonly);
+                if isnan(d_calib)||isnan(d_curr)
+                    continue
+                end
+                pg_x=(d_calib/d_curr)*pgsonly(pg_x_ind);
+                pg_y=(d_calib/d_curr)*pgsonly(pg_y_ind);
+
+                if strcmp(type,'robust')
+                    [predictors_x,predictors_y]=customPolynomial(pg_x,pg_y);
+                else
+                    [predictors_x,predictors_y]=classicPolynomial(pg_x,pg_y);
+                end
+                
+                POG_x_left=findPOG(model_x,predictors_x);
+                POG_y_left=findPOG(model_y,predictors_y);
+    
+    %             POG_x_left=model_x(1)+model_x(2)*predictors_x(1)+model_x(3)*predictors_x(2)+model_x(4)*predictors_x(3)+...
+    %                 model_x(5)*predictors_x(4)+model_x(6)*predictors_x(5);
+    %             POG_y_left=model_y(1)+model_y(2)*predictors_y(1)+model_y(3)*predictors_y(2)+model_y(4)*predictors_y(3)+...
+    %                 model_y(5)*predictors_y(4)+model_y(6)*predictors_y(5);
+            else
+                continue
+            end
         else
             continue
         end
@@ -749,7 +921,7 @@ function [accuracy_results]=evalAccuracyCombined(model_cell,right_data,left_data
 
 end
 
-function [mean_accuracy,total_right,total_left,total_combined]=evalModel(model_cell,eval_data,type)
+function [mean_accuracy,total_right,total_left,total_combined]=evalModel(model_cell,eval_data,type,dist_cell)
     %Function that takes in a cell of the fitted model and data to evaluate it
     %on and returns:
     %mean_accuracy: mean right, mean left, mean combined
@@ -767,15 +939,15 @@ function [mean_accuracy,total_right,total_left,total_combined]=evalModel(model_c
     %and combined
     if check_model_right && check_model_left
 
-        total_right=evalAccuracy(model_cell,reformatted_right,right_headers,type); %Returns array with the accuracy and target locations
-        total_left=evalAccuracy(model_cell,reformatted_left,left_headers,type);
-        total_combined=evalAccuracyCombined(model_cell,reformatted_right,reformatted_left,right_headers,left_headers,type);
+        total_right=evalAccuracy(model_cell,reformatted_right,right_headers,type,dist_cell); %Returns array with the accuracy and target locations
+        total_left=evalAccuracy(model_cell,reformatted_left,left_headers,type,dist_cell);
+        total_combined=evalAccuracyCombined(model_cell,reformatted_right,reformatted_left,right_headers,left_headers,type,dist_cell);
     elseif check_model_right
-        total_right=evalAccuracy(model_cell,reformatted_right,right_headers,type); %Returns array with the accuracy and target locations
+        total_right=evalAccuracy(model_cell,reformatted_right,right_headers,type,dist_cell); %Returns array with the accuracy and target locations
         total_left=NaN;
         total_combined=NaN;
     elseif check_model_left
-        total_left=evalAccuracy(model_cell,reformatted_left,left_headers,type);
+        total_left=evalAccuracy(model_cell,reformatted_left,left_headers,type,dist_cell);
         total_right=NaN;
         total_combined=NaN;
     else
