@@ -307,7 +307,7 @@ def showBoxes(frame,bboxes=bbxs()):
         if len(bound_box):
             top_left=(bound_box[0][0],bound_box[0][1])
             bottom_right=(bound_box[0][2],bound_box[0][3])
-            cv2.rectangle(new_frame,top_left,bottom_right,color=color,thickness=1)
+            cv2.rectangle(new_frame,top_left,bottom_right,color=color,thickness=2)
             cv2.imshow('Bounding Boxes',new_frame)
             cv2.waitKey(2)
       
@@ -390,10 +390,10 @@ def findEyeContours(frame):
     
     #Fit contours using PolyDP
     #for cnt in contours:
-
-     #   cv2.drawContours(frame_colour,[cnt],-1,color=(255,0,0),thickness=1)
-      #  cv2.imshow('contours',frame_colour)
-       # cv2.waitKey(0)
+        #color_rand=list(np.random.random(size=3)*256)
+        #cv2.drawContours(frame_colour,[cnt],-1,color=(0,0,255),thickness=1)
+        #cv2.imshow('contours',frame_colour)
+        #cv2.waitKey(0)
     return contours
 
 
@@ -422,10 +422,16 @@ def filterCountours(contours,bbox,bbox_eye,frame):
         if add_contour==True:
             contours_new.append(temp_list)
     
-    #frame_colour=np.copy(frame)
+    #past_img=cv2.imread('past_image.jpg')
+    #if past_img is None:
+        frame_colour=np.copy(frame)
+    #else:
+     #   frame_colour=past_img
+
     #for cnt in contours_new:
-        #for val in cnt:
-         #   frame_colour=cv2.circle(frame_colour,val[0],1,(0,0,255),1)
+     #   for val in cnt:
+      #      frame_colour=cv2.circle(frame_colour,val[0],1,(0,0,255),1)
+    #cv2.imwrite('past_image.jpg',frame_colour)
     #cv2.imshow('contours',frame_colour)
     #cv2.waitKey(0)
     return contours_new,bbx_center,is_empty
@@ -597,7 +603,7 @@ def maxPoints(contours):
     corner_candidates=[val for i,val in enumerate(max_points) if i in indx_list]
     return corner_candidates
 
-def filterCornerCandidates(corner_candidates,bbx_center,bbox_eye,contours):
+def filterCornerCandidates(corner_candidates,bbx_center,bbox_eye,contours,frame):
     #Function that finds corner candidate closest to the bounding box center
     
     diff_vals=[]
@@ -609,7 +615,11 @@ def filterCornerCandidates(corner_candidates,bbx_center,bbox_eye,contours):
         smallest_val=min(diff_vals)
     smallest_inx=diff_vals.index(smallest_val)
     corner_point=corner_candidates[smallest_inx]
-    
+    #frame_colour=np.copy(frame)
+    #frame_colour=cv2.circle(frame_colour,corner_point[0],radius=2,color=(0,255,0),thickness=2)
+    #cv2.imshow('corner point',frame_colour)
+    #cv2.waitKey(0)
+
     corner_point[0][0]=corner_point[0][0]+bbx_eye_x0
     corner_point[0][1]=corner_point[0][1]+bbx_eye_y0
     corner_point=list(corner_point[0])
@@ -635,10 +645,10 @@ def singleCornerDetector(eye_image,bbox_corner,bbox_eye,frame,corner_list,left_r
             else:
                 if left_right=='left' and bbx_center[0]<=640:
                     corner_candidates=maxPoints(corner_contours)
-                    corner_point=filterCornerCandidates(corner_candidates,bbx_center,bbox_eye,corner_contours)
+                    corner_point=filterCornerCandidates(corner_candidates,bbx_center,bbox_eye,corner_contours,eye_image[0])
                 elif left_right=='right' and bbx_center[0]>=640:
                     corner_candidates=maxPoints(corner_contours)
-                    corner_point=filterCornerCandidates(corner_candidates,bbx_center,bbox_eye,corner_contours)
+                    corner_point=filterCornerCandidates(corner_candidates,bbx_center,bbox_eye,corner_contours,eye_image[0])
                 else:
                     corner_point=[-1,-1]
                     
@@ -947,7 +957,7 @@ def showCorners(corners,frame):
         corner_point=[int(elem) for elem in corner_point]
         frame_colour=cv2.circle(frame_colour,corner_point,radius=3,color=(0,0,255),thickness=2)
     cv2.imshow('corners',frame_colour)
-    cv2.waitKey(2)
+    cv2.waitKey(0)
 
 
 #-----------------------------<Main>-------------------------------
@@ -975,7 +985,7 @@ for entry in os.scandir(data_root):
         video_dir=data_root+'/'+part_name+'/EyeGaze_Data'
         entry_num=re.sub("[P]","",part_name)
         entry_num=int(entry_num)
-        if entry_num>15:
+        if entry_num==1:
             for file in os.listdir(video_dir): #Loops for all the eye videos in the directory
                 if file.endswith('.avi'):
                     root,ext=os.path.splitext(file)
@@ -984,14 +994,14 @@ for entry in os.scandir(data_root):
                         print("video "+file+" cannot be opened")
                         continue
                     #Creates a csv file to store the eyecorners
-                    csv_name=data_root+'/'+part_name+'/'+'eyecorners_'+root[9:]+'.csv'
-                    print('Current File:',csv_name)
-                    csv_eyecorner=open(csv_name,mode='w')
+                    #csv_name=data_root+'/'+part_name+'/'+'eyecorners_'+root[9:]+'.csv'
+                    #print('Current File:',csv_name)
+                    #csv_eyecorner=open(csv_name,mode='w')
                     #Writing Header:
-                    csv_eyecorner.write('Frame_No,Right_Inner_x,Right_Inner_y,Right_Outer_x,Right_Outer_y,Left_Outer_x,Left_Outer_y,Left_Inner_x,Left_Inner_y\n')
+                    #csv_eyecorner.write('Frame_No,Right_Inner_x,Right_Inner_y,Right_Outer_x,Right_Outer_y,Left_Outer_x,Left_Outer_y,Left_Inner_x,Left_Inner_y\n')
                     sucess,frame=video.read()
                     #frame_count=0
-                    print('Current File is: ',csv_name)
+                    #print('Current File is: ',csv_name)
                     while(sucess):
                         frame_no=video.get(cv2.CAP_PROP_POS_FRAMES)
                         #frame_count+=1
@@ -1015,7 +1025,7 @@ for entry in os.scandir(data_root):
                         
                         #if frame_count==50:
                         #showBoxes(frame,bounding_boxes)
-                        #showCorners(eye_corner_results,frame)
+                        showCorners(eye_corner_results,frame)
                         #print(frame_count)
                         #frame_count=0
                         
@@ -1063,12 +1073,12 @@ for entry in os.scandir(data_root):
                                     continue
                         print('Frame_no: ',results_list[0])
                         #print(results_list)
-                        csv_eyecorner.write('{},{},{},{},{},{},{},{},{}\n'.format(results_list[0],results_list[1],results_list[2],results_list[3],results_list[4],results_list[5],results_list[6],results_list[7],results_list[8]))
+                        #csv_eyecorner.write('{},{},{},{},{},{},{},{},{}\n'.format(results_list[0],results_list[1],results_list[2],results_list[3],results_list[4],results_list[5],results_list[6],results_list[7],results_list[8]))
                         sucess,frame=video.read()
                                 
                             
                             
-                    csv_eyecorner.close()
+                    #csv_eyecorner.close()
                 
                 
                 
