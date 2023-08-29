@@ -147,7 +147,7 @@ def preprocessFrame(frame):
 
 
 #YOLOv7 detection
-def detect(frame,model,device,old_img_b,old_img_h,old_img_w,return_dict):
+def detect(frame,model,device,old_img_b,old_img_h,old_img_w):
     img=torch.from_numpy(frame).to(device) #Loads in the image and casts to device
     img=img.float()     #Converts it to fp32
     img/=255.0 #Normalizes the image to 0.0-1.0
@@ -168,11 +168,11 @@ def detect(frame,model,device,old_img_b,old_img_h,old_img_w,return_dict):
         
     #Apply nms
     pred=non_max_suppression(pred,CONF_THRESH,IOU_THRESH)
-    return_dict[pred]=pred
-    return_dict[old_img_b]=old_img_b
-    return_dict[old_img_h]=old_img_h
-    return_dict[old_img_w]=old_img_w
-    #return pred,old_img_b,old_img_h,old_img_w
+    #return_dict[pred]=pred
+    #return_dict[old_img_b]=old_img_b
+    #return_dict[old_img_h]=old_img_h
+    #return_dict[old_img_w]=old_img_w
+    return pred,old_img_b,old_img_h,old_img_w
 
 
 
@@ -610,7 +610,7 @@ def maxPoints(contours):
     corner_candidates=[val for i,val in enumerate(max_points) if i in indx_list]
     return corner_candidates
 
-def filterCornerCandidates(corner_candidates,bbx_center,bbox_eye,contours,frame):
+def filterCornerCandidates(corner_candidates,bbx_center,bbox_eye,contours):
     #Function that finds corner candidate closest to the bounding box center
     
     diff_vals=[]
@@ -652,10 +652,10 @@ def singleCornerDetector(eye_image,bbox_corner,bbox_eye,frame,corner_list,left_r
             else:
                 if left_right=='left' and bbx_center[0]<=640:
                     corner_candidates=maxPoints(corner_contours)
-                    corner_point=filterCornerCandidates(corner_candidates,bbx_center,bbox_eye,corner_contours,eye_image[0])
+                    corner_point=filterCornerCandidates(corner_candidates,bbx_center,bbox_eye,corner_contours)
                 elif left_right=='right' and bbx_center[0]>=640:
                     corner_candidates=maxPoints(corner_contours)
-                    corner_point=filterCornerCandidates(corner_candidates,bbx_center,bbox_eye,corner_contours,eye_image[0])
+                    corner_point=filterCornerCandidates(corner_candidates,bbx_center,bbox_eye,corner_contours)
                 else:
                     corner_point=[-1,-1]
                     
@@ -968,6 +968,7 @@ def showCorners(corners,frame):
 
 
 #-----------------------------<Main>-------------------------------
+#if __name__=="__main__":
 device=select_device('cpu') #Sets up the GPU Cuda device
 model=attempt_load(YOLOV7_MODEL_PATH,map_location=device)
 stride_size=int(model.stride.max())
@@ -997,130 +998,139 @@ for entry in os.scandir(data_root):
                 if file.endswith('.avi'):
                     root,ext=os.path.splitext(file)
                     video=cv2.VideoCapture(video_dir+'/'+file)
-                    if root=='eyeVideo_Calib_Init':
-                        if(video.isOpened()==False):
-                            print("video "+file+" cannot be opened")
-                            continue
-                        #Creates a csv file to store the eyecorners
-                        csv_name=data_root+'/'+part_name+'/'+'eyecorners_'+root[9:]+'.csv'
-                        #print('Current File:',csv_name)
-                        if os.path.isfile(csv_name):    #Enters if the csv alread exists and opens for appending
-                            csv_eyecorner=open(csv_name,mode='r')
-                            lines=csv_eyecorner.readlines()
-                            csv_eyecorner.close()
-                            csv_eyecorner=open(csv_name,mode='a')
-                            if len(lines):
-                                last_line=lines[-1]
-                                last_line=last_line.split(',')
-                                if last_line[0].isnumeric():
-                                    video.set(cv2.CAP_PROP_POS_FRAMES,int(last_line[0]))
-                            else:
-                                csv_eyecorner.write('Frame_No,Right_Inner_x,Right_Inner_y,Right_Outer_x,Right_Outer_y,Left_Outer_x,Left_Outer_y,Left_Inner_x,Left_Inner_y\n')
-                                #video.set(cv2.CAP_PROP_POS_FRAMES,0)
+                    #if root=='eyeVideo_Calib_Init':
+                    if(video.isOpened()==False):
+                        print("video "+file+" cannot be opened")
+                        continue
+                    #Creates a csv file to store the eyecorners
+                    csv_name=data_root+'/'+part_name+'/'+'eyecorners_'+root[9:]+'.csv'
+                    #print('Current File:',csv_name)
+                    append_bool=False
+                    if os.path.isfile(csv_name):    #Enters if the csv alread exists and opens for appending
+                        csv_eyecorner=open(csv_name,mode='r')
+                        lines=csv_eyecorner.readlines()
+                        csv_eyecorner.close()
+                        append_bool=True
+                        if len(lines):
+                            last_line=lines[-1]
+                            last_line=last_line.split(',')
+                            if last_line[0].isnumeric():
+                                video.set(cv2.CAP_PROP_POS_FRAMES,int(last_line[0]))
                         else:
-                            csv_eyecorner=open(csv_name,mode='w')
-                            #Writing Header:
+                            csv_eyecorner=open(csv_name,mode='a')
                             csv_eyecorner.write('Frame_No,Right_Inner_x,Right_Inner_y,Right_Outer_x,Right_Outer_y,Left_Outer_x,Left_Outer_y,Left_Inner_x,Left_Inner_y\n')
-                        sucess,frame=video.read()
+                            csv_eyecorner.close()
+                            #video.set(cv2.CAP_PROP_POS_FRAMES,0)
+                    else:
+                        csv_eyecorner=open(csv_name,mode='w')
+                        #Writing Header:
+                        csv_eyecorner.write('Frame_No,Right_Inner_x,Right_Inner_y,Right_Outer_x,Right_Outer_y,Left_Outer_x,Left_Outer_y,Left_Inner_x,Left_Inner_y\n')
+                        csv_eyecorner.close()
+                    sucess,frame=video.read()
+                    #frame_count=0
+                    print('Current File is: ',csv_name)
+                    while(sucess):
+                        frame_no=video.get(cv2.CAP_PROP_POS_FRAMES)
+                        #frame_count+=1
+                        #print(frame_no)
+                        frame_processed,dw,dh=preprocessFrame(frame)
+                        #t0=time.time()
+                        #manager=multiprocessing.Manager()
+                        #return_dict=manager.dict()
+                        #process=Process(target=detect,args=(frame_processed,model,device,left_old_img_b,left_old_img_h,left_old_img_w,return_dict))
+                        #process.start()
+                        #process.join(timeout=20)
+                        
+                        #if process.is_alive():
+                            #process.terminate()
+                            #process.join()
+                            #continue
+
+                        #return_vals=return_dict.values()
+                        #predictions=return_dict.pred
+                        #left_old_img_b=return_dict.left_old_img_b
+                        #left_old_img_h=return_dict.left_old_img_h
+                        #left_old_img_w=return_dict.left_old_img_w
+                        predictions,left_old_img_b,left_old_img_h,left_old_img_w=detect(frame_processed,model,device,left_old_img_b,left_old_img_h,left_old_img_w)
+                        #t1=time.time()
+                        #print('Prediction time is: ',t1-t0)
+                        bounding_boxes,is_detect=process_detections(predictions,dw,dh)
+                        if is_detect==False: #Checks that we have a detection
+                            continue
+
+                        eye_images,eye_found=cropBothEyes(frame,bounding_boxes)
+                        if eye_found==False: #No eyes are found
+                            continue
+                        #t3=time.time()
+                        eye_corner_results=findCorners(frame,eye_images,bounding_boxes)
+                        #t4=time.time()
+                        #print('Corner Detection Time: ',t4-t3)
+                        
+                        #if frame_count==50:
+                        #showBoxes(frame,bounding_boxes)
+                        #showCorners(eye_corner_results,frame)
+                        #print(frame_count)
                         #frame_count=0
-                        print('Current File is: ',csv_name)
-                        while(sucess):
-                            frame_no=video.get(cv2.CAP_PROP_POS_FRAMES)
-                            #frame_count+=1
-                            #print(frame_no)
-                            frame_processed,dw,dh=preprocessFrame(frame)
-                            #t0=time.time()
-                            manager=multiprocessing.Manager()
-                            return_dict=manager.dict()
-                            process=Process(target=detect,args=(frame_processed,model,device,left_old_img_b,left_old_img_h,left_old_img_w,return_dict))
-                            process.start()
-                            process.join(timeout=20)
-                            
-                            if process.is_alive():
-                                process.terminate()
-                                process.join()
-                                continue
-
-                            return_vals=return_dict.values()
-                            predictions=return_dict.pred
-                            left_old_img_b=return_dict.left_old_img_b
-                            left_old_img_h=return_dict.left_old_img_h
-                            left_old_img_w=return_dict.left_old_img_w
-                            #predictions,left_old_img_b,left_old_img_h,left_old_img_w=detect(frame_processed,model,device,left_old_img_b,left_old_img_h,left_old_img_w)
-                            #t1=time.time()
-                            #print('Prediction time is: ',t1-t0)
-                            bounding_boxes,is_detect=process_detections(predictions,dw,dh)
-                            if is_detect==False: #Checks that we have a detection
-                                continue
-
-                            eye_images,eye_found=cropBothEyes(frame,bounding_boxes)
-                            if eye_found==False: #No eyes are found
-                                continue
-                            #t3=time.time()
-                            eye_corner_results=findCorners(frame,eye_images,bounding_boxes)
-                            #t4=time.time()
-                            #print('Corner Detection Time: ',t4-t3)
-                            
-                            #if frame_count==50:
-                            #showBoxes(frame,bounding_boxes)
-                            #showCorners(eye_corner_results,frame)
-                            #print(frame_count)
-                            #frame_count=0
-                            
-                            #Saving the eye corner results
-                            #del eye_corner_results.left_eye_inner[0]
-                            #eye_corner_results.left_eye_inner.append(math.nan)
-                            #print(eye_corner_results)
-                            results_list=[math.nan]*9 #Initializes our results list
-                            results_list[0]=int(frame_no)
-                            for corner in fields(eye_corner_results):
-                                corner_name=corner.name
-                                corner_point=getattr(eye_corner_results,corner_name)[0]
-                                if type(corner_point) is float:
-                                    if math.isnan(corner_point): #The results is a nan
-                                        if corner_name=='right_eye_inner':
-                                            results_list[1]='nan'
-                                            results_list[2]='nan'
-                                        elif corner_name=='right_eye_outer':
-                                            results_list[3]='nan'
-                                            results_list[4]='nan'
-                                        elif corner_name=='left_eye_outer':
-                                            results_list[5]='nan'
-                                            results_list[6]='nan'
-                                        elif corner_name=='left_eye_inner':
-                                            results_list[7]='nan'
-                                            results_list[8]='nan'
-                                        else:
-                                            continue
+                        
+                        #Saving the eye corner results
+                        #del eye_corner_results.left_eye_inner[0]
+                        #eye_corner_results.left_eye_inner.append(math.nan)
+                        #print(eye_corner_results)
+                        results_list=[math.nan]*9 #Initializes our results list
+                        results_list[0]=int(frame_no)
+                        for corner in fields(eye_corner_results):
+                            corner_name=corner.name
+                            corner_point=getattr(eye_corner_results,corner_name)[0]
+                            if type(corner_point) is float:
+                                if math.isnan(corner_point): #The results is a nan
+                                    if corner_name=='right_eye_inner':
+                                        results_list[1]='nan'
+                                        results_list[2]='nan'
+                                    elif corner_name=='right_eye_outer':
+                                        results_list[3]='nan'
+                                        results_list[4]='nan'
+                                    elif corner_name=='left_eye_outer':
+                                        results_list[5]='nan'
+                                        results_list[6]='nan'
+                                    elif corner_name=='left_eye_inner':
+                                        results_list[7]='nan'
+                                        results_list[8]='nan'
                                     else:
                                         continue
                                 else:
-                                    if corner_name=='right_eye_inner':
-                                        results_list[1]=corner_point[0]
-                                        results_list[2]=corner_point[1]
-                                    elif corner_name=='right_eye_outer':
-                                        results_list[3]=corner_point[0]
-                                        results_list[4]=corner_point[1]
-                                    elif corner_name=='left_eye_outer':
-                                        results_list[5]=corner_point[0]
-                                        results_list[6]=corner_point[1]
-                                    elif corner_name=='left_eye_inner':
-                                        results_list[7]=corner_point[0]
-                                        results_list[8]=corner_point[1]
-                                    else:
-                                        continue
-                            print('Frame_no: ',results_list[0])
-                            #print(results_list)
-                            csv_eyecorner.write('{},{},{},{},{},{},{},{},{}\n'.format(results_list[0],results_list[1],results_list[2],results_list[3],results_list[4],results_list[5],results_list[6],results_list[7],results_list[8]))
-                            sucess,frame=video.read()
-                                    
-                                
-                                
+                                    continue
+                            else:
+                                if corner_name=='right_eye_inner':
+                                    results_list[1]=corner_point[0]
+                                    results_list[2]=corner_point[1]
+                                elif corner_name=='right_eye_outer':
+                                    results_list[3]=corner_point[0]
+                                    results_list[4]=corner_point[1]
+                                elif corner_name=='left_eye_outer':
+                                    results_list[5]=corner_point[0]
+                                    results_list[6]=corner_point[1]
+                                elif corner_name=='left_eye_inner':
+                                    results_list[7]=corner_point[0]
+                                    results_list[8]=corner_point[1]
+                                else:
+                                    continue
+                        print('Frame_no: ',results_list[0])
+                        #print(results_list)
+                        if append_bool==True:
+                            csv_eyecorner=open(csv_name,mode='a')
+                        else:
+                            csv_eyecorner=open(csv_name,mode='w')
+                        csv_eyecorner.write('{},{},{},{},{},{},{},{},{}\n'.format(results_list[0],results_list[1],results_list[2],results_list[3],results_list[4],results_list[5],results_list[6],results_list[7],results_list[8]))
                         csv_eyecorner.close()
-                    
-                    
-                    
-                    
-                    
-                    
-                    
+                        sucess,frame=video.read()
+                                
+                            
+                            
+
+                        
+                        
+                        
+                        
+                        
+                        
+                        
