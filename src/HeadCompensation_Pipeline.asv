@@ -2,28 +2,102 @@ clear
 clc
 close all
 
-%Setting Parameters
-data_root='E:/Alexandre_EyeGazeProject/eyecorner_userstudy_converted';
-extensions={'Calib_Init','Eval_Init','Calib_Right','Calib_Left','Calib_Up',...
-    'Calib_Down','Eval_Straight','Eval_Right','Eval_Left','Eval_Up','Eval_Down'};
-
-
-
+%Testing initial calibration
+data_root='../../data/eyecorner_userstudy_converted';
 %Getting list of subfolders
 folder_list=dir(data_root);
 dirnames={folder_list([folder_list.isdir]).name};
 num_dir=length(dirnames);
 
+%Looping for all participants
 for m=[1:num_dir]
-    if dirnames{m}(1)=='P'
-        for j=[1:length(extensions)]
-            if (strcmp(dirnames{m},'P12')) && (strcmp(extensions{j},'Eval_Right')||strcmp(extensions{j},'Eval_Left')||strcmp(extensions{j},'Eval_Down'))
-                continue
-            end
+    if dirnames{m}(1)=='P' %We have a participant and run calibrations and/evaluations
+        %Testing initial calibration
+        calib_init_path=[data_root,'/',dirnames{m},'/calib_only_merged_Calib_Init.csv'];
+        calib_init_data=readmatrix(calib_init_path);
+        eval_init_path=[data_root,'/',dirnames{m},'/calib_only_merged_Eval_Init.csv'];
+        eval_init_data=readmatrix(eval_init_path);
+
+
+
+    end
+end
+
+
+%-------------------------<Function Definitions>---------------------------
+
+function [compensationData]=prepCompensationData(data_cell)
+    %{
+    Input: data_cell has up to five cells where each cell is a matrix
+    containing the calibration data for the compensation model.
+    Each cell has: Calib_Init,Calib_Up,Calib_Down,Calib_Right,Calib_Left
+
+    compensationData has: del_POG_x,del_POG_y,del_POG
+    %}
+    
+    for i=[1:length(data_cell)]
+        curr_mat=data_cell{i};   
+    
+    
+    end
+
+
+end
+
+
+function [tree_mdl,input_var_names]=fitTreeModel(d_POG,d_curr_outer,d_curr_inner,alpha)
+    
+    if all(isnan(d_POG))    %The output variable is all nan so we can't train
+        tree_mdl=nan;
+        input_var_names=nan;
+    else
+        input_var_names=cell(0);
+        predictors=[];
+        if ~all(isnan(d_curr_outer))
+            predictors=[predictors,d_curr_outer];
+            input_var_names=[input_var_names,'d_curr_outer'];
 
         end
+
+        if ~all(isnan(d_curr_inner))
+            predictors=[predictors,d_curr_inner];
+            input_var_names=[input_var_names,'d_curr_inner'];
+
+        end
+
+        if ~all(isnan(d_curr_inner))
+            predictors=[predictors,alpha];
+            input_var_names=[input_var_names,'alpha'];
+
+        end
+        
+        if ~isempty(input_var_names)
+            rng default
+            tree_mdl=fitrtree(predictors,d_POG,'Surrogate','on',OptimizeHyperparameters','auto',...
+                'HyperparameterOptimizationOptions',struct('AcquisitionFunctionName',...
+                'expected-improvement-plus','MaxTime',600)); %Optimizes the hyperparameters that
+                                                    % minimize five-fold
+                                                    % cross-validation loss
+                                                    % using baesian
+                                                    % optimization. Maximum
+                                                    % time for optimization
+                                                    % is 10 minutes. Also
+                                                    % uses surrogate splits
+                                                    % because there is
+                                                    % missing data
+
+        else
+            tree_mdl=nan;
+            input_var_names=nan;
+        end
+
+
+
+
 
     end
 
 
 end
+
+
