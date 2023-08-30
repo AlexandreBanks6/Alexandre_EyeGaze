@@ -993,7 +993,7 @@ for entry in os.scandir(data_root):
         video_dir=data_root+'/'+part_name+'/EyeGaze_Data'
         entry_num=re.sub("[P]","",part_name)
         entry_num=int(entry_num)
-        if entry_num>8:
+        if entry_num>11:
             for file in os.listdir(video_dir): #Loops for all the eye videos in the directory
                 if file.endswith('.avi'):
                     root,ext=os.path.splitext(file)
