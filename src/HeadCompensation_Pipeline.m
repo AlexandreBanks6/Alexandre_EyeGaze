@@ -39,7 +39,10 @@ for m=[1:num_dir]
                 continue
             end
             model_poly=robustRegressor(train_cell); %Robust Regressor model params
+            
+            %Need to create the data_cell
 
+            compensation_data=prepCompensationData(data_cell,model_poly,dist_cell,avg_corners);
         end
 
 
@@ -372,10 +375,14 @@ function [compensation_data]=prepCompensationData(data_cell,model_cell,dist_cell
 
             alpha=2.*atan(sqrt((v_calib_x-v_curr_x).^2+(v_calib_y-v_curr_y).^2)/...
                 sqrt((v_calib_x+v_curr_x).^2+(v_calib_y+v_curr_y).^2));
-            
+
+            compensation_data{1}=[compensation_data{1},error_vec_right(:,1),...
+                error_vec_right(:,2),del_corner_inner_x,del_corner_inner_y,...
+                del_corner_outer_x,del_corner_outer_y,alpha,...
+                error_vec_right(:,3),error_vec_right(:,4)];
 
         else
-            compensation_data{1}=[compensation_data{1},nan,nan,nan,nan,nan,nan,nan];
+            compensation_data{1}=[compensation_data{1},nan,nan,nan,nan,nan,nan,nan,nan,nan];
         end
 
         if ~all(isnan(error_vec_left(:,1)))
@@ -391,8 +398,14 @@ function [compensation_data]=prepCompensationData(data_cell,model_cell,dist_cell
 
             alpha=2.*atan(sqrt((v_calib_x-v_curr_x).^2+(v_calib_y-v_curr_y).^2)/...
                 sqrt((v_calib_x+v_curr_x).^2+(v_calib_y+v_curr_y).^2));
+
+            compensation_data{1}=[compensation_data{1},error_vec_left(:,1),...
+                error_vec_left(:,2),del_corner_inner_x,del_corner_inner_y,...
+                del_corner_outer_x,del_corner_outer_y,alpha,...
+                error_vec_left(:,3),error_vec_left(:,4)];
+
         else
-            compensation_data{2}=[compensation_data{2},nan,nan,nan,nan,nan,nan,nan];
+            compensation_data{2}=[compensation_data{2},nan,nan,nan,nan,nan,nan,nan,nan,nan];
         end
         
     end
