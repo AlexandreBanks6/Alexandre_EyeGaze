@@ -993,7 +993,7 @@ for entry in os.scandir(data_root):
         video_dir=data_root+'/'+part_name+'/EyeGaze_Data'
         entry_num=re.sub("[P]","",part_name)
         entry_num=int(entry_num)
-        if entry_num>11:
+        if entry_num>14:
             for file in os.listdir(video_dir): #Loops for all the eye videos in the directory
                 if file.endswith('.avi'):
                     root,ext=os.path.splitext(file)
@@ -1015,7 +1015,7 @@ for entry in os.scandir(data_root):
                             last_line=lines[-1]
                             last_line=last_line.split(',')
                             if last_line[0].isnumeric():
-                                video.set(cv2.CAP_PROP_POS_FRAMES,int(last_line[0])+3)
+                                video.set(cv2.CAP_PROP_POS_FRAMES,int(last_line[0])+1)
                         else:
                             csv_eyecorner=open(csv_name,mode='a')
                             csv_eyecorner.write('Frame_No,Right_Inner_x,Right_Inner_y,Right_Outer_x,Right_Outer_y,Left_Outer_x,Left_Outer_y,Left_Inner_x,Left_Inner_y\n')
