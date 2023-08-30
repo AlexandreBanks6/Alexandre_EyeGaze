@@ -1015,7 +1015,7 @@ for entry in os.scandir(data_root):
                             last_line=lines[-1]
                             last_line=last_line.split(',')
                             if last_line[0].isnumeric():
-                                video.set(cv2.CAP_PROP_POS_FRAMES,int(last_line[0])+1)
+                                video.set(cv2.CAP_PROP_POS_FRAMES,int(last_line[0])+2)
                         else:
                             csv_eyecorner=open(csv_name,mode='a')
                             csv_eyecorner.write('Frame_No,Right_Inner_x,Right_Inner_y,Right_Outer_x,Right_Outer_y,Left_Outer_x,Left_Outer_y,Left_Inner_x,Left_Inner_y\n')
