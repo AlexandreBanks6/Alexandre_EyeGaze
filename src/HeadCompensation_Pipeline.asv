@@ -55,6 +55,7 @@ for m=[1:num_dir]
             end
             if ~isempty(data_cell)
                 compensation_data=prepCompensationData(data_cell,model_poly,dist_cell,avg_corners);
+                fitTreeModel
             end
         
         end
@@ -387,10 +388,14 @@ function [compensation_data]=prepCompensationData(data_cell,model_cell,dist_cell
             v_curr_x=reformatted_data_right(:,end-3)-reformatted_data_right(:,end-1);
             v_curr_y=reformatted_data_right(:,end-2)-reformatted_data_right(:,end);
 
-            alpha=2.*atan(sqrt((v_calib_x-v_curr_x).^2+(v_calib_y-v_curr_y).^2)/...
+            alpha=2.*atan(sqrt((v_calib_x-v_curr_x).^2+(v_calib_y-v_curr_y).^2)./...
                 sqrt((v_calib_x+v_curr_x).^2+(v_calib_y+v_curr_y).^2));
+            disp(size([compensation_data{1};error_vec_right(:,1),...
+                error_vec_right(:,2),del_corner_inner_x,del_corner_inner_y,...
+                del_corner_outer_x,del_corner_outer_y,alpha,...
+                error_vec_right(:,3),error_vec_right(:,4)]))
 
-            compensation_data{1}=[compensation_data{1},error_vec_right(:,1),...
+            compensation_data{1}=[compensation_data{1};error_vec_right(:,1),...
                 error_vec_right(:,2),del_corner_inner_x,del_corner_inner_y,...
                 del_corner_outer_x,del_corner_outer_y,alpha,...
                 error_vec_right(:,3),error_vec_right(:,4)];
@@ -407,13 +412,13 @@ function [compensation_data]=prepCompensationData(data_cell,model_cell,dist_cell
 
             v_calib_x=avg_corners(5)-avg_corners(7);
             v_calib_y=avg_corners(6)-avg_corners(8);
-            v_curr_x=reformatted_data_left(end-3)-reformatted_data_left(end-1);
-            v_curr_y=reformatted_data_left(end-2)-reformatted_data_left(end);
+            v_curr_x=reformatted_data_left(:,end-3)-reformatted_data_left(:,end-1);
+            v_curr_y=reformatted_data_left(:,end-2)-reformatted_data_left(:,end);
 
-            alpha=2.*atan(sqrt((v_calib_x-v_curr_x).^2+(v_calib_y-v_curr_y).^2)/...
+            alpha=2.*atan(sqrt((v_calib_x-v_curr_x).^2+(v_calib_y-v_curr_y).^2)./...
                 sqrt((v_calib_x+v_curr_x).^2+(v_calib_y+v_curr_y).^2));
 
-            compensation_data{1}=[compensation_data{1},error_vec_left(:,1),...
+            compensation_data{2}=[compensation_data{2};error_vec_left(:,1),...
                 error_vec_left(:,2),del_corner_inner_x,del_corner_inner_y,...
                 del_corner_outer_x,del_corner_outer_y,alpha,...
                 error_vec_left(:,3),error_vec_left(:,4)];
@@ -467,7 +472,8 @@ function error_vec=findCalibrationErrors(model_cell,reformatted_data,header,dist
     error_vec=[];
     for i=[1:row_n]
         curr_row=reformatted_data(i,:); %Current data row    
-        
+        t_x=curr_row(8);
+        t_y=curr_row(9);
         %Index of values in row that are not NaN
         nan_indexs=isnan(curr_row(2:7));
         nan_indx_values=find(nan_indexs);
@@ -633,27 +639,42 @@ POG=model(1)+sum(model(2:end)'.*predictors);
 
 end
 
-function [tree_mdl,input_var_names]=fitTreeModel(d_POG,d_curr_outer,d_curr_inner,alpha)
+function [tree_mdl,input_var_names]=fitTreeModel(train_data)
     
-    if all(isnan(d_POG))    %The output variable is all nan so we can't train
+       
+    
+    if all(isnan(train_data(:,1))) || all(isnan(train_data(:,2)))    %The output variable is all nan so we can't train
         tree_mdl=nan;
         input_var_names=nan;
     else
         input_var_names=cell(0);
         predictors=[];
-        if ~all(isnan(d_curr_outer))
-            predictors=[predictors,d_curr_outer];
-            input_var_names=[input_var_names,'d_curr_outer'];
 
-        end
-
-        if ~all(isnan(d_curr_inner))
+        if ~all(isnan(train_data(:,3)))
             predictors=[predictors,d_curr_inner];
-            input_var_names=[input_var_names,'d_curr_inner'];
+            input_var_names=[input_var_names,'d_curr_inner_x'];
 
         end
 
-        if ~all(isnan(d_curr_inner))
+        if ~all(isnan(train_data(:,4)))
+            predictors=[predictors,d_curr_inner];
+            input_var_names=[input_var_names,'d_curr_inner_y'];
+
+        end
+
+        if ~all(isnan(train_data(:,5)))
+            predictors=[predictors,d_curr_outer];
+            input_var_names=[input_var_names,'d_curr_outer_x'];
+
+        end
+
+        if ~all(isnan(train_data(:,6)))
+            predictors=[predictors,d_curr_outer];
+            input_var_names=[input_var_names,'d_curr_outer_y'];
+
+        end
+
+        if ~all(isnan(train_data(:,7)))
             predictors=[predictors,alpha];
             input_var_names=[input_var_names,'alpha'];
 
