@@ -969,7 +969,7 @@ def showCorners(corners,frame):
 
 #-----------------------------<Main>-------------------------------
 #if __name__=="__main__":
-device=select_device('cpu') #Sets up the GPU Cuda device
+device=select_device('0') #Sets up the GPU Cuda device
 model=attempt_load(YOLOV7_MODEL_PATH,map_location=device)
 stride_size=int(model.stride.max())
 imgsz=check_img_size(INPUT_IMAGE_SIZE,s=stride_size) #Checks that stride requirements are met
@@ -1005,27 +1005,28 @@ for entry in os.scandir(data_root):
                     #Creates a csv file to store the eyecorners
                     csv_name=data_root+'/'+part_name+'/'+'eyecorners_'+root[9:]+'.csv'
                     #print('Current File:',csv_name)
-                    append_bool=False
                     if os.path.isfile(csv_name):    #Enters if the csv alread exists and opens for appending
                         csv_eyecorner=open(csv_name,mode='r')
                         lines=csv_eyecorner.readlines()
                         csv_eyecorner.close()
-                        append_bool=True
                         if len(lines):
                             last_line=lines[-1]
                             last_line=last_line.split(',')
                             if last_line[0].isnumeric():
                                 video.set(cv2.CAP_PROP_POS_FRAMES,int(last_line[0]))
+                                csv_eyecorner=open(csv_name,'a')
+                            else:
+                                csv_eyecorner=open(csv_name,mode='w')
+                                csv_eyecorner.write('Frame_No,Right_Inner_x,Right_Inner_y,Right_Outer_x,Right_Outer_y,Left_Outer_x,Left_Outer_y,Left_Inner_x,Left_Inner_y\n')
+
                         else:
-                            csv_eyecorner=open(csv_name,mode='a')
+                            csv_eyecorner=open(csv_name,mode='w')
                             csv_eyecorner.write('Frame_No,Right_Inner_x,Right_Inner_y,Right_Outer_x,Right_Outer_y,Left_Outer_x,Left_Outer_y,Left_Inner_x,Left_Inner_y\n')
-                            csv_eyecorner.close()
                             #video.set(cv2.CAP_PROP_POS_FRAMES,0)
                     else:
                         csv_eyecorner=open(csv_name,mode='w')
                         #Writing Header:
                         csv_eyecorner.write('Frame_No,Right_Inner_x,Right_Inner_y,Right_Outer_x,Right_Outer_y,Left_Outer_x,Left_Outer_y,Left_Inner_x,Left_Inner_y\n')
-                        csv_eyecorner.close()
                     
                     sucess,frame=video.read()
                     #frame_count=0
@@ -1119,13 +1120,9 @@ for entry in os.scandir(data_root):
                                     continue
                         print('Frame_no: ',results_list[0])
                         #print(results_list)
-                        if append_bool==True:
-                            csv_eyecorner=open(csv_name,mode='a')
-                        else:
-                            csv_eyecorner=open(csv_name,mode='w')
                         csv_eyecorner.write('{},{},{},{},{},{},{},{},{}\n'.format(results_list[0],results_list[1],results_list[2],results_list[3],results_list[4],results_list[5],results_list[6],results_list[7],results_list[8]))
-                        csv_eyecorner.close()
                         sucess,frame=video.read()
+                    csv_eyecorner.close()
                                 
                             
                             

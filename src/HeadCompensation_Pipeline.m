@@ -1,7 +1,10 @@
+
+%% Cleaing
 clear
 clc
 close all
 
+%% Training
 %Testing initial calibration
 data_root='../../data/eyecorner_userstudy_converted';
 %Getting list of subfolders
@@ -33,12 +36,34 @@ for m=[1:num_dir]
         calib_left_path=[data_root,'/',dirnames{m},'/calib_only_merged_Calib_Left.csv'];
         calib_left_data=readmatrix(calib_left_path);
 
+
+        %Getting evalulation data
+        eval_init_path=[data_root,'/',dirnames{m},'/calib_only_merged_Eval_Init.csv'];
+        eval_init_data=readmatrix(eval_init_path);
+
+        eval_up_path=[data_root,'/',dirnames{m},'/calib_only_merged_Eval_Up.csv'];
+        eval_up_data=readmatrix(eval_up_path);
+
+        eval_down_path=[data_root,'/',dirnames{m},'/calib_only_merged_Eval_Down.csv'];
+        eval_down_data=readmatrix(eval_down_path);
+
+        eval_right_path=[data_root,'/',dirnames{m},'/calib_only_merged_Eval_Right.csv'];
+        eval_right_data=readmatrix(eval_right_path);
+
+        eval_left_path=[data_root,'/',dirnames{m},'/calib_only_merged_Eval_Left.csv'];
+        eval_left_data=readmatrix(eval_left_path);
+
+        eval_straight_path=[data_root,'/',dirnames{m},'/calib_only_merged_Eval_Straight.csv'];
+        eval_straight_data=readmatrix(eval_straight_path);
+
+
         check_calib=checkDetection(calib_init_data,CALIB_THRESHOLD);
         if (check_calib==true)
             [train_cell,dist_cell,avg_corners]=getRegressionData(calib_init_data,CALIB_THRESHOLD); %Also gets the average eye corner location at the calibration
             if length(dist_cell)==0
                 continue
             end
+
             model_poly=robustRegressor(train_cell); %Robust Regressor model params
             
             old_data_cell={calib_up_data,calib_down_data,calib_right_data,calib_left_data};
@@ -46,6 +71,7 @@ for m=[1:num_dir]
             for i=[1:length(old_data_cell)]
 
                 curr_data=old_data_cell{i};
+
                 valid_dat=checkDetection(curr_data,1); %We use data as long as one unique detection happens
                 if valid_dat
                     data_cell=[data_cell,curr_data];
@@ -54,9 +80,16 @@ for m=[1:num_dir]
 
             end
             if ~isempty(data_cell)
+                %Compensation data cell 1= right, cell 2=left
                 compensation_data=prepCompensationData(data_cell,model_poly,dist_cell,avg_corners);
-                %[tree_mdl_right,input_var_names_right]=fitTreeModel(compensation_data{1});
-                %[tree_mdl_left,input_var_names_left]=fitTreeModel(compensation_data{2});
+                [tree_mdl_right_x,tree_mdl_right_y,input_var_names_right_x,input_var_names_right_y]=fitTreeModel(compensation_data{1});
+                [tree_mdl_left_x,tree_mdl_left_y,input_var_names_left_x,input_var_names_left_y]=fitTreeModel(compensation_data{2});
+                
+                %Evaluate our new head compensation, old head comp, and
+                %polynomial
+                
+            else
+                %Evaluate only the polynomial
             end
         
         end
@@ -64,6 +97,16 @@ for m=[1:num_dir]
 
     end
 end
+
+%% Checking tree models
+data_mat=[eval_straight_data;eval_up_data;eval_down_data;eval_right_data;eval_left_data];
+tree_models=[{'right_x'},{tree_mdl_right_x},{input_var_names_right_x};...
+    {'right_y'},{tree_mdl_right_y},{input_var_names_right_y};...
+    {'left_x'},{tree_mdl_left_x},{input_var_names_left_x};...
+    {'left_y'},{tree_mdl_left_y},{input_var_names_left_y}];
+
+[mean_accuracies,total_results]=evalModels(data_mat,model_poly,dist_cell,avg_corners,tree_models);
+
 
 
 %##########################<Function Definitions>##########################
@@ -194,6 +237,9 @@ trainCell={};
 
     %Finding the average corner locations
     corner_data=data_matrix(:,50:57);
+    %Change the corner locations to be in 640x480 not the 1280x480 so
+    corner_data(:,1)=corner_data(:,1)-640;
+    corner_data(:,3)=corner_data(:,3)-640;
     avg_corners=mean(corner_data,1,'omitnan');
     
 end
@@ -640,48 +686,62 @@ function [tree_mdl_x,tree_mdl_y,input_var_names_x,input_var_names_y]=fitTreeMode
     
     %We return the model for compensation in the x-direction as well as the
     %model for compensation in the y-direction: tree_mdl_x & tree_mdl_y
+    %To train mdl_x we use: del_pog_x (output), del_inner_x,del_outer_x,alpha
+    %To train mdl_y we use: del_pog_y (output), del_inner_y,del_outer_y,alpha
+    %We use surrogate splits to deal with missing data
        
+    %--------------------------<First find predictors>------------------------
+    input_var_names_x=cell(0);
+    predictors_x=[];
+
+    input_var_names_y=cell(0);
+    predictors_y=[];
+    %cell 1: del_POG_x_right,del_POG_y_right,del_corner_inner_x_right,del_corner_inner_y_right,
+    %del_corner_outer_x_right,del_corner_outer_y_right,alpha_right,t_x,t_y
     
-    if all(isnan(train_data(:,1)))    %The output variable is all nan so we can't train
-        tree_mdl=nan;
-        input_var_names=nan;
+    if ~all(isnan(train_data(:,3))) %inner_x
+            predictors_x=[predictors_x,train_data(:,3)];
+            input_var_names_x=[input_var_names_x,'d_corner_inner_x'];
+
+    end
+
+    if ~all(isnan(train_data(:,4))) %inner y
+        predictors_y=[predictors_y,train_data(:,4)];
+        input_var_names_y=[input_var_names_y,'d_corner_inner_y'];
+
+    end
+
+    if ~all(isnan(train_data(:,5))) %Outer x
+        predictors_x=[predictors_x,train_data(:,5)];
+        input_var_names_x=[input_var_names_x,'d_corner_outer_x'];
+
+    end
+
+    if ~all(isnan(train_data(:,6))) %outer y
+        predictors_y=[predictors_y,train_data(:,6)];
+        input_var_names_y=[input_var_names_y,'d_corner_outer_y'];
+
+    end
+
+    if ~all(isnan(train_data(:,7)))
+        predictors_x=[predictors_x,train_data(:,7)];
+        input_var_names_x=[input_var_names_x,'alpha'];
+
+        predictors_y=[predictors_y,train_data(:,7)];
+        input_var_names_y=[input_var_names_y,'alpha'];
+
+    end
+    
+    %---------------------<Check Outcomes and Train>-------------------
+
+    %Train x-model
+    if all(isnan(train_data(:,1))) %Check del_pog_x is valid
+        tree_mdl_x=nan;
+        input_var_names_x=nan;
     else
-        input_var_names=cell(0);
-        predictors=[];
-
-        if ~all(isnan(train_data(:,3)))
-            predictors=[predictors,d_curr_inner];
-            input_var_names=[input_var_names,'d_curr_inner_x'];
-
-        end
-
-        if ~all(isnan(train_data(:,4)))
-            predictors=[predictors,d_curr_inner];
-            input_var_names=[input_var_names,'d_curr_inner_y'];
-
-        end
-
-        if ~all(isnan(train_data(:,5)))
-            predictors=[predictors,d_curr_outer];
-            input_var_names=[input_var_names,'d_curr_outer_x'];
-
-        end
-
-        if ~all(isnan(train_data(:,6)))
-            predictors=[predictors,d_curr_outer];
-            input_var_names=[input_var_names,'d_curr_outer_y'];
-
-        end
-
-        if ~all(isnan(train_data(:,7)))
-            predictors=[predictors,alpha];
-            input_var_names=[input_var_names,'alpha'];
-
-        end
-        
-        if ~isempty(input_var_names)
+        if ~isempty(input_var_names_x)
             rng default
-            tree_mdl=fitrtree(predictors,d_POG,'Surrogate','on',OptimizeHyperparameters','auto',...
+            tree_mdl_x=fitrtree(predictors_x,train_data(:,1),'Surrogate','on','OptimizeHyperparameters','auto',...
                 'HyperparameterOptimizationOptions',struct('AcquisitionFunctionName',...
                 'expected-improvement-plus','MaxTime',600)); %Optimizes the hyperparameters that
                                                     % minimize five-fold
@@ -695,17 +755,179 @@ function [tree_mdl_x,tree_mdl_y,input_var_names_x,input_var_names_y]=fitTreeMode
                                                     % missing data
 
         else
-            tree_mdl=nan;
-            input_var_names=nan;
+            tree_mdl_x=nan;
+            input_var_names_x=nan;
         end
 
+    end
 
 
+    %Train y-model
+    if all(isnan(train_data(:,2))) %Check del_pog_y is valid
+        tree_mdl_y=nan;
+        input_var_names_y=nan;
+    else
+        if ~isempty(input_var_names_y)
+            rng default
+            tree_mdl_y=fitrtree(predictors_y,train_data(:,2),'Surrogate','on','OptimizeHyperparameters','auto',...
+                'HyperparameterOptimizationOptions',struct('AcquisitionFunctionName',...
+                'expected-improvement-plus','MaxTime',600)); %Optimizes the hyperparameters that
+                                                    % minimize five-fold
+                                                    % cross-validation loss
+                                                    % using baesian
+                                                    % optimization. Maximum
+                                                    % time for optimization
+                                                    % is 10 minutes. Also
+                                                    % uses surrogate splits
+                                                    % because there is
+                                                    % missing data
 
+        else
+            tree_mdl_y=nan;
+            input_var_names_y=nan;
+        end
 
     end
+
+end
+
+
+
+%-------------------------<Evaluation Functions>------------------------
+function [mean_accuracies,total_results]=evalModels(data_mat,model_cell,dist_cell,avg_corners,tree_models)
+    %{
+    Inputs:
+        data_mat: matrix containing the evaulation data, can be 1+ cells
+        model_cell: contains the original polynomial model
+        dist_cell: contains the distance between glints at calibration
+        avg_corners: contains the average corner positions at calibration
+        tree_models: contains a cell array with three columns: col 1: tree
+        model names, col 2: tree models, col 3: tree inputs
+    Outputs:
+        accuracy is reported as sqrt((POG_x-t_x)^2+(POG_y-t_y)^2)
+
+        mean_accuracies: array with accuracies:
+        right_poly,left_poly,combined_poly,
+        right_tree,left_tree,combined_tree
+
+        total_results: cell with two columns:
+        col 1: names of the results "poly" or "tree"
+        col 2: the total results matrix with: accuracy_right, accuracy_left, accuracy_combined,
+        actual_del_pog_right_x, actual_del_pog_right_y, actual_del_pog_left_x,
+        actual_del_pog_left_y, 
+        estimated_del_pog_right_x, estimated_del_pog_right_y,estimated_del_pog_left_x,
+        estimated_del_pog_left_y,
+        right_inner_x, right_inner_y, right_outer_x, right_outer_y
+        left_inner_x, left_inner_y, left_outer_x, left_outer_y
+        alpha_right, alpha_left
+        t_x, t_y        
+
+    %}
+    
+    left_headers={'pg0_left_x','pg0_left_y','pg1_left_x','pg1_left_y','pg2_left_x','pg2_left_y'};
+    right_headers={'pg0_right_x','pg0_right_y','pg1_right_x','pg1_right_y','pg2_right_x','pg2_right_y'};
+    check_model_right=any(ismember(model_cell(:,1),right_headers));
+    check_model_left=any(ismember(model_cell(:,1),left_headers));
+
+    %Outputs the data as: 
+    reformatted_data=reformatData(data_mat);
+    disp('test')
+
+
+
+
+
+    %{
+    compensation_data=cell(1,2);
+    for i=[1:length(data_cell)]
+        curr_mat=data_cell{i}; 
+        [reformatted_data_right,reformatted_data_left]=reformatDataEval(curr_mat);
+        if check_model_right            
+            error_vec_right=findCalibrationErrors(model_cell,reformatted_data_right,right_headers,dist_cell);
+        end
+
+        if check_model_left
+            error_vec_left=findCalibrationErrors(model_cell,reformatted_data_left,left_headers,dist_cell);
+        end
+
+        if ~all(isnan(error_vec_right(:,1)))
+            del_corner_inner_x=avg_corners(1)-reformatted_data_right(:,end-3);
+            del_corner_inner_y=avg_corners(2)-reformatted_data_right(:,end-2);
+            del_corner_outer_x=avg_corners(3)-reformatted_data_right(:,end-1);
+            del_corner_outer_y=avg_corners(4)-reformatted_data_right(:,end);
+            v_calib_x=avg_corners(1)-avg_corners(3);
+            v_calib_y=avg_corners(2)-avg_corners(4);
+            v_curr_x=reformatted_data_right(:,end-3)-reformatted_data_right(:,end-1);
+            v_curr_y=reformatted_data_right(:,end-2)-reformatted_data_right(:,end);
+
+            alpha=2.*atan(sqrt((v_calib_x-v_curr_x).^2+(v_calib_y-v_curr_y).^2)./...
+                sqrt((v_calib_x+v_curr_x).^2+(v_calib_y+v_curr_y).^2));
+
+            compensation_data{1}=[compensation_data{1};error_vec_right(:,1),...
+                error_vec_right(:,2),del_corner_inner_x,del_corner_inner_y,...
+                del_corner_outer_x,del_corner_outer_y,alpha,...
+                error_vec_right(:,3),error_vec_right(:,4)];
+
+        else
+            compensation_data{1}=[compensation_data{1},nan,nan,nan,nan,nan,nan,nan,nan,nan];
+        end
+
+        if ~all(isnan(error_vec_left(:,1)))
+            del_corner_inner_x=avg_corners(5)-reformatted_data_left(:,end-3);
+            del_corner_inner_y=avg_corners(6)-reformatted_data_left(:,end-2);
+            del_corner_outer_x=avg_corners(7)-reformatted_data_left(:,end-1);
+            del_corner_outer_y=avg_corners(8)-reformatted_data_left(:,end);
+
+            v_calib_x=avg_corners(5)-avg_corners(7);
+            v_calib_y=avg_corners(6)-avg_corners(8);
+            v_curr_x=reformatted_data_left(:,end-3)-reformatted_data_left(:,end-1);
+            v_curr_y=reformatted_data_left(:,end-2)-reformatted_data_left(:,end);
+
+            alpha=2.*atan(sqrt((v_calib_x-v_curr_x).^2+(v_calib_y-v_curr_y).^2)./...
+                sqrt((v_calib_x+v_curr_x).^2+(v_calib_y+v_curr_y).^2));
+
+            compensation_data{2}=[compensation_data{2};error_vec_left(:,1),...
+                error_vec_left(:,2),del_corner_inner_x,del_corner_inner_y,...
+                del_corner_outer_x,del_corner_outer_y,alpha,...
+                error_vec_left(:,3),error_vec_left(:,4)];
+
+        else
+            compensation_data{2}=[compensation_data{2},nan,nan,nan,nan,nan,nan,nan,nan,nan];
+        end
+        
+    end
+
+    %}
+
+    
+
 
 
 end
 
 
+function reformatted_data=reformatData(eval_data)
+    %Returns the data to evaluate the model in the format of: 
+    % frame_no, pg0_rightx, pg0_righty, ..., pg2_rightx, pg2_righty, pg0_leftx, pg0_lefty,..., pg2_leftx, pg2_lefty,
+    % right_inner_x,right_inner_y,right_outer_x,right_outer_y,left_inner_x,left_inner_y,left_outer_x,left_outer_y,
+    % target_x,target_y
+
+
+    glintspupils_right_ind=[3,4,9,10,11,12,13,14]; %Contains the glints and pupil positions such that pupil_x,pupil_y,glint0_x,glint0_y...
+    glintspupils_left_ind=[15,16,21,22,23,24,25,26];
+
+    glintspupils_right=eval_data(:,glintspupils_right_ind);
+    glintspupils_left=eval_data(:,glintspupils_left_ind);
+
+    reformatted_data=[eval_data(:,2),glintspupils_right(:,3)-glintspupils_right(:,1),...
+        glintspupils_right(:,4)-glintspupils_right(:,2),glintspupils_right(:,5)-glintspupils_right(:,1),...
+        glintspupils_right(:,6)-glintspupils_right(:,2),glintspupils_right(:,7)-glintspupils_right(:,1),...
+        glintspupils_right(:,8)-glintspupils_right(:,2),...
+        glintspupils_left(:,3)-glintspupils_left(:,1),...
+        glintspupils_left(:,4)-glintspupils_left(:,2),glintspupils_left(:,5)-glintspupils_left(:,1),...
+        glintspupils_left(:,6)-glintspupils_left(:,2),glintspupils_left(:,7)-glintspupils_left(:,1),...
+        glintspupils_left(:,8)-glintspupils_left(:,2),...
+        eval_data(:,50:57),...
+        eval_data(:,27),eval_data(:,28)];
+
+end
