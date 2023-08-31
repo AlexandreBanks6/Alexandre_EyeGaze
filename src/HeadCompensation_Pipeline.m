@@ -55,8 +55,8 @@ for m=[1:num_dir]
             end
             if ~isempty(data_cell)
                 compensation_data=prepCompensationData(data_cell,model_poly,dist_cell,avg_corners);
-                [tree_mdl_right,input_var_names_right]=fitTreeModel(compensation_data{1});
-                [tree_mdl_left,input_var_names_left]=fitTreeModel(compensation_data{2});
+                %[tree_mdl_right,input_var_names_right]=fitTreeModel(compensation_data{1});
+                %[tree_mdl_left,input_var_names_left]=fitTreeModel(compensation_data{2});
             end
         
         end
@@ -636,9 +636,10 @@ POG=model(1)+sum(model(2:end)'.*predictors);
 
 end
 
-function [tree_mdl,input_var_names]=fitTreeModel(train_data)
+function [tree_mdl_x,tree_mdl_y,input_var_names_x,input_var_names_y]=fitTreeModel(train_data)
     
-    %We do this four times for the x,y and for both eyes
+    %We return the model for compensation in the x-direction as well as the
+    %model for compensation in the y-direction: tree_mdl_x & tree_mdl_y
        
     
     if all(isnan(train_data(:,1)))    %The output variable is all nan so we can't train

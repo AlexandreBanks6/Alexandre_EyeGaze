@@ -993,7 +993,7 @@ for entry in os.scandir(data_root):
         video_dir=data_root+'/'+part_name+'/EyeGaze_Data'
         entry_num=re.sub("[P]","",part_name)
         entry_num=int(entry_num)
-        if entry_num>21:
+        if entry_num>0:
             for file in os.listdir(video_dir): #Loops for all the eye videos in the directory
                 if file.endswith('.avi'):
                     root,ext=os.path.splitext(file)
@@ -1015,7 +1015,7 @@ for entry in os.scandir(data_root):
                             last_line=lines[-1]
                             last_line=last_line.split(',')
                             if last_line[0].isnumeric():
-                                video.set(cv2.CAP_PROP_POS_FRAMES,int(last_line[0])+1)
+                                video.set(cv2.CAP_PROP_POS_FRAMES,int(last_line[0]))
                         else:
                             csv_eyecorner=open(csv_name,mode='a')
                             csv_eyecorner.write('Frame_No,Right_Inner_x,Right_Inner_y,Right_Outer_x,Right_Outer_y,Left_Outer_x,Left_Outer_y,Left_Inner_x,Left_Inner_y\n')
@@ -1026,6 +1026,7 @@ for entry in os.scandir(data_root):
                         #Writing Header:
                         csv_eyecorner.write('Frame_No,Right_Inner_x,Right_Inner_y,Right_Outer_x,Right_Outer_y,Left_Outer_x,Left_Outer_y,Left_Inner_x,Left_Inner_y\n')
                         csv_eyecorner.close()
+                    
                     sucess,frame=video.read()
                     #frame_count=0
                     print('Current File is: ',csv_name)
@@ -1056,10 +1057,12 @@ for entry in os.scandir(data_root):
                         #print('Prediction time is: ',t1-t0)
                         bounding_boxes,is_detect=process_detections(predictions,dw,dh)
                         if is_detect==False: #Checks that we have a detection
+                            sucess,frame=video.read()
                             continue
 
                         eye_images,eye_found=cropBothEyes(frame,bounding_boxes)
                         if eye_found==False: #No eyes are found
+                            sucess,frame=video.read()
                             continue
                         #t3=time.time()
                         eye_corner_results=findCorners(frame,eye_images,bounding_boxes)
