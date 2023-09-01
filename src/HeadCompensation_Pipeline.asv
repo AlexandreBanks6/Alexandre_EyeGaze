@@ -833,74 +833,7 @@ function [mean_accuracies,total_results]=evalModels(data_mat,model_cell,dist_cel
 
     total_results=evalAccuracy(model_cell,reformatted_data,right_headers,left_headers,check_model_right,check_model_left,dist_cell,avg_corners,tree_models);
 
-    disp('test')
-
-
-
-
-
-    %{
-    compensation_data=cell(1,2);
-    for i=[1:length(data_cell)]
-        curr_mat=data_cell{i}; 
-        [reformatted_data_right,reformatted_data_left]=reformatDataEval(curr_mat);
-        if check_model_right            
-            error_vec_right=findCalibrationErrors(model_cell,reformatted_data_right,right_headers,dist_cell);
-        end
-
-        if check_model_left
-            error_vec_left=findCalibrationErrors(model_cell,reformatted_data_left,left_headers,dist_cell);
-        end
-
-        if ~all(isnan(error_vec_right(:,1)))
-            del_corner_inner_x=avg_corners(1)-reformatted_data_right(:,end-3);
-            del_corner_inner_y=avg_corners(2)-reformatted_data_right(:,end-2);
-            del_corner_outer_x=avg_corners(3)-reformatted_data_right(:,end-1);
-            del_corner_outer_y=avg_corners(4)-reformatted_data_right(:,end);
-            v_calib_x=avg_corners(1)-avg_corners(3);
-            v_calib_y=avg_corners(2)-avg_corners(4);
-            v_curr_x=reformatted_data_right(:,end-3)-reformatted_data_right(:,end-1);
-            v_curr_y=reformatted_data_right(:,end-2)-reformatted_data_right(:,end);
-
-            alpha=2.*atan(sqrt((v_calib_x-v_curr_x).^2+(v_calib_y-v_curr_y).^2)./...
-                sqrt((v_calib_x+v_curr_x).^2+(v_calib_y+v_curr_y).^2));
-
-            compensation_data{1}=[compensation_data{1};error_vec_right(:,1),...
-                error_vec_right(:,2),del_corner_inner_x,del_corner_inner_y,...
-                del_corner_outer_x,del_corner_outer_y,alpha,...
-                error_vec_right(:,3),error_vec_right(:,4)];
-
-        else
-            compensation_data{1}=[compensation_data{1},nan,nan,nan,nan,nan,nan,nan,nan,nan];
-        end
-
-        if ~all(isnan(error_vec_left(:,1)))
-            del_corner_inner_x=avg_corners(5)-reformatted_data_left(:,end-3);
-            del_corner_inner_y=avg_corners(6)-reformatted_data_left(:,end-2);
-            del_corner_outer_x=avg_corners(7)-reformatted_data_left(:,end-1);
-            del_corner_outer_y=avg_corners(8)-reformatted_data_left(:,end);
-
-            v_calib_x=avg_corners(5)-avg_corners(7);
-            v_calib_y=avg_corners(6)-avg_corners(8);
-            v_curr_x=reformatted_data_left(:,end-3)-reformatted_data_left(:,end-1);
-            v_curr_y=reformatted_data_left(:,end-2)-reformatted_data_left(:,end);
-
-            alpha=2.*atan(sqrt((v_calib_x-v_curr_x).^2+(v_calib_y-v_curr_y).^2)./...
-                sqrt((v_calib_x+v_curr_x).^2+(v_calib_y+v_curr_y).^2));
-
-            compensation_data{2}=[compensation_data{2};error_vec_left(:,1),...
-                error_vec_left(:,2),del_corner_inner_x,del_corner_inner_y,...
-                del_corner_outer_x,del_corner_outer_y,alpha,...
-                error_vec_left(:,3),error_vec_left(:,4)];
-
-        else
-            compensation_data{2}=[compensation_data{2},nan,nan,nan,nan,nan,nan,nan,nan,nan];
-        end
-        
-    end
-
-    %}
-
+    mean_accuracies=mean(total_results(:,[2:7]),1,'omitnan');
     
 
 
@@ -1000,55 +933,55 @@ function total_results=evalAccuracy(model_cell,reformatted_data,right_headers,le
     
                     [d_calib,d_curr]=findScalingFactors(dist_cell,valid_header,right_headers,right_pgs);
                     
-                    if isnan(d_calib)||isnan(d_curr)
-                        error_vec=[error_vec;[nan,nan,t_x,t_y]];
-                        continue
-                    end
-                    pg_x=(d_calib/d_curr).*right_pgs(pg_x_ind);
-                    pg_y=(d_calib/d_curr).*right_pgs(pg_y_ind);
-    
-                    [predictors_x,predictors_y]=customPolynomial(pg_x,pg_y);
-    
-                    POG_x_poly_right=findPOG(model_x,predictors_x);
-                    POG_y_poly_right=findPOG(model_y,predictors_y);
-                    
-                    del_POG_x_actual=t_x-POG_x_poly_right;
-                    del_POG_y_actual=t_y-POG_y_poly_right;
-
-                    accuracy_poly=sqrt((POG_x_poly_right-t_x)^2+(POG_y_poly_right-t_y)^2);
-                    results_row(2)=accuracy_poly;
-                    results_row(8)=del_POG_x_actual;
-                    results_row(9)=del_POG_y_actual;
-
-                    %Compensating
-                    ind_x=ismember(tree_models(:,1),'right_x');
-                    ind_y=ismember(tree_models(:,1),'right_y');
-                    if any(ind_x) && any(ind_y) %We have a model for compensation
-                        %Compensating in x-direction
-                        input_vars_x=tree_models{ind_x,3};
-                        tree_model_x=tree_models{ind_x,2};
-                        predictors=[del_corner_inner_x,del_corner_outer_x,alpha];
-                        check_title={'d_corner_inner_x','d_corner_outer_x','alpha'};
-                        check_inds=ismember(check_title,input_vars_x);
-                        predictors=predictors(check_inds);
-                        del_POG_x_tree=predict(tree_model_x,predictors);
-                        POG_x_tree_right=del_POG_x_tree+POG_x_poly_right;
-
+                    if ~isnan(d_calib) && ~isnan(d_curr)
                         
-                        input_vars_y=tree_models{ind_y,3};
-                        tree_model_y=tree_models{ind_y,2};
-                        predictors=[del_corner_inner_y,del_corner_outer_y,alpha];
-                        check_title={'d_corner_inner_y','d_corner_outer_y','alpha'};
-                        check_inds=ismember(check_title,input_vars_y);
-                        predictors=predictors(check_inds);
-                        del_POG_y_tree=predict(tree_model_y,predictors);
-                        POG_y_tree_right=del_POG_y_tree+POG_y_poly_right;
-
-                        accuracy_tree=sqrt((POG_x_tree_right-t_x)^2+(POG_y_tree_right-t_y)^2);
-                        results_row(5)=accuracy_tree;
-                        results_row(12)=del_POG_x_tree;
-                        results_row(13)=del_POG_y_tree;
-
+                    
+                        pg_x=(d_calib/d_curr).*right_pgs(pg_x_ind);
+                        pg_y=(d_calib/d_curr).*right_pgs(pg_y_ind);
+        
+                        [predictors_x,predictors_y]=customPolynomial(pg_x,pg_y);
+        
+                        POG_x_poly_right=findPOG(model_x,predictors_x);
+                        POG_y_poly_right=findPOG(model_y,predictors_y);
+                        
+                        del_POG_x_actual=t_x-POG_x_poly_right;
+                        del_POG_y_actual=t_y-POG_y_poly_right;
+    
+                        accuracy_poly=sqrt((POG_x_poly_right-t_x)^2+(POG_y_poly_right-t_y)^2);
+                        results_row(2)=accuracy_poly;
+                        results_row(8)=del_POG_x_actual;
+                        results_row(9)=del_POG_y_actual;
+    
+                        %Compensating
+                        ind_x=ismember(tree_models(:,1),'right_x');
+                        ind_y=ismember(tree_models(:,1),'right_y');
+                        if any(ind_x) && any(ind_y) %We have a model for compensation
+                            %Compensating in x-direction
+                            input_vars_x=tree_models{ind_x,3};
+                            tree_model_x=tree_models{ind_x,2};
+                            predictors=[del_corner_inner_x,del_corner_outer_x,alpha];
+                            check_title={'d_corner_inner_x','d_corner_outer_x','alpha'};
+                            check_inds=ismember(check_title,input_vars_x);
+                            predictors=predictors(check_inds);
+                            del_POG_x_tree=predict(tree_model_x,predictors);
+                            POG_x_tree_right=del_POG_x_tree+POG_x_poly_right;
+    
+                            
+                            input_vars_y=tree_models{ind_y,3};
+                            tree_model_y=tree_models{ind_y,2};
+                            predictors=[del_corner_inner_y,del_corner_outer_y,alpha];
+                            check_title={'d_corner_inner_y','d_corner_outer_y','alpha'};
+                            check_inds=ismember(check_title,input_vars_y);
+                            predictors=predictors(check_inds);
+                            del_POG_y_tree=predict(tree_model_y,predictors);
+                            POG_y_tree_right=del_POG_y_tree+POG_y_poly_right;
+    
+                            accuracy_tree=sqrt((POG_x_tree_right-t_x)^2+(POG_y_tree_right-t_y)^2);
+                            results_row(5)=accuracy_tree;
+                            results_row(12)=del_POG_x_tree;
+                            results_row(13)=del_POG_y_tree;
+    
+                        end
                     end
                       
                 end
@@ -1109,56 +1042,54 @@ function total_results=evalAccuracy(model_cell,reformatted_data,right_headers,le
     
                     [d_calib,d_curr]=findScalingFactors(dist_cell,valid_header,left_headers,left_pgs);
                     
-                    if isnan(d_calib)||isnan(d_curr)
-                        error_vec=[error_vec;[nan,nan,t_x,t_y]];
-                        continue
-                    end
-                    pg_x=(d_calib/d_curr).*left_pgs(pg_x_ind);
-                    pg_y=(d_calib/d_curr).*left_pgs(pg_y_ind);
-    
-                    [predictors_x,predictors_y]=customPolynomial(pg_x,pg_y);
-    
-                    POG_x_poly_left=findPOG(model_x,predictors_x);
-                    POG_y_poly_left=findPOG(model_y,predictors_y);
-                    
-                    del_POG_x_actual=t_x-POG_x_poly_left;
-                    del_POG_y_actual=t_y-POG_y_poly_left;
-
-                    accuracy_poly=sqrt((POG_x_poly_left-t_x)^2+(POG_y_poly_left-t_y)^2);
-                    results_row(3)=accuracy_poly;
-                    results_row(10)=del_POG_x_actual;
-                    results_row(11)=del_POG_y_actual;
-
-                    %Compensating
-                    ind_x=ismember(tree_models(:,1),'left_x');
-                    ind_y=ismember(tree_models(:,1),'left_y');
-                    if any(ind_x) && any(ind_y) %We have a model for compensation
-                        %Compensating in x-direction
-                        input_vars_x=tree_models{ind_x,3};
-                        tree_model_x=tree_models{ind_x,2};
-                        predictors=[del_corner_inner_x,del_corner_outer_x,alpha];
-                        check_title={'d_corner_inner_x','d_corner_outer_x','alpha'};
-                        check_inds=ismember(check_title,input_vars_x);
-                        predictors=predictors(check_inds);
-                        del_POG_x_tree=predict(tree_model_x,predictors);
-                        POG_x_tree_left=del_POG_x_tree+POG_x_poly_left;
+                    if ~isnan(d_calib) && ~isnan(d_curr)
+                        pg_x=(d_calib/d_curr).*left_pgs(pg_x_ind);
+                        pg_y=(d_calib/d_curr).*left_pgs(pg_y_ind);
+        
+                        [predictors_x,predictors_y]=customPolynomial(pg_x,pg_y);
+        
+                        POG_x_poly_left=findPOG(model_x,predictors_x);
+                        POG_y_poly_left=findPOG(model_y,predictors_y);
                         
-                        %Compensating in y-direction
-                        
-                        input_vars_y=tree_models{ind_y,3};
-                        tree_model_y=tree_models{ind_y,2};
-                        predictors=[del_corner_inner_y,del_corner_outer_y,alpha];
-                        check_title={'d_corner_inner_y','d_corner_outer_y','alpha'};
-                        check_inds=ismember(check_title,input_vars_y);
-                        predictors=predictors(check_inds);
-                        del_POG_y_tree=predict(tree_model_y,predictors);
-                        POG_y_tree_left=del_POG_y_tree+POG_y_poly_left;
-
-                        accuracy_tree=sqrt((POG_x_tree_left-t_x)^2+(POG_y_tree_left-t_y)^2);
-                        results_row(6)=accuracy_tree;
-                        results_row(14)=del_POG_x_tree;
-                        results_row(15)=del_POG_y_tree;
-
+                        del_POG_x_actual=t_x-POG_x_poly_left;
+                        del_POG_y_actual=t_y-POG_y_poly_left;
+    
+                        accuracy_poly=sqrt((POG_x_poly_left-t_x)^2+(POG_y_poly_left-t_y)^2);
+                        results_row(3)=accuracy_poly;
+                        results_row(10)=del_POG_x_actual;
+                        results_row(11)=del_POG_y_actual;
+    
+                        %Compensating
+                        ind_x=ismember(tree_models(:,1),'left_x');
+                        ind_y=ismember(tree_models(:,1),'left_y');
+                        if any(ind_x) && any(ind_y) %We have a model for compensation
+                            %Compensating in x-direction
+                            input_vars_x=tree_models{ind_x,3};
+                            tree_model_x=tree_models{ind_x,2};
+                            predictors=[del_corner_inner_x,del_corner_outer_x,alpha];
+                            check_title={'d_corner_inner_x','d_corner_outer_x','alpha'};
+                            check_inds=ismember(check_title,input_vars_x);
+                            predictors=predictors(check_inds);
+                            del_POG_x_tree=predict(tree_model_x,predictors);
+                            POG_x_tree_left=del_POG_x_tree+POG_x_poly_left;
+                            
+                            %Compensating in y-direction
+                            
+                            input_vars_y=tree_models{ind_y,3};
+                            tree_model_y=tree_models{ind_y,2};
+                            predictors=[del_corner_inner_y,del_corner_outer_y,alpha];
+                            check_title={'d_corner_inner_y','d_corner_outer_y','alpha'};
+                            check_inds=ismember(check_title,input_vars_y);
+                            predictors=predictors(check_inds);
+                            del_POG_y_tree=predict(tree_model_y,predictors);
+                            POG_y_tree_left=del_POG_y_tree+POG_y_poly_left;
+    
+                            accuracy_tree=sqrt((POG_x_tree_left-t_x)^2+(POG_y_tree_left-t_y)^2);
+                            results_row(6)=accuracy_tree;
+                            results_row(14)=del_POG_x_tree;
+                            results_row(15)=del_POG_y_tree;
+    
+                        end
                     end
                       
                 end
@@ -1168,16 +1099,24 @@ function total_results=evalAccuracy(model_cell,reformatted_data,right_headers,le
         end
         
         %-------------------<Getting Combined Results>-----------------
-        if ~exist('POG_x_poly_right) || ~isempty(POG_y_poly_right) || ~isempty(POG_x_poly_left) || ~isempty(POG_y_poly_left) 
+        if ~exist('POG_x_poly_right','var') || ~exist('POG_y_poly_right','var') || ~exist('POG_x_poly_left','var') || ~exist('POG_y_poly_left','var') 
             POG_combined_x=(POG_x_poly_right+POG_x_poly_left)/2;
             POG_combined_y=(POG_y_poly_right+POG_y_poly_left)/2;
             accuracy_combined=sqrt((POG_combined_x-t_x)^2+(POG_combined_y-t_y)^2);
-            
+            results_row(4)=accuracy_combined;
+
+        end
+
+        if ~exist('POG_x_tree_right','var') || ~exist('POG_y_tree_right','var') || ~exist('POG_x_tree_left','var') || ~exist('POG_y_tree_left','var') 
+            POG_combined_x=(POG_x_tree_right+POG_x_tree_left)/2;
+            POG_combined_y=(POG_y_tree_right+POG_y_tree_left)/2;
+            accuracy_combined=sqrt((POG_combined_x-t_x)^2+(POG_combined_y-t_y)^2);
+            results_row(7)=accuracy_combined;
 
         end
 
 
-
+        total_results=[total_results;results_row];
     end
 
 end
