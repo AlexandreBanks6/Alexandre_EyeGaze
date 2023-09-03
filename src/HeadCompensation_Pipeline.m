@@ -16,6 +16,7 @@ num_dir=length(dirnames);
 CALIB_THRESHOLD=5;
 EVAL_THRESHOLD=3; %Threshold to be considered a valid evaluation trial
 
+
 %Looping for all participants
 for m=[1:num_dir]
     %if dirnames{m}(1)=='P' %We have a participant and run calibrations and/evaluations
@@ -238,8 +239,8 @@ trainCell={};
     %Finding the average corner locations
     corner_data=data_matrix(:,50:57);
     %Change the corner locations to be in 640x480 not the 1280x480 so
-    corner_data(:,1)=corner_data(:,1)-640;
-    corner_data(:,3)=corner_data(:,3)-640;
+    %corner_data(:,1)=corner_data(:,1);
+    %corner_data(:,3)=corner_data(:,3);
     avg_corners=mean(corner_data,1,'omitnan');
     
 end
@@ -390,9 +391,9 @@ end
 %-------------------<Head Compensation Functions>--------------------
 function [compensation_data]=prepCompensationData(data_cell,model_cell,dist_cell,avg_corners)
     %{
-    Input: data_cell has up to five cells where each cell is a matrix
+    Input: data_cell has up to four cells where each cell is a matrix
     containing the data to train the compensation model.
-    Each cell has: Calib_Init,Calib_Up,Calib_Down,Calib_Right,Calib_Left
+    Each cell has: Calib_Up,Calib_Down,Calib_Right,Calib_Left
 
     compensationData is a cell array with two cells having:
     cell 1: del_POG_x_right,del_POG_y_right,del_corner_inner_x_right,del_corner_inner_y_right,
@@ -426,6 +427,8 @@ function [compensation_data]=prepCompensationData(data_cell,model_cell,dist_cell
         end
 
         if ~all(isnan(error_vec_right(:,1)))
+            % reformmated_data_right=frame_no,pg0_rightx,pg0_righty,...,pg2_rightx,pg2_righty,target_x,target_y,right_inner_x,right_inner_y,right_outer_x,right_outer_y,..
+
             del_corner_inner_x=avg_corners(1)-reformatted_data_right(:,end-3);
             del_corner_inner_y=avg_corners(2)-reformatted_data_right(:,end-2);
             del_corner_outer_x=avg_corners(3)-reformatted_data_right(:,end-1);
@@ -494,7 +497,7 @@ function [reformatted_data_right,reformatted_data_left]=reformatDataEval(eval_da
     reformatted_data_right=[eval_data(:,2),glintspupils_right(:,3)-glintspupils_right(:,1),...
         glintspupils_right(:,4)-glintspupils_right(:,2),glintspupils_right(:,5)-glintspupils_right(:,1),...
         glintspupils_right(:,6)-glintspupils_right(:,2),glintspupils_right(:,7)-glintspupils_right(:,1),...
-        glintspupils_right(:,8)-glintspupils_right(:,2),eval_data(:,27),eval_data(:,28),eval_data(:,50)-640,eval_data(:,51),eval_data(:,52)-640,eval_data(:,53)];
+        glintspupils_right(:,8)-glintspupils_right(:,2),eval_data(:,27),eval_data(:,28),eval_data(:,50:53)];
 
     reformatted_data_left=[eval_data(:,2),glintspupils_left(:,3)-glintspupils_left(:,1),...
         glintspupils_left(:,4)-glintspupils_left(:,2),glintspupils_left(:,5)-glintspupils_left(:,1),...
@@ -514,7 +517,9 @@ function error_vec=findCalibrationErrors(model_cell,reformatted_data,header,dist
     [row_n,~]=size(reformatted_data);
     error_vec=[];
     for i=[1:row_n]
-        curr_row=reformatted_data(i,:); %Current data row    
+        curr_row=reformatted_data(i,:); %Current data row  
+      % reformmated_data_right=frame_no,pg0_rightx,pg0_righty,...,pg2_rightx,pg2_righty,target_x,target_y,right_inner_x,right_inner_y,right_outer_x,right_outer_y,..
+
         t_x=curr_row(8);
         t_y=curr_row(9);
         %Index of values in row that are not NaN
@@ -797,7 +802,7 @@ end
 function [mean_accuracies,total_results]=evalModels(data_mat,model_cell,dist_cell,avg_corners,tree_models)
     %{
     Inputs:
-        data_mat: matrix containing the evaulation data, can be 1+ cells
+        data_mat: matrix containing the evaulation data
         model_cell: contains the original polynomial model
         dist_cell: contains the distance between glints at calibration
         avg_corners: contains the average corner positions at calibration
@@ -810,7 +815,7 @@ function [mean_accuracies,total_results]=evalModels(data_mat,model_cell,dist_cel
         right_poly,left_poly,combined_poly,
         right_tree,left_tree,combined_tree
 
-        total_results: matric with columns:
+        total_results: matrix with columns:
         frame_no, accuracy_right_poly, accuracy_left_poly, accuracy_combined_poly,accuracy_right_tree, accuracy_left_tree, accuracy_combined_tree,
         actual_del_pog_right_x, actual_del_pog_right_y, actual_del_pog_left_x,
         actual_del_pog_left_y, 
@@ -955,13 +960,13 @@ function total_results=evalAccuracy(model_cell,reformatted_data,right_headers,le
                         %Compensating
                         ind_x=ismember(tree_models(:,1),'right_x');
                         ind_y=ismember(tree_models(:,1),'right_y');
-                        if any(ind_x) && any(ind_y) %We have a model for compensation
+                        if any(ind_x) && any(ind_y) && all(isnan(tree_models{1,3})) && all(isnan(tree_models{2,3})) %We have a model for compensation
                             %Compensating in x-direction
                             input_vars_x=tree_models{ind_x,3};
                             tree_model_x=tree_models{ind_x,2};
                             predictors=[del_corner_inner_x,del_corner_outer_x,alpha];
                             check_title={'d_corner_inner_x','d_corner_outer_x','alpha'};
-                            check_inds=ismember(check_title,input_vars_x);
+                            [~,check_inds]=ismember(input_vars_x,check_title);
                             predictors=predictors(check_inds);
                             del_POG_x_tree=predict(tree_model_x,predictors);
                             POG_x_tree_right=del_POG_x_tree+POG_x_poly_right;
@@ -971,7 +976,7 @@ function total_results=evalAccuracy(model_cell,reformatted_data,right_headers,le
                             tree_model_y=tree_models{ind_y,2};
                             predictors=[del_corner_inner_y,del_corner_outer_y,alpha];
                             check_title={'d_corner_inner_y','d_corner_outer_y','alpha'};
-                            check_inds=ismember(check_title,input_vars_y);
+                            [~,check_inds]=ismember(input_vars_y,check_title);
                             predictors=predictors(check_inds);
                             del_POG_y_tree=predict(tree_model_y,predictors);
                             POG_y_tree_right=del_POG_y_tree+POG_y_poly_right;
@@ -995,9 +1000,9 @@ function total_results=evalAccuracy(model_cell,reformatted_data,right_headers,le
 
         %Inputs to tree regressor compensation in left eye
         del_corner_inner_x=avg_corners(5)-curr_row(18);
-        del_corner_outer_x=avg_corners(6)-curr_row(19);
+        del_corner_outer_x=avg_corners(7)-curr_row(20);
 
-        del_corner_inner_y=avg_corners(7)-curr_row(20);
+        del_corner_inner_y=avg_corners(6)-curr_row(19);
         del_corner_outer_y=avg_corners(8)-curr_row(21);
 
         v_calib_x=avg_corners(5)-avg_corners(7);
@@ -1062,13 +1067,13 @@ function total_results=evalAccuracy(model_cell,reformatted_data,right_headers,le
                         %Compensating
                         ind_x=ismember(tree_models(:,1),'left_x');
                         ind_y=ismember(tree_models(:,1),'left_y');
-                        if any(ind_x) && any(ind_y) %We have a model for compensation
+                        if any(ind_x) && any(ind_y) && all(isnan(tree_models{3,3})) && all(isnan(tree_models{4,3})) %We have a model for compensation
                             %Compensating in x-direction
                             input_vars_x=tree_models{ind_x,3};
                             tree_model_x=tree_models{ind_x,2};
                             predictors=[del_corner_inner_x,del_corner_outer_x,alpha];
                             check_title={'d_corner_inner_x','d_corner_outer_x','alpha'};
-                            check_inds=ismember(check_title,input_vars_x);
+                            [~,check_inds]=ismember(input_vars_x,check_title);
                             predictors=predictors(check_inds);
                             del_POG_x_tree=predict(tree_model_x,predictors);
                             POG_x_tree_left=del_POG_x_tree+POG_x_poly_left;
@@ -1079,7 +1084,7 @@ function total_results=evalAccuracy(model_cell,reformatted_data,right_headers,le
                             tree_model_y=tree_models{ind_y,2};
                             predictors=[del_corner_inner_y,del_corner_outer_y,alpha];
                             check_title={'d_corner_inner_y','d_corner_outer_y','alpha'};
-                            check_inds=ismember(check_title,input_vars_y);
+                            [~,check_inds]=ismember(input_vars_y,check_title);
                             predictors=predictors(check_inds);
                             del_POG_y_tree=predict(tree_model_y,predictors);
                             POG_y_tree_left=del_POG_y_tree+POG_y_poly_left;
@@ -1099,7 +1104,7 @@ function total_results=evalAccuracy(model_cell,reformatted_data,right_headers,le
         end
         
         %-------------------<Getting Combined Results>-----------------
-        if ~exist('POG_x_poly_right','var') || ~exist('POG_y_poly_right','var') || ~exist('POG_x_poly_left','var') || ~exist('POG_y_poly_left','var') 
+        if ~exist('POG_x_poly_right','var') && ~exist('POG_y_poly_right','var') && ~exist('POG_x_poly_left','var') && ~exist('POG_y_poly_left','var') 
             POG_combined_x=(POG_x_poly_right+POG_x_poly_left)/2;
             POG_combined_y=(POG_y_poly_right+POG_y_poly_left)/2;
             accuracy_combined=sqrt((POG_combined_x-t_x)^2+(POG_combined_y-t_y)^2);
@@ -1107,7 +1112,7 @@ function total_results=evalAccuracy(model_cell,reformatted_data,right_headers,le
 
         end
 
-        if ~exist('POG_x_tree_right','var') || ~exist('POG_y_tree_right','var') || ~exist('POG_x_tree_left','var') || ~exist('POG_y_tree_left','var') 
+        if ~exist('POG_x_tree_right','var') && ~exist('POG_y_tree_right','var') && ~exist('POG_x_tree_left','var') && ~exist('POG_y_tree_left','var') 
             POG_combined_x=(POG_x_tree_right+POG_x_tree_left)/2;
             POG_combined_y=(POG_y_tree_right+POG_y_tree_left)/2;
             accuracy_combined=sqrt((POG_combined_x-t_x)^2+(POG_combined_y-t_y)^2);
@@ -1143,7 +1148,7 @@ function reformatted_data=reformatData(eval_data)
         glintspupils_left(:,4)-glintspupils_left(:,2),glintspupils_left(:,5)-glintspupils_left(:,1),...
         glintspupils_left(:,6)-glintspupils_left(:,2),glintspupils_left(:,7)-glintspupils_left(:,1),...
         glintspupils_left(:,8)-glintspupils_left(:,2),...
-        eval_data(:,50)-640,eval_data(:,51),eval_data(:,52)-640,eval_data(:,53:57),...
+        eval_data(:,50:57),...
         eval_data(:,27),eval_data(:,28)];
 
 end
