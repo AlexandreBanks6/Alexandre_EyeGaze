@@ -67,6 +67,7 @@ for m=[1:num_dir]
             model_poly=robustRegressor(train_cell); %Robust Regressor model params
             
             old_data_cell={calib_up_data,calib_down_data,calib_right_data,calib_left_data};
+
             data_cell=cell(0);
             for i=[1:length(old_data_cell)]
 
@@ -120,9 +121,18 @@ for m=[1:num_dir]
 
     end
 end
+%% Checking linear regressor fit
+figure;
+[predictors_x,predictors_y]=compensationPolynomial(predictors_right);
+fit_right_x=findCompensation(mdl_right_x,predictors_x);
+plot(predictors_x(:,1),fit_right_x,'rx',predictors_x(:,1),del_POG_x_right,'bo');
 
-%% Checking tree models
-data_mat=[eval_straight_data;eval_up_data;eval_down_data;eval_right_data;eval_left_data];
+
+%% Checking  models
+data_mat=calib_right_data;
+%data_mat=eval_straight_data;
+%data_mat=[calib_up_data;calib_down_data;calib_right_data;calib_left_data];
+%data_mat=[eval_straight_data;eval_up_data;eval_down_data;eval_right_data;eval_left_data];
 %calib_data=[calib_up_data;calib_down_data;calib_right_data;calib_left_data];
 %tree_models=[{'right_x'},{tree_mdl_right_x},{input_var_names_right_x};...
     %{'right_y'},{tree_mdl_right_y},{input_var_names_right_y};...
@@ -131,6 +141,29 @@ data_mat=[eval_straight_data;eval_up_data;eval_down_data;eval_right_data;eval_le
 
 %[mean_accuracies,total_results]=evalModelsRegressComp(calib_right_data,model_poly,dist_cell,avg_corners,tree_models);
 [mean_accuracies,total_results]=evalModelsRegressComp(data_mat,model_poly,dist_cell,avg_corners,mdl_right_x,mdl_right_y,mdl_left_x,mdl_left_y);
+
+%{
+        total_results: matrix with columns:
+        frame_no, accuracy_right_poly, accuracy_left_poly, accuracy_combined_poly,accuracy_right_tree, accuracy_left_tree, accuracy_combined_tree,
+        actual_del_pog_right_x, actual_del_pog_right_y, actual_del_pog_left_x,
+        actual_del_pog_left_y, 
+        estimated_del_pog_right_x, estimated_del_pog_right_y,estimated_del_pog_left_x,
+        estimated_del_pog_left_y,
+        right_inner_x, right_inner_y, right_outer_x, right_outer_y
+        left_inner_x, left_inner_y, left_outer_x, left_outer_y
+        alpha_right, alpha_left
+        t_x, t_y        
+
+%}
+figure;
+plot(total_results(:,16),total_results(:,8),'rx',total_results(:,16),total_results(:,12),'bo');
+legend('actual','estimated')
+title('Actual del POG and Estimated del POG')
+
+figure;
+plot(total_results(:,16),total_results(:,8)-total_results(:,12),'rx');
+title('Error in del POG')
+
 %% Doing some random tests
 data_cell={calib_right_data};
 compensation_data=prepCompensationData(data_cell,model_poly,dist_cell,avg_corners);
@@ -1354,7 +1387,7 @@ end
 
 function POG=findPOG(model,predictors)
 %Generalized function to find the POG at run time
-POG=model(1)+sum(model(2:end)'.*predictors);
+POG=model(1)+sum(model(2:end)'.*predictors,'omitnan');
 
 
 end
@@ -1579,9 +1612,12 @@ end
 
 function [predictors_x,predictors_y]=compensationPolynomial(predictors)
 %Predictors are in the format: del_corner_inner_x,del_corner_inner_y, del_corner_outer_x,del_corner_outer_y,alpha
-predictors_x=[predictors(:,1),predictors(:,3)];
-predictors_y=[predictors(:,2),predictors(:,4)];
-
+%predictors_x=[predictors(:,1),predictors(:,3),predictors(:,2),predictors(:,4),predictors(:,1).*predictors(:,2),predictors(:,3).*predictors(:,4)];
+%predictors_y=[predictors(:,1),predictors(:,3),predictors(:,2),predictors(:,4),predictors(:,1).*predictors(:,2),predictors(:,3).*predictors(:,4)];
+%predictors_x=[predictors(:,1).*predictors(:,2),predictors(:,3).*predictors(:,4)];
+%predictors_y=[predictors(:,1).*predictors(:,2),predictors(:,3).*predictors(:,4)];
+predictors_x=[predictors(:,1)];
+predictors_y=[predictors(:,2)];
 
 end
 
@@ -1607,7 +1643,7 @@ end
 
 function del_POG=findCompensation(model,predictors)
 %Generalized function to find the POG at run time
-del_POG=model(1)+sum(model(2:end)'.*predictors);
+del_POG=model(1)+sum(model(2:end)'.*predictors,2,'omitnan');
 
 
 end
@@ -2156,6 +2192,7 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
                         if length(comp_model_x_right)>0 && ~any(isnan(predictors_x))
                                 accuracy_get=accuracy_get+1;
                                 del_POG_x_tree=findCompensation(comp_model_x_right,predictors_x);
+                                del_POG_x_tree=del_POG_x_tree;
                                 results_row(12)=del_POG_x_tree;
                                 POG_x_tree_right=del_POG_x_tree+POG_x_poly_right;
 
@@ -2164,13 +2201,14 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
                         if length(comp_model_y_right)>0 && ~any(isnan(predictors_y))
                                 accuracy_get=accuracy_get+1;
                                 del_POG_y_tree=findCompensation(comp_model_y_right,predictors_y);
-                                results_row(12)=del_POG_y_tree;
+                                del_POG_y_tree=del_POG_y_tree;
+                                results_row(13)=del_POG_y_tree;
                                 POG_y_tree_right=del_POG_y_tree+POG_y_poly_right;
 
                         end
 
                         if accuracy_get>=2
-                                accuracy_tree=sqrt((POG_x_tree_right-t_x)^2+(POG_y_tree_right-t_y)^2);
+                                accuracy_tree=sqrt((t_x-POG_x_tree_right)^2+(t_y-POG_y_tree_right)^2);
                                 results_row(5)=accuracy_tree;
                         end
     
@@ -2259,6 +2297,7 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
                         if length(comp_model_x_left)>0 && ~any(isnan(predictors_x))
                                 accuracy_get=accuracy_get+1;
                                 del_POG_x_tree=findCompensation(comp_model_x_left,predictors_x);
+                                del_POG_x_tree=del_POG_x_tree;
                                 results_row(14)=del_POG_x_tree;
                                 POG_x_tree_left=del_POG_x_tree+POG_x_poly_left;
 
@@ -2267,13 +2306,14 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
                         if length(comp_model_y_left)>0 && ~any(isnan(predictors_y))
                                 accuracy_get=accuracy_get+1;
                                 del_POG_y_tree=findCompensation(comp_model_y_left,predictors_y);
+                                del_POG_y_tree=del_POG_y_tree;
                                 results_row(15)=del_POG_y_tree;
                                 POG_y_tree_left=del_POG_y_tree+POG_y_poly_left;
 
                         end
 
                         if accuracy_get>=2
-                                accuracy_tree=sqrt((POG_x_tree_left-t_x)^2+(POG_y_tree_left-t_y)^2);
+                                accuracy_tree=sqrt((t_x-POG_x_tree_left)^2+(t_y-POG_y_tree_left)^2);
                             
                                 results_row(6)=accuracy_tree;
                         end
@@ -2292,7 +2332,7 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
         if exist('POG_x_poly_right','var') && exist('POG_y_poly_right','var') && exist('POG_x_poly_left','var') && exist('POG_y_poly_left','var') 
             POG_combined_x=(POG_x_poly_right+POG_x_poly_left)/2;
             POG_combined_y=(POG_y_poly_right+POG_y_poly_left)/2;
-            accuracy_combined=sqrt((POG_combined_x-t_x)^2+(POG_combined_y-t_y)^2);
+            accuracy_combined=sqrt((t_x-POG_combined_x)^2+(t_y-POG_combined_y)^2);
             results_row(4)=accuracy_combined;
 
         end
@@ -2300,7 +2340,7 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
         if exist('POG_x_tree_right','var') && exist('POG_y_tree_right','var') && exist('POG_x_tree_left','var') && exist('POG_y_tree_left','var') 
             POG_combined_x=(POG_x_tree_right+POG_x_tree_left)/2;
             POG_combined_y=(POG_y_tree_right+POG_y_tree_left)/2;
-            accuracy_combined=sqrt((POG_combined_x-t_x)^2+(POG_combined_y-t_y)^2);
+            accuracy_combined=sqrt((t_x-POG_combined_x)^2+(t_y-POG_combined_y)^2);
             results_row(7)=accuracy_combined;
 
         end
