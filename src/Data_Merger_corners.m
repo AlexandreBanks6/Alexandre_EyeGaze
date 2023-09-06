@@ -9,7 +9,7 @@ dirnames={folder_list([folder_list.isdir]).name};
 num_dir=length(dirnames);
 
 for m=[1:num_dir]
-    if strcmp(dirnames{m},'P02')
+    %if strcmp(dirnames{m},'P02')
         participant_root=[data_root,'/',dirnames{m}];
         file_list=dir(participant_root);
         file_names={file_list(~[file_list.isdir]).name};
@@ -95,6 +95,6 @@ for m=[1:num_dir]
        
         
         end
-    end
+    %end
 
 end

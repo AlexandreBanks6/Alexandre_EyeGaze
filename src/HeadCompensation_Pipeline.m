@@ -82,8 +82,8 @@ for m=[1:num_dir]
             if ~isempty(data_cell)
                 %Compensation data cell 1= right, cell 2=left
                 compensation_data=prepCompensationData(data_cell,model_poly,dist_cell,avg_corners);
-                [tree_mdl_right_x,tree_mdl_right_y,input_var_names_right_x,input_var_names_right_y]=fitSVRModel(compensation_data{1});
-                [tree_mdl_left_x,tree_mdl_left_y,input_var_names_left_x,input_var_names_left_y]=fitSVRModel(compensation_data{2});
+                [tree_mdl_right_x,tree_mdl_right_y,input_var_names_right_x,input_var_names_right_y]=fitTreeModel(compensation_data{1});
+                [tree_mdl_left_x,tree_mdl_left_y,input_var_names_left_x,input_var_names_left_y]=fitTreeModel(compensation_data{2});
                 
                 %Evaluate our new head compensation, old head comp, and
                 %polynomial
@@ -106,7 +106,609 @@ tree_models=[{'right_x'},{tree_mdl_right_x},{input_var_names_right_x};...
     {'left_x'},{tree_mdl_left_x},{input_var_names_left_x};...
     {'left_y'},{tree_mdl_left_y},{input_var_names_left_y}];
 
-[mean_accuracies,total_results]=evalModels(eval_right_data,model_poly,dist_cell,avg_corners,tree_models);
+[mean_accuracies,total_results]=evalModels(calib_right_data,model_poly,dist_cell,avg_corners,tree_models);
+%% Doing some random tests
+data_cell={calib_right_data};
+compensation_data=prepCompensationData(data_cell,model_poly,dist_cell,avg_corners);
+right_results=compensation_data{1};
+
+data_cell={calib_left_data};
+compensation_data=prepCompensationData(data_cell,model_poly,dist_cell,avg_corners);
+left_results=compensation_data{1};
+
+data_cell={calib_up_data};
+compensation_data=prepCompensationData(data_cell,model_poly,dist_cell,avg_corners);
+up_results=compensation_data{1};
+
+data_cell={calib_down_data};
+compensation_data=prepCompensationData(data_cell,model_poly,dist_cell,avg_corners);
+down_results=compensation_data{1};
+
+
+del_pog_x_right=right_results(:,1);
+del_pog_y_right=right_results(:,2);
+del_pog_x_left=left_results(:,1);
+del_pog_y_left=left_results(:,2);
+
+
+%Checking corner movements
+right_rotate_inner_right_x=right_results(:,3);
+right_rotate_inner_right_y=right_results(:,4);
+left_rotate_inner_right_x=left_results(:,3);
+left_rotate_inner_right_y=left_results(:,4);
+up_rotate_inner_right_x=up_results(:,3);
+up_rotate_inner_right_y=up_results(:,4);
+down_rotate_inner_right_x=down_results(:,3);
+down_rotate_inner_right_y=down_results(:,4);
+
+figure;
+plot(right_rotate_inner_right_x,right_rotate_inner_right_y,'bo',left_rotate_inner_right_x,left_rotate_inner_right_y,'ro',...
+    up_rotate_inner_right_x,up_rotate_inner_right_y,'go',down_rotate_inner_right_x,down_rotate_inner_right_y,'ko');
+legend('rotate right','rotate left','rotate up','rotate down');
+xlabel('corner shift x');
+ylabel('corner shift y');
+%{
+figure;
+plot(del_pog_x_right,del_pog_y_right,'bo',del_pog_x_left,del_pog_y_left,'ro');
+%}
+
+%{
+figure;
+histogram(del_pog_x_right);
+hold on
+histogram(del_pog_x_left);
+hold off
+%}
+
+
+%{
+del_pog_x=right_results(:,1);
+t_x=right_results(:,end-1);
+t_y=right_results(:,end);
+figure;
+plot3(del_pog_x,t_x,t_y,'bo');
+title('del-pog-right-x vs. t_x');
+ylabel('t_x');
+xlabel('del pog_x');
+zlabel('t_y');
+%}
+%% Plotting correlation between eye corners and head rotation
+clear
+clc
+
+%Note that we reverse the sign of del_corner to reflect what is intuitive
+%such that del_corner=corner_curr-corner_calib
+CALIB_THRESHOLD=5;
+
+
+data_root='../../data/eyecorner_userstudy_converted';
+part_num='P04';
+calib_init_path=[data_root,'/',part_num,'/calib_only_merged_Calib_Init.csv'];
+calib_init_data=readmatrix(calib_init_path);
+
+calib_up_path=[data_root,'/',part_num,'/calib_only_merged_Calib_Up.csv'];
+calib_up_data=readmatrix(calib_up_path);
+
+calib_down_path=[data_root,'/',part_num,'/calib_only_merged_Calib_Down.csv'];
+calib_down_data=readmatrix(calib_down_path);
+
+calib_right_path=[data_root,'/',part_num,'/calib_only_merged_Calib_Right.csv'];
+calib_right_data=readmatrix(calib_right_path);
+
+calib_left_path=[data_root,'/',part_num,'/calib_only_merged_Calib_Left.csv'];
+calib_left_data=readmatrix(calib_left_path);
+
+
+check_calib=checkDetection(calib_init_data,CALIB_THRESHOLD);
+
+eval_init_path=[data_root,'/',part_num,'/calib_only_merged_Eval_Init.csv'];
+eval_init_data=readmatrix(eval_init_path);
+
+eval_up_path=[data_root,'/',part_num,'/calib_only_merged_Eval_Up.csv'];
+eval_up_data=readmatrix(eval_up_path);
+
+eval_down_path=[data_root,'/',part_num,'/calib_only_merged_Eval_Down.csv'];
+eval_down_data=readmatrix(eval_down_path);
+
+eval_right_path=[data_root,'/',part_num,'/calib_only_merged_Eval_Right.csv'];
+eval_right_data=readmatrix(eval_right_path);
+
+eval_left_path=[data_root,'/',part_num,'/calib_only_merged_Eval_Left.csv'];
+eval_left_data=readmatrix(eval_left_path);
+
+eval_straight_path=[data_root,'/',part_num,'/calib_only_merged_Eval_Straight.csv'];
+eval_straight_data=readmatrix(eval_straight_path);
+
+data_cell={calib_up_data,calib_down_data,calib_right_data,calib_left_data};
+%data_cell={eval_straight_data,eval_right_data,eval_left_data,eval_up_data,eval_down_data};
+if (check_calib==true)
+    [train_cell,dist_cell,avg_corners]=getRegressionData(calib_init_data,CALIB_THRESHOLD); %Also gets the average eye corner location at the calibration
+    if length(dist_cell)==0
+        disp('dist cell empty')
+    else
+
+        model_poly=robustRegressor(train_cell); %Robust Regressor model params
+
+        compensation_data=prepCompensationData(data_cell,model_poly,dist_cell,avg_corners);
+        %{
+            compensationData is a cell array with two cells having:
+            cell 1: del_POG_x_right,del_POG_y_right,del_corner_inner_x_right,del_corner_inner_y_right,
+            del_corner_outer_x_right,del_corner_outer_y_right,alpha_right,t_x,t_y
+        
+            cell 2: del_POG_x_left,del_POG_y_left,del_corner_inner_x_left,del_corner_inner_y_left,
+            del_corner_outer_x_left,del_corner_outer_y_left,alpha_left,t_x,t_y
+        %}
+        right_eye_data=compensation_data{1};
+        left_eye_data=compensation_data{2};
+        del_POG_x_right=right_eye_data(:,1);
+        del_POG_y_right=right_eye_data(:,2);
+
+        right_inner_x=-1*right_eye_data(:,3);
+        right_inner_y=-1*right_eye_data(:,4);
+        right_outer_x=-1*right_eye_data(:,5);
+        right_outer_y=-1*right_eye_data(:,6);
+        right_alpha=right_eye_data(:,7).*(180/pi);
+
+        left_inner_x=-1*left_eye_data(:,3);
+        left_inner_y=-1*left_eye_data(:,4);
+        left_outer_x=-1*left_eye_data(:,5);
+        left_outer_y=-1*left_eye_data(:,6);
+        left_alpha=left_eye_data(:,7).*(180/pi);
+        
+        calib_pose_tool1=calib_init_data(:,32:38);
+        calib_pose_tool2=calib_init_data(:,42:48);
+
+
+        %Change to left_eye_data if doing left eye corner
+        pose_data_rotated_tool1=right_eye_data(:,10:16);
+        pose_data_rotated_tool2=right_eye_data(:,17:23);
+
+        
+        %method 1 with reference frame
+        %Getting rotation/translation for initial calibration
+        calib_q1=calib_pose_tool1(:,4:end);
+        calib_q2=calib_pose_tool2(:,4:end);
+        q12=quatmultiply(quatconj(calib_q1),calib_q2);
+        q12=quaternion(q12);
+        calib_quat_avg=meanrot(q12,1);
+        calib_t12=calib_pose_tool2(:,1:3)-calib_pose_tool1(:,1:3);
+        calib_t12_avg=mean(calib_t12,1);
+
+
+        %Getting rotation/translation for head each sample during head
+        %rotation
+
+        %Rotation
+        rotated_q1=pose_data_rotated_tool1(:,4:end);
+        rotated_q2=pose_data_rotated_tool2(:,4:end);
+        rotated_q12=quatmultiply(quatconj(rotated_q1),rotated_q2); %Gets current quaternion
+        calib_q12_avg=compact(calib_quat_avg);
+        q_calib_rotated=quatmultiply(quatconj(calib_q12_avg),rotated_q12);
+        [yaw,pitch,roll]=quat2angle(q_calib_rotated);
+        yaw=yaw.*(180/pi);
+        pitch=pitch.*(180/pi);
+        roll=roll.*(180/pi);
+        %Translation
+
+        rotated_t12=pose_data_rotated_tool2(:,1:3)-pose_data_rotated_tool1(:,1:3);
+        translation=rotated_t12-calib_t12_avg;
+        translation=translation.*1000;
+
+        
+        
+        %{
+        %Method 2 with no reference
+        q1=quaternion(calib_pose_tool2(:,4:end));
+        calib_q1_avg=meanrot(q1,1);
+        calib_translation_avg=mean(calib_pose_tool2(:,1:3));
+
+        %Getting rotation amount
+        calib_q1_avg=compact(calib_q1_avg);
+        q_calib_rotated=quatmultiply(quatconj(calib_q1_avg),pose_data_rotated_tool2(:,4:end));
+        [yaw,pitch,roll]=quat2angle(q_calib_rotated);
+        yaw=yaw.*(180/pi);
+        pitch=pitch.*(180/pi);
+        roll=roll.*(180/pi);
+
+        %Translation
+        translation=pose_data_rotated_tool2(:,1:3)-calib_translation_avg;
+        %}
+       
+
+    end
+end
+%%Plotting coorelation between head pose and corner location
+%We plot each dependent variable (inner_x, inner_y,outer_x,outer_y etc) vs
+%the 6 independent variables (roll, pitch, yaw, translation...)
+
+
+
+%#################<Displaying error-corner Correlation>################### 
+
+
+
+%~~~~~~~Displaying del_pog_x
+MM_PER_PIXEL=0.27781;
+fit_offset=2;
+%Fitting data with best fit line
+[b_inner_x,stats]=robustfit(right_inner_x,del_POG_x_right,'huber',4.2);
+right_inner_line_x=b_inner_x(1)+b_inner_x(2).*right_inner_x;
+R2_right_inner_x=sum((right_inner_line_x-mean(del_POG_x_right,'omitnan')).^2,'omitnan')./sum((del_POG_x_right-mean(del_POG_x_right,'omitnan')).^2,'omitnan');
+right_inner_line_x=b_inner_x(1)+b_inner_x(2).*[min(right_inner_x)-fit_offset:0.5:max(right_inner_x)+fit_offset]; %For displaying
+
+[b_outer_x,stats]=robustfit(right_outer_x,del_POG_x_right,'huber',4.2);
+right_outer_line_x=b_outer_x(1)+b_outer_x(2).*right_outer_x;
+R2_right_outer_x=sum((right_outer_line_x-mean(del_POG_x_right,'omitnan')).^2,'omitnan')./sum((del_POG_x_right-mean(del_POG_x_right,'omitnan')).^2,'omitnan');
+right_outer_line_x=b_outer_x(1)+b_outer_x(2).*[min(right_outer_x)-fit_offset:0.5:max(right_outer_x)+fit_offset]; %For displaying
+
+[b_inner_y,stats]=robustfit(right_inner_y,del_POG_x_right,'huber',4.2);
+right_inner_line_y=b_inner_y(1)+b_inner_y(2).*right_inner_y;
+R2_right_inner_y=sum((right_inner_line_y-mean(del_POG_x_right,'omitnan')).^2,'omitnan')./sum((del_POG_x_right-mean(del_POG_x_right,'omitnan')).^2,'omitnan');
+right_inner_line_y=b_inner_y(1)+b_inner_y(2).*[min(right_inner_y)-fit_offset:0.5:max(right_inner_y)+fit_offset]; %For displaying
+
+[b_outer_y,stats]=robustfit(right_outer_y,del_POG_x_right,'huber',4.2);
+right_outer_line_y=b_outer_y(1)+b_outer_y(2).*right_outer_y;
+R2_right_outer_y=sum((right_outer_line_y-mean(del_POG_x_right,'omitnan')).^2,'omitnan')./sum((del_POG_x_right-mean(del_POG_x_right,'omitnan')).^2,'omitnan');
+right_outer_line_y=b_outer_y(1)+b_outer_y(2).*[min(right_outer_y)-fit_offset:0.5:max(right_outer_y)+fit_offset]; %For displaying
+
+%{
+[b_alpha,stats]=robustfit(right_alpha,del_POG_x_right,'huber',4.2);
+right_alpha_line=b_alpha(1)+b_alpha(2).*right_alpha;
+R2_right_alpha=sum((right_alpha_line-mean(del_POG_x_right,'omitnan')).^2,'omitnan')./sum((del_POG_x_right-mean(del_POG_x_right,'omitnan')).^2,'omitnan');
+right_alpha_line=b_alpha(1)+b_alpha(2).*[min(right_alpha)-fit_offset:0.5:max(right_alpha)+fit_offset]; %For displaying
+%}
+
+marker_size=5;
+marker_inner_type='+';
+marker_outer_type='x';
+marker_inner_color='#4A7BB7';
+marker_outer_color='#A50026';
+ylim_range=[-6,7];
+fig=figure;
+t=tiledlayout(2,2,'TileSpacing','compact');
+
+%inner x
+nexttile
+plot(right_inner_x,del_POG_x_right.*MM_PER_PIXEL,'color',marker_inner_color,'Marker',marker_inner_type,'LineWidth',1,'MarkerSize',marker_size,'LineStyle',"none");
+hold on
+plot([min(right_inner_x)-fit_offset:0.5:max(right_inner_x)+fit_offset],right_inner_line_x.*MM_PER_PIXEL,'LineWidth',2,'Color',marker_outer_color,'LineStyle','--');
+hold off
+ylim(ylim_range);
+
+title('\deltaC Inner x','FontName','Times New Roman','FontSize',13);
+a = get(gca,'XTickLabel');  
+set(gca,'XTickLabel',a,'fontsize',10)
+set(gca,'XTickLabelMode','auto')
+
+%Showing best fit
+eq=sprintf('y=%.2f x + %.2f \nR^2=%.2f',b_inner_x(2),b_inner_x(1),R2_right_inner_x);
+text(-25,5,eq,'FontSize',8);
+
+
+%inner y
+nexttile
+
+plot(right_inner_y,del_POG_x_right.*MM_PER_PIXEL,'color',marker_inner_color,'Marker',marker_inner_type,'LineWidth',1,'MarkerSize',marker_size,'LineStyle',"none");
+hold on
+plot([min(right_inner_y)-fit_offset:0.5:max(right_inner_y)+fit_offset],right_inner_line_y.*MM_PER_PIXEL,'LineWidth',2,'Color',marker_outer_color,'LineStyle','--');
+hold off
+ylim(ylim_range);
+
+title('\deltaC Inner y','FontName','Times New Roman','FontSize',13);
+a = get(gca,'XTickLabel');  
+set(gca,'XTickLabel',a,'fontsize',10)
+set(gca,'XTickLabelMode','auto')
+
+%Showing best fit
+eq=sprintf('y=%.2f x + %.2f \nR^2=%.2f',b_inner_y(2),b_inner_y(1),R2_right_inner_y);
+text(-19,5,eq,'FontSize',8);
+
+%outer x
+nexttile
+
+plot(right_outer_x,del_POG_x_right.*MM_PER_PIXEL,'color',marker_inner_color,'Marker',marker_inner_type,'LineWidth',1,'MarkerSize',marker_size,'LineStyle',"none");
+hold on
+plot([min(right_outer_x)-fit_offset:0.5:max(right_outer_x)+fit_offset],right_outer_line_x.*MM_PER_PIXEL,'LineWidth',2,'Color',marker_outer_color,'LineStyle','--');
+hold off
+ylim(ylim_range);
+
+title('\deltaC Outer x','FontName','Times New Roman','FontSize',13);
+a = get(gca,'XTickLabel');  
+set(gca,'XTickLabel',a,'fontsize',10)
+set(gca,'XTickLabelMode','auto')
+
+%Showing best fit
+eq=sprintf('y=%.2f x + %.2f \nR^2=%.2f',b_outer_x(2),b_outer_x(1),R2_right_outer_x);
+text(-24,5,eq,'FontSize',8);
+
+%outer y
+nexttile
+
+plot(right_outer_y,del_POG_x_right.*MM_PER_PIXEL,'color',marker_inner_color,'Marker',marker_inner_type,'LineWidth',1,'MarkerSize',marker_size,'LineStyle',"none");
+hold on
+plot([min(right_outer_y)-fit_offset:0.5:max(right_outer_y)+fit_offset],right_outer_line_y.*MM_PER_PIXEL,'LineWidth',2,'Color',marker_outer_color,'LineStyle','--');
+hold off
+ylim(ylim_range);
+
+title('\deltaC Outer y','FontName','Times New Roman','FontSize',13);
+a = get(gca,'XTickLabel');  
+set(gca,'XTickLabel',a,'fontsize',10)
+set(gca,'XTickLabelMode','auto');
+
+%Showing best fit
+eq=sprintf('y=%.2f x + %.2f \nR^2=%.2f',b_outer_y(2),b_outer_y(1),R2_right_outer_y);
+text(-40,5,eq,'FontSize',8);
+
+
+%alpha
+%{
+nexttile
+
+plot(right_alpha,del_POG_x_right,'color',marker_inner_color,'Marker',marker_inner_type,'LineWidth',1,'MarkerSize',marker_size,'LineStyle',"none");
+hold on
+plot([min(right_alpha)-fit_offset:0.5:max(right_alpha)+fit_offset],right_alpha_line,'LineWidth',2,'Color',marker_outer_color,'LineStyle','--');
+hold off
+ylim(ylim_range);
+
+title('Alpha','FontName','Times New Roman','FontSize',13);
+a = get(gca,'XTickLabel');  
+set(gca,'XTickLabel',a,'fontsize',10)
+set(gca,'XTickLabelMode','auto')
+%}
+
+leg=legend('Error Data','Regression Line');
+title(t,['POG Error vs Right Eye Corners Shifts for ',part_num],'FontName','Times New Roman','FontSize',17,'FontWeight','bold');
+
+
+% Left label
+ylabel(t,'\deltaPOG x (mm)','FontName','Times New Roman','FontSize',15,'Color','k')
+
+xlabel(t,'(mm)','FontName','Times New Roman','FontSize',15)
+
+
+
+%#################<Displaying Corner-Head Correlation>################### 
+%--------------<Displaying results for "right eye" inner_x>---------------
+marker_size=5;
+marker_inner_type='+';
+marker_outer_type='x';
+marker_inner_color='#4A7BB7';
+marker_outer_color='#A50026';
+ylim_range=[-55,70];
+fig=figure;
+t=tiledlayout(3,2,'TileSpacing','compact');
+%x-translation
+nexttile
+yyaxis left
+plot(translation(:,2),right_inner_x,'color',marker_inner_color,'Marker',marker_inner_type,'LineWidth',1,'MarkerSize',marker_size,'LineStyle',"none");
+ylim(ylim_range);
+yyaxis right
+plot(translation(:,2),right_outer_x,'color',marker_outer_color,'Marker',marker_outer_type,'LineWidth',1,'MarkerSize',marker_size,'LineStyle',"none");
+ylim(ylim_range);
+title('translation (x)','FontName','Times New Roman','FontSize',13);
+a = get(gca,'XTickLabel');  
+set(gca,'XTickLabel',a,'fontsize',10)
+set(gca,'XTickLabelMode','auto')
+
+
+%roll
+nexttile
+yyaxis left
+plot(roll,right_inner_x,'color',marker_inner_color,'Marker',marker_inner_type,'LineWidth',1,'MarkerSize',marker_size,'LineStyle',"none");
+ylim(ylim_range);
+yyaxis right
+plot(roll,right_outer_x,'color',marker_outer_color,'Marker',marker_outer_type,'LineWidth',1,'MarkerSize',marker_size,'LineStyle',"none");
+ylim(ylim_range);
+title('roll','FontName','Times New Roman','FontSize',13);
+a = get(gca,'XTickLabel');  
+set(gca,'XTickLabel',a,'fontsize',10)
+set(gca,'XTickLabelMode','auto')
+
+%y-translation
+nexttile
+
+yyaxis left
+plot(translation(:,3),right_inner_x,'color',marker_inner_color,'Marker',marker_inner_type,'LineWidth',1,'MarkerSize',marker_size,'LineStyle',"none");
+ylim(ylim_range);
+yyaxis right
+
+plot(translation(:,3),right_outer_x,'color',marker_outer_color,'Marker',marker_outer_type,'LineWidth',1,'MarkerSize',marker_size,'LineStyle',"none");
+ylim(ylim_range);
+title('translation (y)','FontName','Times New Roman','FontSize',13);
+a = get(gca,'XTickLabel');  
+set(gca,'XTickLabel',a,'fontsize',10)
+set(gca,'XTickLabelMode','auto')
+
+
+%pitch
+nexttile
+yyaxis left
+plot(pitch,right_inner_x,'color',marker_inner_color,'Marker',marker_inner_type,'LineWidth',1,'MarkerSize',marker_size,'LineStyle',"none");
+ylim(ylim_range);
+yyaxis right
+plot(pitch,right_outer_x,'color',marker_outer_color,'Marker',marker_outer_type,'LineWidth',1,'MarkerSize',marker_size,'LineStyle',"none");
+ylim(ylim_range);
+title('pitch','FontName','Times New Roman','FontSize',13);
+a = get(gca,'XTickLabel');  
+set(gca,'XTickLabel',a,'fontsize',10)
+set(gca,'XTickLabelMode','auto')
+
+
+
+%z-translation
+nexttile
+yyaxis left
+plot(translation(:,1),right_inner_x,'color',marker_inner_color,'Marker',marker_inner_type,'LineWidth',1,'MarkerSize',marker_size,'LineStyle',"none");
+ylim(ylim_range);
+title('translation (z)');
+yyaxis right
+plot(translation(:,1),right_outer_x,'color',marker_outer_color,'Marker',marker_outer_type,'LineWidth',1,'MarkerSize',marker_size,'LineStyle',"none");
+ylim(ylim_range);
+title('translation (z)','FontName','Times New Roman','FontSize',13);
+xlabel('translation (mm)')
+a = get(gca,'XTickLabel');  
+set(gca,'XTickLabel',a,'fontsize',10)
+set(gca,'XTickLabelMode','auto')
+
+%yaw
+nexttile
+yyaxis left
+plot(yaw,-right_inner_x,'color',marker_inner_color,'Marker',marker_inner_type,'LineWidth',1,'MarkerSize',marker_size,'LineStyle',"none");
+ylim(ylim_range);
+yyaxis right
+plot(yaw,-right_outer_x,'color',marker_outer_color,'Marker',marker_outer_type,'LineWidth',1,'MarkerSize',marker_size,'LineStyle',"none");
+ylim(ylim_range);
+title('yaw','FontName','Times New Roman','FontSize',13);
+xlabel('angle (degrees)')
+
+a = get(gca,'XTickLabel');  
+set(gca,'XTickLabel',a,'fontsize',10)
+set(gca,'XTickLabelMode','auto')
+
+
+leg=legend('Inner x','Outer x','FontName','Times New Roman','FontSize',10);
+leg.Layout.Tile='south';
+title(t,['Right Eye Corner vs Head Pose for ',part_num],'FontName','Times New Roman','FontSize',17,'FontWeight','bold');
+
+ax = axes(fig);
+han = gca;
+han.Visible = 'off';
+
+% Left label
+yyaxis(ax, 'left');
+ylabel('\deltaC inner x (px)','FontName','Times New Roman','FontSize',15)
+han.YLabel.Visible = 'on';
+% Right label
+yyaxis(ax, 'right');
+ylabel('\deltaC outer x (px)','FontName','Times New Roman','FontSize',15)
+han.YLabel.Visible = 'on';
+
+
+%--------------<Displaying results for "right eye" inner_y>---------------
+%{
+figure;
+t=tiledlayout(3,2);
+%x-translation
+nexttile
+plot(translation(:,1),right_inner_y,'ro','LineWidth',1);
+title('translation (x)');
+
+%roll
+nexttile
+plot(roll,right_inner_y,'ro','LineWidth',1);
+title('roll');
+
+%y-translation
+nexttile
+plot(translation(:,3),right_inner_y,'ro','LineWidth',1);
+title('translation (y)');
+
+%pitch
+nexttile
+plot(pitch,right_inner_y,'ro','LineWidth',1);
+title('pitch');
+
+%z-translation
+nexttile
+plot(translation(:,2),right_inner_y,'ro','LineWidth',1);
+title('translation (z)');
+
+%yaw
+nexttile
+plot(yaw,right_inner_y,'ro','LineWidth',1);
+title('yaw');
+
+
+
+
+
+title(t,['Right Eye Inner Corner Y vs Head Pose for ',part_num]);
+
+%}
+
+
+%%########################<Displaying Alpha-Head Coorelation>################
+
+%{
+figure;
+t=tiledlayout(3,2);
+%x-translation
+nexttile
+plot(translation(:,1),right_alpha,'ro','LineWidth',1);
+title('translation (x)');
+
+%roll
+nexttile
+plot(roll,right_alpha,'ro','LineWidth',1);
+title('roll');
+
+%y-translation
+nexttile
+plot(translation(:,3),right_alpha,'ro','LineWidth',1);
+title('translation (y)');
+
+
+%pitch
+nexttile
+plot(pitch,right_alpha,'ro','LineWidth',1);
+title('pitch');
+
+
+
+%z-translation
+nexttile
+plot(translation(:,2),right_alpha,'ro','LineWidth',1);
+title('translation (z)');
+
+%yaw
+nexttile
+plot(yaw,right_alpha,'ro','LineWidth',1);
+title('yaw');
+
+
+title(t,['Right Eye Alpha vs Head Pose for ',part_num]);
+
+%}
+%{
+
+figure;
+t=tiledlayout(3,2);
+%x-translation
+nexttile
+plot(translation(:,1),left_alpha,'ro','LineWidth',1);
+title('translation (x)');
+
+%roll
+nexttile
+plot(roll,left_alpha,'ro','LineWidth',1);
+title('roll');
+
+%y-translation
+nexttile
+plot(translation(:,3),left_alpha,'ro','LineWidth',1);
+title('translation (y)');
+
+%pitch
+nexttile
+plot(pitch,left_alpha,'ro','LineWidth',1);
+title('pitch');
+
+%z-translation
+nexttile
+plot(translation(:,2),left_alpha,'ro','LineWidth',1);
+title('translation (z)');
+
+%yaw
+nexttile
+plot(yaw,left_alpha,'ro','LineWidth',1);
+title('yaw');
+
+
+
+
+
+title(t,['Left Eye Alpha vs Head Pose for ',part_num]);
+%}
 
 %% Plotting Some Results
 %{
@@ -132,6 +734,7 @@ tree_models=[{'right_x'},{tree_mdl_right_x},{input_var_names_right_x};...
 %Plot del_pog_right_x vs. del_right_inner_x
 comp_data_right=compensation_data{1};
 
+%{
 figure;
 %plot3(total_results(:,8),total_results(:,16),total_results(:,17),'bo');
 plot3(comp_data_right(:,1),comp_data_right(:,5),comp_data_right(:,6),'bo');
@@ -139,7 +742,7 @@ title('del-pog-right-x vs. del-right-inner-x')
 xlabel('del POG')
 ylabel('del corner inner x')
 zlabel('del corner inner y')
-
+%}
 %{
 figure;
 plot(comp_data_right(:,1),comp_data_right(:,7),'bo');
@@ -437,7 +1040,9 @@ function [compensation_data]=prepCompensationData(data_cell,model_cell,dist_cell
 
     compensationData is a cell array with two cells having:
     cell 1: del_POG_x_right,del_POG_y_right,del_corner_inner_x_right,del_corner_inner_y_right,
-    del_corner_outer_x_right,del_corner_outer_y_right,alpha_right,t_x,t_y
+    del_corner_outer_x_right,del_corner_outer_y_right,alpha_right,t_x,t_y,
+    then we append head rotations/poses:
+    Tx1,Ty1,Tz1,Q01,Qx1,Qy1,Qz1,Tx2,Ty2,Tz2,Q02,Qx2,Qy2,Qz2
 
     cell 2: del_POG_x_left,del_POG_y_left,del_corner_inner_x_left,del_corner_inner_y_left,
     del_corner_outer_x_left,del_corner_outer_y_left,alpha_left,t_x,t_y
@@ -460,10 +1065,14 @@ function [compensation_data]=prepCompensationData(data_cell,model_cell,dist_cell
         [reformatted_data_right,reformatted_data_left]=reformatDataEval(curr_mat);
         if check_model_right            
             error_vec_right=findCalibrationErrors(model_cell,reformatted_data_right,right_headers,dist_cell);
+        else
+            error_vec_right=nan;
         end
 
         if check_model_left
             error_vec_left=findCalibrationErrors(model_cell,reformatted_data_left,left_headers,dist_cell);
+        else
+            error_vec_left=nan;
         end
 
         if ~all(isnan(error_vec_right(:,1)))
@@ -484,10 +1093,11 @@ function [compensation_data]=prepCompensationData(data_cell,model_cell,dist_cell
             compensation_data{1}=[compensation_data{1};error_vec_right(:,1),...
                 error_vec_right(:,2),del_corner_inner_x,del_corner_inner_y,...
                 del_corner_outer_x,del_corner_outer_y,alpha,...
-                error_vec_right(:,3),error_vec_right(:,4)];
+                error_vec_right(:,3),error_vec_right(:,4),...
+                curr_mat(:,[[32:38],[42:48]])];
 
         else
-            compensation_data{1}=[compensation_data{1},nan,nan,nan,nan,nan,nan,nan,nan,nan];
+            compensation_data{1}=[compensation_data{1};nan(1,23)];
         end
 
         if ~all(isnan(error_vec_left(:,1)))
@@ -507,10 +1117,11 @@ function [compensation_data]=prepCompensationData(data_cell,model_cell,dist_cell
             compensation_data{2}=[compensation_data{2};error_vec_left(:,1),...
                 error_vec_left(:,2),del_corner_inner_x,del_corner_inner_y,...
                 del_corner_outer_x,del_corner_outer_y,alpha,...
-                error_vec_left(:,3),error_vec_left(:,4)];
+                error_vec_left(:,3),error_vec_left(:,4),...
+                curr_mat(:,[[32:38],[42:48]])];
 
         else
-            compensation_data{2}=[compensation_data{2},nan,nan,nan,nan,nan,nan,nan,nan,nan];
+            compensation_data{2}=[compensation_data{2};nan(1,23)];
         end
         
     end
@@ -1108,11 +1719,11 @@ function total_results=evalAccuracy(model_cell,reformatted_data,right_headers,le
                             %Compensating in x-direction
                             input_vars_x=tree_models{ind_x,3};
                             tree_model_x=tree_models{ind_x,2};
-                            predictors=[del_corner_inner_x,del_corner_inner_y,del_corner_outer_x,del_corner_outer_y]; %alpha];
+                            predictors=[del_corner_inner_x,del_corner_inner_y,del_corner_outer_x,del_corner_outer_y,alpha];
                             accuracy_get=0;  
                             if sum(isnan(predictors))<=NANTHRESH %If we have only NANTHRESH nans in our predictor variable we continue
                                 accuracy_get=accuracy_get+1;  
-                                check_title={'d_corner_inner_x','d_corner_inner_y','d_corner_outer_x','d_corner_outer_y'}; %'alpha'};
+                                check_title={'d_corner_inner_x','d_corner_inner_y','d_corner_outer_x','d_corner_outer_y','alpha'};
                                 [~,check_inds]=ismember(input_vars_x,check_title);
                                 predictors=predictors(check_inds);
                                 del_POG_x_tree=predict(tree_model_x,predictors);
@@ -1124,11 +1735,11 @@ function total_results=evalAccuracy(model_cell,reformatted_data,right_headers,le
                             
                             input_vars_y=tree_models{ind_y,3};
                             tree_model_y=tree_models{ind_y,2};
-                            predictors=[del_corner_inner_x,del_corner_inner_y,del_corner_outer_x,del_corner_outer_y]; %alpha];
+                            predictors=[del_corner_inner_x,del_corner_inner_y,del_corner_outer_x,del_corner_outer_y,alpha];
                             if sum(isnan(predictors))<=NANTHRESH %If we have only NANTHRESH nans in our predictor variable we continue
 
                                 accuracy_get=accuracy_get+1;  
-                                check_title={'d_corner_inner_x','d_corner_inner_y','d_corner_outer_x','d_corner_outer_y'}; %'alpha'};
+                                check_title={'d_corner_inner_x','d_corner_inner_y','d_corner_outer_x','d_corner_outer_y','alpha'};
                                 [~,check_inds]=ismember(input_vars_y,check_title);
                                 predictors=predictors(check_inds);
                                 del_POG_y_tree=predict(tree_model_y,predictors);
@@ -1228,11 +1839,11 @@ function total_results=evalAccuracy(model_cell,reformatted_data,right_headers,le
                             %Compensating in x-direction
                             input_vars_x=tree_models{ind_x,3};
                             tree_model_x=tree_models{ind_x,2};
-                            predictors=[del_corner_inner_x,del_corner_inner_y,del_corner_outer_x,del_corner_outer_y]; %alpha];
+                            predictors=[del_corner_inner_x,del_corner_inner_y,del_corner_outer_x,del_corner_outer_y,alpha];
                             accuracy_get=0;
                             if sum(isnan(predictors))<=NANTHRESH %If we have only NANTHRESH nans in our predictor variable we continue
                                 accuracy_get=accuracy_get+1;
-                                check_title={'d_corner_inner_x','d_corner_inner_y','d_corner_outer_x','d_corner_outer_y'}; %'alpha'};
+                                check_title={'d_corner_inner_x','d_corner_inner_y','d_corner_outer_x','d_corner_outer_y','alpha'};
                                 [~,check_inds]=ismember(input_vars_x,check_title);
                                 predictors=predictors(check_inds);
                                 del_POG_x_tree=predict(tree_model_x,predictors);
