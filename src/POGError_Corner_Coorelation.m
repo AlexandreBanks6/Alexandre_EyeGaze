@@ -16,7 +16,7 @@ EVAL_THRESHOLD=3; %Threshold to be considered a valid evaluation trial
 %Looping for all participants
 for m=[1:num_dir]
     if dirnames{m}(1)=='P' %We have a participant and run calibrations and/evaluations
-        if strcmp(dirnames{m},'P03')
+        if strcmp(dirnames{m},'P02')
 
             %Reading In Data
             calib_init_data=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Init.csv']);
@@ -36,12 +36,34 @@ for m=[1:num_dir]
 
                 %Getting the Data To Train the Compensation Model
                 calib_onedot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Rotate.csv']);
+                
+                calib_lift1_dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift1_dot.csv']);
+                calib_lift2_dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift2_dot.csv']);
+                calib_lift3_dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift3_dot.csv']);
+                calib_lift4_dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift4_dot.csv']);
+                calib_lift5_dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift5_dot.csv']);
+                
+                calib_lift1_8dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift1_8point.csv']);
+                calib_lift2_8dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift2_8point.csv']);
+                calib_lift3_8dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift3_8point.csv']);
+                calib_lift4_8dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift4_8point.csv']);
+                calib_lift5_8dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift5_8point.csv']);
+                
 
                 %-------Single Dot
                 data_cell={calib_onedot};
 
                 compensation_data_onedot=prepCompensationData(data_cell,model_poly,dist_cell,avg_corners);
+
+
+                %-----Lift and replaces
+                data_cell={calib_lift1_dot,calib_lift2_dot,calib_lift3_dot,calib_lift4_dot,calib_lift5_dot};
+                compensation_data_lifts=prepCompensationData(data_cell,model_poly,dist_cell,avg_corners);
               
+
+                %-----Lifts 8-dot
+                data_cell={calib_lift1_8dot,calib_lift2_8dot,calib_lift3_8dot,calib_lift4_8dot,calib_lift5_8dot};
+                compensation_data_lifts_8dot=prepCompensationData(data_cell,model_poly,dist_cell,avg_corners);
 
             end
 
@@ -110,6 +132,81 @@ saveas(fig_1,[save_dir,'RightErrorX_VS_Corner.png']);
 saveas(fig_2,[save_dir,'RightErrorY_VS_Corner.png']);
 saveas(fig_3,[save_dir,'LeftErrorX_VS_Corner.png']);
 saveas(fig_4,[save_dir,'LeftErrorY_VS_Corner.png']);
+
+
+%% Plotting One Dot with Lifts Results
+comp_data_right=compensation_data_lifts{1};
+
+del_POG_x_right=comp_data_right(:,1);
+del_POG_y_right=comp_data_right(:,2);
+
+del_corner_inner_x=comp_data_right(:,3);
+del_corner_inner_y=comp_data_right(:,4);
+del_corner_outer_x=comp_data_right(:,5);
+del_corner_outer_y=comp_data_right(:,6);
+
+fig_1=plotErrorCornerCoorelation(del_corner_inner_x,del_corner_inner_y,...
+    del_corner_outer_x,del_corner_outer_y,del_POG_x_right,'Right Eye Error in POG Estimate vs Shift in Eye Corners','x');
+
+fig_2=plotErrorCornerCoorelation(del_corner_inner_y,del_corner_inner_y,...
+    del_corner_outer_x,del_corner_outer_y,del_POG_x_right,'Right Eye Error in POG Estimate vs Shift in Eye Corners','y');
+
+
+%Plotting Left Eye Stuffs
+comp_data_left=compensation_data_lifts{2};
+
+del_POG_x_left=comp_data_left(:,1);
+del_POG_y_left=comp_data_left(:,2);
+
+del_corner_inner_x=comp_data_left(:,3);
+del_corner_inner_y=comp_data_left(:,4);
+del_corner_outer_x=comp_data_left(:,5);
+del_corner_outer_y=comp_data_left(:,6);
+
+fig_3=plotErrorCornerCoorelation(del_corner_inner_x,del_corner_inner_y,...
+    del_corner_outer_x,del_corner_outer_y,del_POG_x_left,'Left Eye Error in POG Estimate vs Shift in Eye Corners','x');
+
+fig_4=plotErrorCornerCoorelation(del_corner_inner_y,del_corner_inner_y,...
+    del_corner_outer_x,del_corner_outer_y,del_POG_x_left,'Left Eye Error in POG Estimate vs Shift in Eye Corners','y');
+
+
+
+%% Plotting 8 Dot with Lifts Results
+comp_data_right=compensation_data_lifts_8dot{1};
+
+del_POG_x_right=comp_data_right(:,1);
+del_POG_y_right=comp_data_right(:,2);
+
+del_corner_inner_x=comp_data_right(:,3);
+del_corner_inner_y=comp_data_right(:,4);
+del_corner_outer_x=comp_data_right(:,5);
+del_corner_outer_y=comp_data_right(:,6);
+
+fig_1=plotErrorCornerCoorelation(del_corner_inner_x,del_corner_inner_y,...
+    del_corner_outer_x,del_corner_outer_y,del_POG_x_right,'Right Eye Error in POG Estimate vs Shift in Eye Corners','x');
+
+fig_2=plotErrorCornerCoorelation(del_corner_inner_y,del_corner_inner_y,...
+    del_corner_outer_x,del_corner_outer_y,del_POG_x_right,'Right Eye Error in POG Estimate vs Shift in Eye Corners','y');
+
+
+%Plotting Left Eye Stuffs
+comp_data_left=compensation_data_lifts_8dot{2};
+
+del_POG_x_left=comp_data_left(:,1);
+del_POG_y_left=comp_data_left(:,2);
+
+del_corner_inner_x=comp_data_left(:,3);
+del_corner_inner_y=comp_data_left(:,4);
+del_corner_outer_x=comp_data_left(:,5);
+del_corner_outer_y=comp_data_left(:,6);
+
+fig_3=plotErrorCornerCoorelation(del_corner_inner_x,del_corner_inner_y,...
+    del_corner_outer_x,del_corner_outer_y,del_POG_x_left,'Left Eye Error in POG Estimate vs Shift in Eye Corners','x');
+
+fig_4=plotErrorCornerCoorelation(del_corner_inner_y,del_corner_inner_y,...
+    del_corner_outer_x,del_corner_outer_y,del_POG_x_left,'Left Eye Error in POG Estimate vs Shift in Eye Corners','y');
+
+
 
 
 
@@ -719,31 +816,35 @@ MM_PER_PIXEL=0.27781;
 fit_offset=2;
 
 x_eq_factor=0.03;
-y_eq_factor=0.12;
+y_eq_factor=0.13;
 
 
 %Fitting data with best fit line
 [b_inner_x,stats]=robustfit(inner_x,del_pog,'huber',4.2);
 right_inner_line_x=b_inner_x(1)+b_inner_x(2).*inner_x;
 R2_right_inner_x=1-sum((del_pog-right_inner_line_x).^2,'omitnan')./sum((del_pog-mean(del_pog,'omitnan')).^2,'omitnan');
-right_inner_line_x=b_inner_x(1)+b_inner_x(2).*[min(inner_x)-fit_offset:0.5:max(inner_x)+fit_offset]; %For displaying
+x_axis_right_innerx=[min(inner_x)-fit_offset:0.5:max(inner_x)+fit_offset];
+right_inner_line_x=b_inner_x(1)+b_inner_x(2).*x_axis_right_innerx; %For displaying
 
 
 [b_outer_x,stats]=robustfit(outer_x,del_pog,'huber',4.2);
 right_outer_line_x=b_outer_x(1)+b_outer_x(2).*outer_x;
 R2_right_outer_x=1-sum((del_pog-right_outer_line_x).^2,'omitnan')./sum((del_pog-mean(del_pog,'omitnan')).^2,'omitnan');
-right_outer_line_x=b_outer_x(1)+b_outer_x(2).*[min(outer_x)-fit_offset:0.5:max(outer_x)+fit_offset]; %For displaying
+x_axis_right_outerx=[min(outer_x)-fit_offset:0.5:max(outer_x)+fit_offset]
+right_outer_line_x=b_outer_x(1)+b_outer_x(2).*x_axis_right_outerx; %For displaying
 
 
 [b_inner_y,stats]=robustfit(inner_y,del_pog,'huber',4.2);
 right_inner_line_y=b_inner_y(1)+b_inner_y(2).*inner_y;
 R2_right_inner_y=1-sum((del_pog-right_inner_line_y).^2,'omitnan')./sum((del_pog-mean(del_pog,'omitnan')).^2,'omitnan');
-right_inner_line_y=b_inner_y(1)+b_inner_y(2).*[min(inner_y)-fit_offset:0.5:max(inner_y)+fit_offset]; %For displaying
+x_axis_right_innery=[min(inner_y)-fit_offset:0.5:max(inner_y)+fit_offset];
+right_inner_line_y=b_inner_y(1)+b_inner_y(2).*x_axis_right_innery; %For displaying
 
 [b_outer_y,stats]=robustfit(outer_y,del_pog,'huber',4.2);
 right_outer_line_y=b_outer_y(1)+b_outer_y(2).*outer_y;
 R2_right_outer_y=1-sum((del_pog-right_outer_line_y).^2,'omitnan')./sum((del_pog-mean(del_pog,'omitnan')).^2,'omitnan');
-right_outer_line_y=b_outer_y(1)+b_outer_y(2).*[min(outer_y)-fit_offset:0.5:max(outer_y)+fit_offset]; %For displaying
+x_axis_right_outery=[min(outer_y)-fit_offset:0.5:max(outer_y)+fit_offset];
+right_outer_line_y=b_outer_y(1)+b_outer_y(2).*x_axis_right_outery; %For displaying
 
 
 %Plotting Results
@@ -770,7 +871,7 @@ outer_y=outer_y(~ind_rem);
 nexttile
 plot(inner_x,del_pog.*MM_PER_PIXEL,'color',marker_raw_color,'Marker',marker_type,'LineWidth',1,'MarkerSize',marker_size,'LineStyle',"none");
 hold on
-plot([min(inner_x)-fit_offset:0.5:max(inner_x)+fit_offset],right_inner_line_x.*MM_PER_PIXEL,'LineWidth',2,'Color',marker_lin_color,'LineStyle','--');
+plot(x_axis_right_innerx,right_inner_line_x.*MM_PER_PIXEL,'LineWidth',2,'Color',marker_lin_color,'LineStyle','--');
 hold off
 %ylim(ylim_range);
 
@@ -793,7 +894,7 @@ nexttile
 
 plot(inner_y,del_pog.*MM_PER_PIXEL,'color',marker_raw_color,'Marker',marker_type,'LineWidth',1,'MarkerSize',marker_size,'LineStyle',"none");
 hold on
-plot([min(inner_y)-fit_offset:0.5:max(inner_y)+fit_offset],right_inner_line_y.*MM_PER_PIXEL,'LineWidth',2,'Color',marker_lin_color,'LineStyle','--');
+plot(x_axis_right_innery,right_inner_line_y.*MM_PER_PIXEL,'LineWidth',2,'Color',marker_lin_color,'LineStyle','--');
 hold off
 %ylim(ylim_range);
 
@@ -816,7 +917,7 @@ nexttile
 
 plot(outer_x,del_pog.*MM_PER_PIXEL,'color',marker_raw_color,'Marker',marker_type,'LineWidth',1,'MarkerSize',marker_size,'LineStyle',"none");
 hold on
-plot([min(outer_x)-fit_offset:0.5:max(outer_x)+fit_offset],right_outer_line_x.*MM_PER_PIXEL,'LineWidth',2,'Color',marker_lin_color,'LineStyle','--');
+plot(x_axis_right_outerx,right_outer_line_x.*MM_PER_PIXEL,'LineWidth',2,'Color',marker_lin_color,'LineStyle','--');
 hold off
 %ylim(ylim_range);
 
@@ -838,7 +939,7 @@ nexttile
 
 plot(outer_y,del_pog.*MM_PER_PIXEL,'color',marker_raw_color,'Marker',marker_type,'LineWidth',1,'MarkerSize',marker_size,'LineStyle',"none");
 hold on
-plot([min(outer_y)-fit_offset:0.5:max(outer_y)+fit_offset],right_outer_line_y.*MM_PER_PIXEL,'LineWidth',2,'Color',marker_lin_color,'LineStyle','--');
+plot(x_axis_right_outery,right_outer_line_y.*MM_PER_PIXEL,'LineWidth',2,'Color',marker_lin_color,'LineStyle','--');
 hold off
 %ylim(ylim_range);
 
@@ -856,12 +957,12 @@ yt = y_eq_factor * (yl(2)-yl(1)) + yl(1);
 text(xt,yt,eq,'FontSize',8);
 
 
-leg=legend('Error Data','Regression Line');
+leg=legend('Error Data','Regression Line','Location','best');
 title(t,title_name,'FontName','Times New Roman','FontSize',17,'FontWeight','bold');
 
 
 % Left label
-ylabel(t,['\deltaPOG ',del_pog_direction,' x (mm)'],'FontName','Times New Roman','FontSize',15,'Color','k')
+ylabel(t,['\deltaPOG ',del_pog_direction,' (mm)'],'FontName','Times New Roman','FontSize',15,'Color','k')
 
 xlabel(t,'Corner Shift (px)','FontName','Times New Roman','FontSize',15)
 

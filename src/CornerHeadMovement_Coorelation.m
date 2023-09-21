@@ -92,12 +92,12 @@ xlabel('translation x (mm)','FontName','Times New Roman','FontSize',15);
 ylabel('\deltaCx (px)','FontName','Times New Roman','FontSize',15)
 
 
-%right outer corner x vs yaw
+%right outer corner x vs pitch
 fig2=figure;
 plot(dot_rotations(:,3),delta_c_onedot(:,3),'color',marker_color,'Marker',marker_type,'LineWidth',1,'MarkerSize',marker_size,'LineStyle',"none");
 
-title('Shift in Right Outer x Corner vs rotation (yaw)','FontName','Times New Roman','FontSize',13);
-xlabel('yaw (degrees)','FontName','Times New Roman','FontSize',15);
+title('Shift in Right Outer x Corner vs rotation (pitch)','FontName','Times New Roman','FontSize',13);
+xlabel('pitch (degrees)','FontName','Times New Roman','FontSize',15);
 ylabel('\deltaCx (px)','FontName','Times New Roman','FontSize',15);
 
 %right outer corner y vs trans y
@@ -119,7 +119,7 @@ ylabel('\deltaCy (px)','FontName','Times New Roman','FontSize',15);
 
 %Saving results
 saveas(fig1,[save_dir,'RightOuterX_vs_TranslationX.png']);
-saveas(fig2,[save_dir,'RightOuterX_vs_Yaw.png']);
+saveas(fig2,[save_dir,'RightOuterX_vs_Pitch.png']);
 saveas(fig3,[save_dir,'RightOuterY_vs_TranslationY.png']);
 saveas(fig4,[save_dir,'RightOuterY_vs_Roll.png']);
 
@@ -216,7 +216,7 @@ set(gca,'XTickLabelMode','auto')
 %pitch
 nexttile
 
-plot(moved_rotations(:,2),delta_corner,'color',marker_color,'Marker',marker_type,'LineWidth',1,'MarkerSize',marker_size,'LineStyle',"none");
+plot(moved_rotations(:,3),delta_corner,'color',marker_color,'Marker',marker_type,'LineWidth',1,'MarkerSize',marker_size,'LineStyle',"none");
 
 title('pitch','FontName','Times New Roman','FontSize',13);
 a = get(gca,'XTickLabel');  
@@ -239,7 +239,7 @@ set(gca,'XTickLabelMode','auto')
 %yaw
 nexttile
 
-plot(moved_rotations(:,3),delta_corner,'color',marker_color,'Marker',marker_type,'LineWidth',1,'MarkerSize',marker_size,'LineStyle',"none");
+plot(moved_rotations(:,2),delta_corner,'color',marker_color,'Marker',marker_type,'LineWidth',1,'MarkerSize',marker_size,'LineStyle',"none");
 
 
 title('yaw','FontName','Times New Roman','FontSize',13);
