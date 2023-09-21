@@ -1021,7 +1021,7 @@ function robust_regressor_output=robustRegressor(train_cell)
         robust_regressor_output=cell(num_pg_detect*2,3); %Final entry are the model parameters
         for i=[1:num_pg_detect] %Looping for the detections
             train_data=train_cell{i}{2};
-            %[rmse_x,rmse_y,b_x,b_y]=customRegressor(train_data);
+            [rmse_x,rmse_y,b_x,b_y]=customRegressor(train_data);
             %Saving x-results
             robust_regressor_output{i*2-1,1}=strcat(train_cell{i}{1},'_x');
             %robust_regressor_output{i*2-1,2}=(rmse_x+rmse_y)/2;
