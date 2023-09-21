@@ -1,6 +1,6 @@
 '''
 Used to rename the data collection files based on a csv file with a list of the participants and the order of the data collections.
-venv: custom_model_venv
+venv: eyecorner_main_venv
 
 
 '''
@@ -29,8 +29,8 @@ def save_time(filename):
 
 
 
-data_root='/media/alexandre/My Passport/Alexandre_EyeGazeProject/eyecorner_userstudy_converted'
-guide_csv_root='/media/alexandre/My Passport/Alexandre_EyeGazeProject/eyecorner_userstudy_converted/DataCollection_ParticipantList.csv'
+data_root='F:/Alexandre_EyeGazeProject/eyecorner_userstudy2_converted'
+guide_csv_root=data_root+'/DataCollection_ParticipantList.csv'
 
 for entry in os.scandir(data_root):
     if entry.is_dir():
@@ -45,7 +45,7 @@ for entry in os.scandir(data_root):
                 entry_num=re.sub("[P]","",entry_name)
                 entry_num=int(entry_num)
                 
-                if line_num==entry_num and entry_num<9 and entry_num>7: #The number in the csv matches that in the folder and we can now loop through each element in the folder and rename according to the order in the csv
+                if line_num==entry_num: #The number in the csv matches that in the folder and we can now loop through each element in the folder and rename according to the order in the csv
                     #Looping for video data
                     video_root=data_root+'/'+entry_name+'/EyeGaze_Data'
                     vid_files=os.listdir(video_root)

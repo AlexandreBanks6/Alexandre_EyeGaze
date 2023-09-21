@@ -36,7 +36,7 @@ from utils.torch_utils import select_device
 
 #---------------<Initializing Variables>--------------------
 
-data_root="C:/Users/playf/OneDrive/Documents/UBC/Thesis/Code/Main_Repo/data/eyecorner_userstudy_converted"
+data_root="F:/Alexandre_EyeGazeProject/eyecorner_userstudy2_converted"
 YOLOV7_MODEL_PATH='resources/eyegaze_model_new_aug18.pt'
 PI=3.1415926535
 
@@ -993,7 +993,7 @@ for entry in os.scandir(data_root):
         video_dir=data_root+'/'+part_name+'/EyeGaze_Data'
         entry_num=re.sub("[P]","",part_name)
         entry_num=int(entry_num)
-        if entry_num>12:
+        if entry_num>0:
             for file in os.listdir(video_dir): #Loops for all the eye videos in the directory
                 if file.endswith('.avi'):
                     root,ext=os.path.splitext(file)

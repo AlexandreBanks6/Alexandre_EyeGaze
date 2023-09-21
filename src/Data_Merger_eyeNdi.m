@@ -17,7 +17,7 @@ Affiliation: Robotics and Control Laboratory
 FREQUENCY=60; 
 PERIOD=1/FREQUENCY;
 
-DATA_DIR='/media/alexandre/My Passport/Alexandre_EyeGazeProject/eyecorner_userstudy_converted';
+DATA_DIR='F:/Alexandre_EyeGazeProject/eyecorner_userstudy2_converted';
 folder_list=dir(DATA_DIR);
 dirnames={folder_list([folder_list.isdir]).name};
 num_dir=length(dirnames);
@@ -102,7 +102,7 @@ for m=[1:num_dir]
             %Taking all of ndi_data
             ndi_data_new=cell(1,num_tools);
             if(min_gazetime<min_nditime) %We started gaze data before ndi data
-                gaze_data_new=gaze_data(i_gazetime:end,[1,3,16:27,43:54,end-2,end-1,end]);
+                gaze_data_new=gaze_data(i_gazetime:end,[1,3,13:24,34:48]);
                 gaze_time=gaze_time(i_gazetime:end);
                 gaze_data_new(:,1)=gaze_time;
                 for i=[1:num_tools] %Loops for the number of tools
@@ -117,7 +117,7 @@ for m=[1:num_dir]
                     end
                 end
             else %We started ndi data before gaze data
-                gaze_data_new=gaze_data(:,[1,3,16:27,43:54,end-2,end-1,end]);
+                gaze_data_new=gaze_data(:,[1,3,13:24,34:48]);
                 gaze_data_new(:,1)=gaze_time;
                 for i=[1:num_tools] %Loops for the number of tools
                     if i==1
@@ -278,6 +278,16 @@ for m=[1:num_dir]
                 ndi_data_new{i}(nan_vals,:)=[];
             end
             
+            %%Deleting NDI Data Longer than gaze data
+            %max_gaze_time=gaze_data_new(end,1);
+            %max_ndi_time=ndi_data_new{1}(end,2);
+            %if max_ndi_time>max_gaze_time
+             %   smaller_val_inds=find(ndi_data_new{1}(:,2)<=max_gaze_time+0.1);
+              %  trim_ind=smaller_val_inds(end);
+               % ndi_data_new{1}=ndi_data_new{1}(1:trim_ind,:);
+                %ndi_data_new{2}=ndi_data_new{2}(1:trim_ind,:);
+            %end
+
             %%Running Interpolation (to make equal data lengths)
             %(Every Eye Gaze Entry has a corresponding head rotation/translation)
             
@@ -309,12 +319,17 @@ for m=[1:num_dir]
                         end
                     end
             
-                    quat_start=quaternion(ndi_data_new{i}(ndi_count-1,7),ndi_data_new{i}(ndi_count-1,8),ndi_data_new{i}(ndi_count-1,9),ndi_data_new{i}(ndi_count-1,10));
-                    quat_end=quaternion(ndi_data_new{i}(ndi_count,7),ndi_data_new{i}(ndi_count,8),ndi_data_new{i}(ndi_count,9),ndi_data_new{i}(ndi_count,10));
+                    %quat_start=quaternion(ndi_data_new{i}(ndi_count-1,7),ndi_data_new{i}(ndi_count-1,8),ndi_data_new{i}(ndi_count-1,9),ndi_data_new{i}(ndi_count-1,10));
+                    %quat_end=quaternion(ndi_data_new{i}(ndi_count,7),ndi_data_new{i}(ndi_count,8),ndi_data_new{i}(ndi_count,9),ndi_data_new{i}(ndi_count,10));
+                    
+                    quat_start=[ndi_data_new{i}(ndi_count-1,7),ndi_data_new{i}(ndi_count-1,8),ndi_data_new{i}(ndi_count-1,9),ndi_data_new{i}(ndi_count-1,10)];
+                    quat_end=[ndi_data_new{i}(ndi_count,7),ndi_data_new{i}(ndi_count,8),ndi_data_new{i}(ndi_count,9),ndi_data_new{i}(ndi_count,10)];
+
+                    
                     interval_frac=(gaze_data_new(j,1)-ndi_data_new{i}(ndi_count-1,2))/(ndi_data_new{i}(ndi_count,2)-ndi_data_new{i}(ndi_count-1,2));
                     
-                    qi=quatinterp(quat_start,quat_end,interval_frac,'slerp');
-                    quat_array=compact(qi);
+                    quat_array=quatinterp(quat_start,quat_end,interval_frac,'slerp');
+                    %quat_array=compact(qi);
                     ndi_data_interp{i}(j,7:10)=quat_array; %Updates quaternion
                     ndi_data_interp{i}(j,1)=ndi_data_new{i}(ndi_count-1,1); %Updates tool ID
                     ndi_data_interp{i}(j,2)=gaze_data_new(j,1); %Updates time
