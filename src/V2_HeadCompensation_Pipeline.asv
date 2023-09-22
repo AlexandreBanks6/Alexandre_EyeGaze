@@ -39,21 +39,13 @@ for m=[1:num_dir]
                 %calib_onedot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Rotate.csv']);
                 %data_cell={calib_onedot};
 
-                %{
                 calib_lift1_dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift1_dot.csv']);
                 calib_lift2_dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift2_dot.csv']);
                 calib_lift3_dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift3_dot.csv']);
                 calib_lift4_dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift4_dot.csv']);
                 calib_lift5_dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift5_dot.csv']);
                 data_cell={calib_lift1_dot,calib_lift2_dot,calib_lift3_dot,calib_lift4_dot,calib_lift5_dot};
-                %}
 
-                calib_lift1_8dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift1_8point.csv']);
-                calib_lift2_8dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift2_8point.csv']);
-                calib_lift3_8dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift3_8point.csv']);
-                calib_lift4_8dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift4_8point.csv']);
-                calib_lift5_8dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift5_8point.csv']);
-                data_cell={calib_lift1_8dot,calib_lift2_8dot,calib_lift3_8dot,calib_lift4_8dot,calib_lift5_8dot};
                 %-------Training Compensation Model
 
 
@@ -89,7 +81,6 @@ for m=[1:num_dir]
                 data_mat=[calib_lift1_dot;calib_lift2_dot;calib_lift3_dot;calib_lift4_dot;calib_lift5_dot];
                 %}
                 
-                %{
                 eval_lift1_8dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift1_8point.csv']);
                 eval_lift2_8dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift2_8point.csv']);
                 eval_lift3_8dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift3_8point.csv']);
@@ -97,22 +88,15 @@ for m=[1:num_dir]
                 eval_lift5_8dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift5_8point.csv']);
 
                 data_mat=[eval_lift1_8dot;eval_lift2_8dot;eval_lift3_8dot;eval_lift4_8dot;eval_lift5_8dot];
-                %}
+                
                 
                 %{
-                eval_lift1_8dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Eval_Lift1_8Point.csv']);
-                eval_lift2_8dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Eval_Lift2_8Point.csv']);
-                eval_lift3_8dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Eval_Lift3_8Point.csv']);
-
-                data_mat=[eval_lift1_8dot;eval_lift2_8dot;eval_lift3_8dot];
-                %}
-                
                 eval_lift1_9dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Eval_Lift1_9Point.csv']);
                 eval_lift2_9dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Eval_Lift2_9Point.csv']);
                 eval_lift3_9dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Eval_Lift3_9Point.csv']);
 
                 data_mat=[eval_lift1_9dot;eval_lift2_9dot;eval_lift3_9dot];
-                
+                %}
                 
                 [mean_accuracies,total_results]=evalModelsRegressComp(data_mat,model_poly,dist_cell,avg_corners,mdl_right_x,mdl_right_y,mdl_left_x,mdl_left_y);
                 mean_acc_results=[mean_acc_results;mean_accuracies];
