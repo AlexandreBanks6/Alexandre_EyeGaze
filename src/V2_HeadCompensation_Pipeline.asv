@@ -35,8 +35,6 @@ for m=[1:num_dir]
                 predictors=calib_init_data(:,[3,4,15,16]); %pupil_right_x,pupil_right_y,pupil_left_x,pupil_left_y
                 
                 [PG_Estimation_Models]=maxFitPGRegressor(train_cell,predictors);
-
-                %
                 
 
                 %Getting the Data To Train the Compensation Model
@@ -1195,8 +1193,8 @@ else %We have detections and proceed
         PG_Estimation_Models(i,1)=pg_estimation_types(1);
         PG_Estimation_Models{i,2}=mdl_x;
 
-        PG_Estimation_Models(i+1,1)=pg_estimation_types(2);
-        PG_Estimation_Models{i+1,2}=mdl_y;
+        PG_Estimation_Models(i+1}(1)=pg_estimation_types(2);
+        PG_Estimation_Models{i+1}{2}=mdl_y;
 
     end
 end
