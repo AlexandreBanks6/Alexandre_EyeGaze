@@ -32,9 +32,10 @@ for m=[1:num_dir]
                 model_poly=robustRegressor(train_cell);
                 
                 %training Max's PG Estimator (for PG_hat)
-                predictors=calib_init_data(:,[3,4,15,16]); %pupil_right_x,pupil_right_y,pupil_left_x,pupil_left_y
                 
-                [PG_Estimation_Models]=maxFitPGRegressor(train_cell,predictors);
+                [PG_Estimation_Models]=maxFitPGRegressor(train_cell);
+
+                %
                 
 
                 %Getting the Data To Train the Compensation Model
@@ -204,7 +205,8 @@ end
 function train_matrix=getIndividualRegressionData(data_matrix,pg_type,thresh)
     %Function tha returns data to train polynomial regressor from the toal
     %data matrix in eye gaze tracking. 
-    %Returns: train_matrix with columns: pg(pg_type)_x,pg(pg_type)_y,target_x,target_y
+    %Returns: train_matrix with columns:
+    %pg(pg_type)_x,pg(pg_type)_y,target_x,target_y,pupil_x,pupil_y
     %Where pg_type is either 0, 1, or 2
     %If train_matrix is not valid then train_matrix=NaN
     
@@ -246,12 +248,12 @@ function train_matrix=getIndividualRegressionData(data_matrix,pg_type,thresh)
 
         if (~anynan(data_raw(i,[1:4]))) && (~switched) %We have a new target point and a valid glint detection
             switched=true;
-            train_matrix=[train_matrix;[data_raw(i,2)-data_raw(i,1),data_raw(i,4)-data_raw(i,3),data_raw(i,5),data_raw(i,6)]];
+            train_matrix=[train_matrix;[data_raw(i,2)-data_raw(i,1),data_raw(i,4)-data_raw(i,3),data_raw(i,5),data_raw(i,6),data_raw(i,1),data_raw(i,3)]];
             pupil_detect_count=pupil_detect_count+1;
         elseif ~anynan(data_raw(i,[1:4]))
-            train_matrix=[train_matrix;[data_raw(i,2)-data_raw(i,1),data_raw(i,4)-data_raw(i,3),data_raw(i,5),data_raw(i,6)]];
+            train_matrix=[train_matrix;[data_raw(i,2)-data_raw(i,1),data_raw(i,4)-data_raw(i,3),data_raw(i,5),data_raw(i,6),data_raw(i,1),data_raw(i,3)]];
         else
-            train_matrix=[train_matrix;[NaN,NaN,NaN,NaN]];
+            train_matrix=[train_matrix;[NaN,NaN,NaN,NaN,NaN,NaN]];
         end
 
 
@@ -1132,12 +1134,14 @@ predictors_y=[predictors(:,1),predictors(:,2)];
 
 end
 
-function [PG_Estimation_Models]=maxFitPGRegressor(PGs,predictors)
+function [PG_Estimation_Models]=maxFitPGRegressor(train_cell)
 %{
 Inputs:
-PGs: pupil glint vectors, in a cell format, every cell entry has the PG
-type and the PG values, PG values are x then y
-predictors: the pupil positions in the format: pupil_right_x,pupil_right_y,pupil_left_x,pupil_left_y
+train_cell: has cells corresponding to the pg vector found. Each cell has
+two sub cells: 
+cell 1: name of the pg_vector
+cell 2: the data in format: pg_vector_x, pg_y,pupil_x,pupil_y
+
 
 Output:
 PG_Estimation_Models:
@@ -1151,50 +1155,40 @@ column 2: the PG estimation model values
 REGRESS_TUNE=4.2;
 REGRESS_FUNC='huber';
 
-right_predictors=predictors(:,[1,2]);
-left_predictors=predictors(:,[3,4]);
-
-
 %We loop for all the PG vectors found and find the PG estimation model
-num_pg_detect=length(PGs);
+num_pg_detect=length(train_cell);
 
 if num_pg_detect==0
     PG_Estimation_Models=nan;
 else %We have detections and proceed
     PG_Estimation_Models=cell(num_pg_detect*2,2); %Will store our PG models
     for i=[1:num_pg_detect]
-        pg_type=PGs{i}{1}; %What is the type of pg vector we are getting
-        switch pg_type
-            case 'pg0_left'
-                pred=left_predictors;
-            case 'pg0_right'
-                pred=right_predictors;
-            case 'pg1_left'
-                pred=left_predictors;
-            case 'pg1_right'
-                pred=right_predictors;
-            case 'pg2_left'
-                pred=left_predictors;
-            case 'pg2_right'
-                pred=right_predictors;
 
-        end
+        pg_type=train_cell{i}{1}; %What is the type of pg vector we are getting
         pg_estimation_types={[pg_type,'_x'],[pg_type,'_y']};
-        PG_vals=PGs{i}{2};
-        PG_x=PG_vals(:,1);
-        PG_y=PG_vals(:,2);
-        [predictors_x,predictors_y]=maxPGPolynomial(pred);
+        
+        train_data=train_cell{i}{2};        
+
+        
+        PG_x=train_data(:,1);
+        PG_y=train_data(:,2);
+
+        pupils=train_data(:,[5:6]);
+
+
+        
+        [predictors_x,predictors_y]=maxPGPolynomial(pupils);
 
         %Using iteratively weighted least squares
         mdl_x=robustfit(predictors_x,PG_x,REGRESS_FUNC,REGRESS_TUNE); %Uses iteratively weighted least squares
 
         %Fitting POGy
         mdl_y=robustfit(predictors_y,PG_y,REGRESS_FUNC,REGRESS_TUNE); %Uses iteratively weighted least squares
-        PG_Estimation_Models(i,1)=pg_estimation_types(1);
-        PG_Estimation_Models{i,2}=mdl_x;
+        PG_Estimation_Models(i*2-1,1)=pg_estimation_types(1);
+        PG_Estimation_Models{i*2-1,2}=mdl_x;
 
-        PG_Estimation_Models(i+1}(1)=pg_estimation_types(2);
-        PG_Estimation_Models{i+1}{2}=mdl_y;
+        PG_Estimation_Models(i*2,1)=pg_estimation_types(2);
+        PG_Estimation_Models{i*2,2}=mdl_y;
 
     end
 end
@@ -1206,4 +1200,131 @@ end
 
 
 
+%Used to prep the data to train Max's compensation model
+function [compensation_data]=prepMaxCompensationData(data_matrix,model_cell,dist_cell,PG_Estimation_Models)
+    %{
+    Input: 
+
+    data_matrix: data for  training the compensation model
+    model_cell: the cell containing the polynomial regression models
+    dist_cell: the cell with the distances between calibration glints
+    PG_Estimation_Models: cell array with the models to find the PG at the
+    calibrated pupil position
+    
+ 
+
+    Output:
+
+    compensationData is a cell array with two columns having:
+    col 1: the pg type (e.g. pg0_left_x, pg0_left_y, etc.)
+    col 2: the actual corresponding data with: del_POG_x, del_POG_y,
+    del_PG_x, del_PG_y
+    
+    %}
+    
+    left_headers={'pg0_left_x','pg0_left_y','pg1_left_x','pg1_left_y','pg2_left_x','pg2_left_y'};
+    right_headers={'pg0_right_x','pg0_right_y','pg1_right_x','pg1_right_y','pg2_right_x','pg2_right_y'};
+    check_model_right=any(ismember(model_cell(:,1),right_headers));
+    check_model_left=any(ismember(model_cell(:,1),left_headers));
+
+    %Init compensation data cell
+    %compensation_data=cell(1,2);
+    for i=[1:length(data_cell)]
+
+        [reformatted_data_right,reformatted_data_left]=reformatDataMax(curr_mat);
+        if check_model_right            
+            error_vec_right=findCalibrationErrors(model_cell,reformatted_data_right,right_headers,dist_cell);
+        else
+            error_vec_right=nan;
+        end
+
+        if check_model_left
+            error_vec_left=findCalibrationErrors(model_cell,reformatted_data_left,left_headers,dist_cell);
+        else
+            error_vec_left=nan;
+        end
+
+        if ~all(isnan(error_vec_right(:,1)))
+            % reformmated_data_right=frame_no,pg0_rightx,pg0_righty,...,pg2_rightx,pg2_righty,target_x,target_y,right_inner_x,right_inner_y,right_outer_x,right_outer_y,..
+
+            del_corner_inner_x=avg_corners(1)-reformatted_data_right(:,end-3);
+            del_corner_inner_y=avg_corners(2)-reformatted_data_right(:,end-2);
+            del_corner_outer_x=avg_corners(3)-reformatted_data_right(:,end-1);
+            del_corner_outer_y=avg_corners(4)-reformatted_data_right(:,end);
+            v_calib_x=avg_corners(1)-avg_corners(3);
+            v_calib_y=avg_corners(2)-avg_corners(4);
+            v_curr_x=reformatted_data_right(:,end-3)-reformatted_data_right(:,end-1);
+            v_curr_y=reformatted_data_right(:,end-2)-reformatted_data_right(:,end);
+
+            alpha=2.*atan(sqrt((v_calib_x-v_curr_x).^2+(v_calib_y-v_curr_y).^2)./...
+                sqrt((v_calib_x+v_curr_x).^2+(v_calib_y+v_curr_y).^2));
+
+            compensation_data{1}=[compensation_data{1};error_vec_right(:,1),...
+                error_vec_right(:,2),del_corner_inner_x,del_corner_inner_y,...
+                del_corner_outer_x,del_corner_outer_y,alpha,...
+                error_vec_right(:,3),error_vec_right(:,4),...
+                curr_mat(:,[[32:38],[42:48]])];
+
+        else
+            compensation_data{1}=[compensation_data{1};nan(1,23)];
+        end
+
+        if ~all(isnan(error_vec_left(:,1)))
+            del_corner_inner_x=avg_corners(5)-reformatted_data_left(:,end-3);
+            del_corner_inner_y=avg_corners(6)-reformatted_data_left(:,end-2);
+            del_corner_outer_x=avg_corners(7)-reformatted_data_left(:,end-1);
+            del_corner_outer_y=avg_corners(8)-reformatted_data_left(:,end);
+
+            v_calib_x=avg_corners(5)-avg_corners(7);
+            v_calib_y=avg_corners(6)-avg_corners(8);
+            v_curr_x=reformatted_data_left(:,end-3)-reformatted_data_left(:,end-1);
+            v_curr_y=reformatted_data_left(:,end-2)-reformatted_data_left(:,end);
+
+            alpha=2.*atan(sqrt((v_calib_x-v_curr_x).^2+(v_calib_y-v_curr_y).^2)./...
+                sqrt((v_calib_x+v_curr_x).^2+(v_calib_y+v_curr_y).^2));
+
+            compensation_data{2}=[compensation_data{2};error_vec_left(:,1),...
+                error_vec_left(:,2),del_corner_inner_x,del_corner_inner_y,...
+                del_corner_outer_x,del_corner_outer_y,alpha,...
+                error_vec_left(:,3),error_vec_left(:,4),...
+                curr_mat(:,[[32:38],[42:48]])];
+
+        else
+            compensation_data{2}=[compensation_data{2};nan(1,23)];
+        end
+        
+    end
+   
+
+
+
+end
+
+
+%Subfunction used to reformat the data
+function reformatted_data=reformatData(eval_data)
+    %Returns the data to evaluate the model in the format of: 
+    % frame_no, pg0_rightx, pg0_righty, ..., pg2_rightx, pg2_righty, pg0_leftx, pg0_lefty,..., pg2_leftx, pg2_lefty,
+    % right_inner_x,right_inner_y,right_outer_x,right_outer_y,left_inner_x,left_inner_y,left_outer_x,left_outer_y,
+    % target_x,target_y
+
+
+    glintspupils_right_ind=[3,4,9,10,11,12,13,14]; %Contains the glints and pupil positions such that pupil_x,pupil_y,glint0_x,glint0_y...
+    glintspupils_left_ind=[15,16,21,22,23,24,25,26];
+
+    glintspupils_right=eval_data(:,glintspupils_right_ind);
+    glintspupils_left=eval_data(:,glintspupils_left_ind);
+
+    reformatted_data=[glintspupils_right(:,3)-glintspupils_right(:,1),...
+        glintspupils_right(:,4)-glintspupils_right(:,2),glintspupils_right(:,5)-glintspupils_right(:,1),...
+        glintspupils_right(:,6)-glintspupils_right(:,2),glintspupils_right(:,7)-glintspupils_right(:,1),...
+        glintspupils_right(:,8)-glintspupils_right(:,2),...
+        glintspupils_left(:,3)-glintspupils_left(:,1),...
+        glintspupils_left(:,4)-glintspupils_left(:,2),glintspupils_left(:,5)-glintspupils_left(:,1),...
+        glintspupils_left(:,6)-glintspupils_left(:,2),glintspupils_left(:,7)-glintspupils_left(:,1),...
+        glintspupils_left(:,8)-glintspupils_left(:,2),...
+        eval_data(:,50:57),...
+        eval_data(:,27),eval_data(:,28)];
+
+end
 
