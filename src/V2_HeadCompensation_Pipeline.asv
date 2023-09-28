@@ -35,7 +35,10 @@ for m=[1:num_dir]
                 
                 [PG_Estimation_Models]=maxFitPGRegressor(train_cell);
 
-                %
+                %Training Max's POG compensation model
+                calib_max=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Rotate.csv']);
+
+                compensation_data=prepMaxCompensationData(calib_max,model_poly,dist_cell,PG_Estimation_Models);
                 
 
                 %Getting the Data To Train the Compensation Model
@@ -1201,7 +1204,7 @@ end
 
 
 %Used to prep the data to train Max's compensation model
-function [compensation_data]=prepMaxCompensationData(data_matrix,model_cell,dist_cell,PG_Estimation_Models)
+function compensation_data=prepMaxCompensationData(data_matrix,model_cell,dist_cell,PG_Estimation_Models)
     %{
     Input: 
 
@@ -1217,7 +1220,7 @@ function [compensation_data]=prepMaxCompensationData(data_matrix,model_cell,dist
 
     compensationData is a cell array with two columns having:
     col 1: the pg type (e.g. pg0_left_x, pg0_left_y, etc.)
-    col 2: the actual corresponding data with: del_POG_x, del_POG_y,
+    col 2: the actual corresponding data with: del_POG (x or y),
     del_PG_x, del_PG_y
     
     %}
@@ -1227,85 +1230,127 @@ function [compensation_data]=prepMaxCompensationData(data_matrix,model_cell,dist
     check_model_right=any(ismember(model_cell(:,1),right_headers));
     check_model_left=any(ismember(model_cell(:,1),left_headers));
 
-    %Init compensation data cell
-    %compensation_data=cell(1,2);
-    for i=[1:length(data_cell)]
-
-        [reformatted_data_right,reformatted_data_left]=reformatDataMax(curr_mat);
-        if check_model_right            
-            error_vec_right=findCalibrationErrors(model_cell,reformatted_data_right,right_headers,dist_cell);
-        else
-            error_vec_right=nan;
-        end
-
-        if check_model_left
-            error_vec_left=findCalibrationErrors(model_cell,reformatted_data_left,left_headers,dist_cell);
-        else
-            error_vec_left=nan;
-        end
-
-        if ~all(isnan(error_vec_right(:,1)))
-            % reformmated_data_right=frame_no,pg0_rightx,pg0_righty,...,pg2_rightx,pg2_righty,target_x,target_y,right_inner_x,right_inner_y,right_outer_x,right_outer_y,..
-
-            del_corner_inner_x=avg_corners(1)-reformatted_data_right(:,end-3);
-            del_corner_inner_y=avg_corners(2)-reformatted_data_right(:,end-2);
-            del_corner_outer_x=avg_corners(3)-reformatted_data_right(:,end-1);
-            del_corner_outer_y=avg_corners(4)-reformatted_data_right(:,end);
-            v_calib_x=avg_corners(1)-avg_corners(3);
-            v_calib_y=avg_corners(2)-avg_corners(4);
-            v_curr_x=reformatted_data_right(:,end-3)-reformatted_data_right(:,end-1);
-            v_curr_y=reformatted_data_right(:,end-2)-reformatted_data_right(:,end);
-
-            alpha=2.*atan(sqrt((v_calib_x-v_curr_x).^2+(v_calib_y-v_curr_y).^2)./...
-                sqrt((v_calib_x+v_curr_x).^2+(v_calib_y+v_curr_y).^2));
-
-            compensation_data{1}=[compensation_data{1};error_vec_right(:,1),...
-                error_vec_right(:,2),del_corner_inner_x,del_corner_inner_y,...
-                del_corner_outer_x,del_corner_outer_y,alpha,...
-                error_vec_right(:,3),error_vec_right(:,4),...
-                curr_mat(:,[[32:38],[42:48]])];
-
-        else
-            compensation_data{1}=[compensation_data{1};nan(1,23)];
-        end
-
-        if ~all(isnan(error_vec_left(:,1)))
-            del_corner_inner_x=avg_corners(5)-reformatted_data_left(:,end-3);
-            del_corner_inner_y=avg_corners(6)-reformatted_data_left(:,end-2);
-            del_corner_outer_x=avg_corners(7)-reformatted_data_left(:,end-1);
-            del_corner_outer_y=avg_corners(8)-reformatted_data_left(:,end);
-
-            v_calib_x=avg_corners(5)-avg_corners(7);
-            v_calib_y=avg_corners(6)-avg_corners(8);
-            v_curr_x=reformatted_data_left(:,end-3)-reformatted_data_left(:,end-1);
-            v_curr_y=reformatted_data_left(:,end-2)-reformatted_data_left(:,end);
-
-            alpha=2.*atan(sqrt((v_calib_x-v_curr_x).^2+(v_calib_y-v_curr_y).^2)./...
-                sqrt((v_calib_x+v_curr_x).^2+(v_calib_y+v_curr_y).^2));
-
-            compensation_data{2}=[compensation_data{2};error_vec_left(:,1),...
-                error_vec_left(:,2),del_corner_inner_x,del_corner_inner_y,...
-                del_corner_outer_x,del_corner_outer_y,alpha,...
-                error_vec_left(:,3),error_vec_left(:,4),...
-                curr_mat(:,[[32:38],[42:48]])];
-
-        else
-            compensation_data{2}=[compensation_data{2};nan(1,23)];
-        end
+    %Initializing Results Data
+    compensation_data=cell(12,2);
+    compensation_data(:,1)=[left_headers';right_headers'];
+    if iscell(PG_Estimation_Models)
+        reformatted_data=reformatMaxData(data_matrix);
+    
+    
+        %------------------<Right Data First>-------------------
+        [row_n,~]=size(reformatted_data);
+    
+        for i=[1:row_n]
+            curr_row=reformatted_data(i,:); %Current data row 
+            
+            t_x=curr_row(end-1);
+            t_y=curr_row(end);
+    
+            nan_indexs=isnan(curr_row(1:6));
+            nan_indx_values=find(nan_indexs);
+    
+            if length(nan_indx_values)<3 %At least two x,y pairs are detected
+                stripped_header=right_headers(~nan_indexs); %Extracts the pg type that is valid for this frame
+                valid_header=findPgWithAssociatedDistance(stripped_header,dist_cell);
+                
+                if length(valid_header)>2
+                    model_valid_indexes=ismember(model_cell(:,1),valid_header);
+                    updated_model_cell=model_cell(model_valid_indexes,:);
+                    [row_new,~]=size(updated_model_cell);
+    
+                    for j=[1:floor(row_new/2)]
+    
+                        %Prepping correct indexing
+                        model_x=updated_model_cell{j*2-1,3};
+                        model_y=updated_model_cell{j*1,3};
+                        header_x=valid_header{j*1-1};
+                        header_y=valid_header{j*2};
+                        pg_x_ind=ismember(right_headers,header_x);
+                        pg_y_ind=ismember(right_headers,header_y);
+    
+                        %Getting pupil position
+                        pupil_x=curr_row(13);
+                        pupil_y=curr_row(14);
+    
+                        %Getting Correct PG Estimation Model
+                        PG_Estimation_Headers=PG_Estimation_Models(:,1);
+                        pg_estimation_indx=ismember(PG_Estimation_Headers,header_x);
+                        pg_estimation_indy=ismember(PG_Estimation_Headers,header_y);
+    
+                        PG_model_x=PG_Estimation_Models{pg_estimation_indx,2};
+                        PG_model_y=PG_Estimation_Models{pg_estimation_indy,2};
+                        if ~isempty(PG_model_x) && ~isempty(PG_model_y)
+                            
+                            %Estimating PG
+                            PG_estim_x=PG_model_x(1)+PG_model_x(2)*pupil_x+PG_model_x(3)*pupil_y;
+                            PG_estim_y=PG_model_x(1)+PG_model_y(2)*pupil_x+PG_model_y(3)*pupil_y;
+                            
+                            %Getting delta PG 
+                            pgsonly=curr_row(1:6);
+                            
+                            pg_x=pgsonly(pg_x_ind);
+                            pg_y=pgsonly(pg_y_ind);
+                            delta_pg_x=pg_x-PG_estim_x;
+                            delta_pg_y=pg_y-PG_estim_y;
         
-    end
-   
+                            %Getting estimated POG
+                            
+                            [d_calib,d_curr]=findScalingFactors(dist_cell,valid_header,right_headers,pgsonly);
+                        
+                            if isnan(d_calib)||isnan(d_curr)
+                                %error_vec=[error_vec;[nan,nan,t_x,t_y]];
+                                continue
+                            end
+                            
+                            pg_x=(d_calib/d_curr).*pg_x;
+                            pg_y=(d_calib/d_curr).*pg_y;
+            
+                            [predictors_x,predictors_y]=customPolynomial(pg_x,pg_y);
+            
+                            POG_x=findPOG(model_x,predictors_x);
+                            POG_y=findPOG(model_y,predictors_y);
+                            
+        
+                            delta_POG_x=t_x-POG_x;
+                            delta_POG_y=t_y-POG_y;
 
+                            %Saving Results
+                            results_headers=compensation_data(:,1);
+                            results_ind_x=ismember(results_headers,header_x);
+                            results_ind_y=ismember(results_headers,header_y);
+
+                            data_x=compensation_data{results_ind_x,2};
+                            data_y=compensation_data{results_ind_y,2};
+
+                            data_x=[data_x;delta_POG_x,delta_pg_x,delta_pg_y];
+                            data_y=[data_y;delta_POG_y,delta_pg_x,delta_pg_y];
+
+                            compensation_data{results_ind_x,2}=data_x;
+                            compensation_data{results_ind_y,2}=data_y;
+
+
+                        end   
+    
+                    end
+                end
+            end
+    
+        end
+
+    end
+
+
+   
+    
 
 
 end
 
-
 %Subfunction used to reformat the data
-function reformatted_data=reformatData(eval_data)
+function reformatted_data=reformatMaxData(eval_data)
     %Returns the data to evaluate the model in the format of: 
-    % frame_no, pg0_rightx, pg0_righty, ..., pg2_rightx, pg2_righty, pg0_leftx, pg0_lefty,..., pg2_leftx, pg2_lefty,
-    % right_inner_x,right_inner_y,right_outer_x,right_outer_y,left_inner_x,left_inner_y,left_outer_x,left_outer_y,
+    % pg0_rightx, pg0_righty, ..., pg2_rightx, pg2_righty, pg0_leftx, pg0_lefty,..., pg2_leftx, pg2_lefty,
+    % pupil_right_x,pupil_right_y,pupil_left_x,pupil_left_y
     % target_x,target_y
 
 
@@ -1323,8 +1368,11 @@ function reformatted_data=reformatData(eval_data)
         glintspupils_left(:,4)-glintspupils_left(:,2),glintspupils_left(:,5)-glintspupils_left(:,1),...
         glintspupils_left(:,6)-glintspupils_left(:,2),glintspupils_left(:,7)-glintspupils_left(:,1),...
         glintspupils_left(:,8)-glintspupils_left(:,2),...
-        eval_data(:,50:57),...
+        glintspupils_right(:,1),glintspupils_right(:,2),glintspupils_left(:,1),glintspupils_left(:,2),...
         eval_data(:,27),eval_data(:,28)];
 
 end
+
+
+
 

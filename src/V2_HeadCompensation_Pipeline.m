@@ -35,8 +35,12 @@ for m=[1:num_dir]
                 
                 [PG_Estimation_Models]=maxFitPGRegressor(train_cell);
 
-                %
+                %Training Max's POG compensation model
+                calib_max=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Rotate.csv']);
+
+                max_compensation_data=prepMaxCompensationData(calib_max,model_poly,dist_cell,PG_Estimation_Models);
                 
+                max_compensation_models=maxCompensationTraining(max_compensation_data);
 
                 %Getting the Data To Train the Compensation Model
                 %calib_onedot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Rotate.csv']);
@@ -57,11 +61,12 @@ for m=[1:num_dir]
                 calib_lift4_8dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift4_8point.csv']);
                 calib_lift5_8dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift5_8point.csv']);
                 data_cell={calib_lift1_8dot,calib_lift2_8dot,calib_lift3_8dot,calib_lift4_8dot,calib_lift5_8dot};
-                %-------Training Compensation Model
-
+                
+                
+                
+                %-------Training My Compensation Model
 
                 compensation_data_onedot=prepCompensationData(data_cell,model_poly,dist_cell,avg_corners);
-
 
                 right_data=compensation_data_onedot{1};
                 left_data=compensation_data_onedot{2};
@@ -1201,7 +1206,7 @@ end
 
 
 %Used to prep the data to train Max's compensation model
-function [compensation_data]=prepMaxCompensationData(data_matrix,model_cell,dist_cell,PG_Estimation_Models)
+function compensation_data=prepMaxCompensationData(data_matrix,model_cell,dist_cell,PG_Estimation_Models)
     %{
     Input: 
 
@@ -1217,7 +1222,7 @@ function [compensation_data]=prepMaxCompensationData(data_matrix,model_cell,dist
 
     compensationData is a cell array with two columns having:
     col 1: the pg type (e.g. pg0_left_x, pg0_left_y, etc.)
-    col 2: the actual corresponding data with: del_POG_x, del_POG_y,
+    col 2: the actual corresponding data with: del_POG (x or y),
     del_PG_x, del_PG_y
     
     %}
@@ -1227,79 +1232,224 @@ function [compensation_data]=prepMaxCompensationData(data_matrix,model_cell,dist
     check_model_right=any(ismember(model_cell(:,1),right_headers));
     check_model_left=any(ismember(model_cell(:,1),left_headers));
 
-    %Init compensation data cell
-    %compensation_data=cell(1,2);
-    for i=[1:length(data_cell)]
-
-        [reformatted_data_right,reformatted_data_left]=reformatDataMax(curr_mat);
-        if check_model_right            
-            error_vec_right=findCalibrationErrors(model_cell,reformatted_data_right,right_headers,dist_cell);
-        else
-            error_vec_right=nan;
-        end
-
-        if check_model_left
-            error_vec_left=findCalibrationErrors(model_cell,reformatted_data_left,left_headers,dist_cell);
-        else
-            error_vec_left=nan;
-        end
-
-        if ~all(isnan(error_vec_right(:,1)))
-            % reformmated_data_right=frame_no,pg0_rightx,pg0_righty,...,pg2_rightx,pg2_righty,target_x,target_y,right_inner_x,right_inner_y,right_outer_x,right_outer_y,..
-
-            del_corner_inner_x=avg_corners(1)-reformatted_data_right(:,end-3);
-            del_corner_inner_y=avg_corners(2)-reformatted_data_right(:,end-2);
-            del_corner_outer_x=avg_corners(3)-reformatted_data_right(:,end-1);
-            del_corner_outer_y=avg_corners(4)-reformatted_data_right(:,end);
-            v_calib_x=avg_corners(1)-avg_corners(3);
-            v_calib_y=avg_corners(2)-avg_corners(4);
-            v_curr_x=reformatted_data_right(:,end-3)-reformatted_data_right(:,end-1);
-            v_curr_y=reformatted_data_right(:,end-2)-reformatted_data_right(:,end);
-
-            alpha=2.*atan(sqrt((v_calib_x-v_curr_x).^2+(v_calib_y-v_curr_y).^2)./...
-                sqrt((v_calib_x+v_curr_x).^2+(v_calib_y+v_curr_y).^2));
-
-            compensation_data{1}=[compensation_data{1};error_vec_right(:,1),...
-                error_vec_right(:,2),del_corner_inner_x,del_corner_inner_y,...
-                del_corner_outer_x,del_corner_outer_y,alpha,...
-                error_vec_right(:,3),error_vec_right(:,4),...
-                curr_mat(:,[[32:38],[42:48]])];
-
-        else
-            compensation_data{1}=[compensation_data{1};nan(1,23)];
-        end
-
-        if ~all(isnan(error_vec_left(:,1)))
-            del_corner_inner_x=avg_corners(5)-reformatted_data_left(:,end-3);
-            del_corner_inner_y=avg_corners(6)-reformatted_data_left(:,end-2);
-            del_corner_outer_x=avg_corners(7)-reformatted_data_left(:,end-1);
-            del_corner_outer_y=avg_corners(8)-reformatted_data_left(:,end);
-
-            v_calib_x=avg_corners(5)-avg_corners(7);
-            v_calib_y=avg_corners(6)-avg_corners(8);
-            v_curr_x=reformatted_data_left(:,end-3)-reformatted_data_left(:,end-1);
-            v_curr_y=reformatted_data_left(:,end-2)-reformatted_data_left(:,end);
-
-            alpha=2.*atan(sqrt((v_calib_x-v_curr_x).^2+(v_calib_y-v_curr_y).^2)./...
-                sqrt((v_calib_x+v_curr_x).^2+(v_calib_y+v_curr_y).^2));
-
-            compensation_data{2}=[compensation_data{2};error_vec_left(:,1),...
-                error_vec_left(:,2),del_corner_inner_x,del_corner_inner_y,...
-                del_corner_outer_x,del_corner_outer_y,alpha,...
-                error_vec_left(:,3),error_vec_left(:,4),...
-                curr_mat(:,[[32:38],[42:48]])];
-
-        else
-            compensation_data{2}=[compensation_data{2};nan(1,23)];
-        end
+    %Initializing Results Data
+    compensation_data=cell(12,2);
+    compensation_data(:,1)=[left_headers';right_headers'];
+    if iscell(PG_Estimation_Models)
+        reformatted_data=reformatMaxData(data_matrix);
+    
+    
+        %------------------<Right Data First>-------------------
+        [row_n,~]=size(reformatted_data);
+    
+        for i=[1:row_n]
+            curr_row=reformatted_data(i,:); %Current data row 
+            
+            t_x=curr_row(end-1);
+            t_y=curr_row(end);
+    
+            nan_indexs=isnan(curr_row(1:6));
+            nan_indx_values=find(nan_indexs);
+    
+            if length(nan_indx_values)<3 %At least two x,y pairs are detected
+                stripped_header=right_headers(~nan_indexs); %Extracts the pg type that is valid for this frame
+                valid_header=findPgWithAssociatedDistance(stripped_header,dist_cell);
+                
+                if length(valid_header)>2
+                    model_valid_indexes=ismember(model_cell(:,1),valid_header);
+                    updated_model_cell=model_cell(model_valid_indexes,:);
+                    [row_new,~]=size(updated_model_cell);
+    
+                    for j=[1:floor(row_new/2)]
+    
+                        %Prepping correct indexing
+                        model_x=updated_model_cell{j*2-1,3};
+                        model_y=updated_model_cell{j*2,3};
+                        header_x=valid_header{j*2-1};
+                        header_y=valid_header{j*2};
+                        pg_x_ind=ismember(right_headers,header_x);
+                        pg_y_ind=ismember(right_headers,header_y);
+    
+                        %Getting pupil position
+                        pupil_x=curr_row(13);
+                        pupil_y=curr_row(14);
+    
+                        %Getting Correct PG Estimation Model
+                        PG_Estimation_Headers=PG_Estimation_Models(:,1);
+                        pg_estimation_indx=ismember(PG_Estimation_Headers,header_x);
+                        pg_estimation_indy=ismember(PG_Estimation_Headers,header_y);
+    
+                        PG_model_x=PG_Estimation_Models{pg_estimation_indx,2};
+                        PG_model_y=PG_Estimation_Models{pg_estimation_indy,2};
+                        if ~isempty(PG_model_x) && ~isempty(PG_model_y)
+                            
+                            %Estimating PG
+                            PG_estim_x=PG_model_x(1)+PG_model_x(2)*pupil_x+PG_model_x(3)*pupil_y;
+                            PG_estim_y=PG_model_x(1)+PG_model_y(2)*pupil_x+PG_model_y(3)*pupil_y;
+                            
+                            %Getting delta PG 
+                            pgsonly=curr_row(1:6);
+                            
+                            pg_x=pgsonly(pg_x_ind);
+                            pg_y=pgsonly(pg_y_ind);
+                            delta_pg_x=pg_x-PG_estim_x;
+                            delta_pg_y=pg_y-PG_estim_y;
         
-    end
-   
+                            %Getting estimated POG
+                            
+                            [d_calib,d_curr]=findScalingFactors(dist_cell,valid_header,right_headers,pgsonly);
+                        
+                            if isnan(d_calib)||isnan(d_curr)
+                                %error_vec=[error_vec;[nan,nan,t_x,t_y]];
+                                continue
+                            end
+                            
+                            pg_x=(d_calib/d_curr).*pg_x;
+                            pg_y=(d_calib/d_curr).*pg_y;
+            
+                            [predictors_x,predictors_y]=customPolynomial(pg_x,pg_y);
+            
+                            POG_x=findPOG(model_x,predictors_x);
+                            POG_y=findPOG(model_y,predictors_y);
+                            
+        
+                            delta_POG_x=t_x-POG_x;
+                            delta_POG_y=t_y-POG_y;
 
+                            %Saving Results
+                            results_headers=compensation_data(:,1);
+                            results_ind_x=ismember(results_headers,header_x);
+                            results_ind_y=ismember(results_headers,header_y);
+
+                            data_x=compensation_data{results_ind_x,2};
+                            data_y=compensation_data{results_ind_y,2};
+
+                            data_x=[data_x;delta_POG_x,delta_pg_x,delta_pg_y];
+                            data_y=[data_y;delta_POG_y,delta_pg_x,delta_pg_y];
+
+                            compensation_data{results_ind_x,2}=data_x;
+                            compensation_data{results_ind_y,2}=data_y;
+
+
+                        end   
+    
+                    end
+                end
+            end
+    
+        end
+
+
+
+
+        %------------------<Left Data Next>-------------------
+        [row_n,~]=size(reformatted_data);
+    
+        for i=[1:row_n]
+            curr_row=reformatted_data(i,:); %Current data row 
+            
+            t_x=curr_row(end-1);
+            t_y=curr_row(end);
+    
+            nan_indexs=isnan(curr_row(7:12));
+            nan_indx_values=find(nan_indexs);
+    
+            if length(nan_indx_values)<3 %At least two x,y pairs are detected
+                stripped_header=left_headers(~nan_indexs); %Extracts the pg type that is valid for this frame
+                valid_header=findPgWithAssociatedDistance(stripped_header,dist_cell);
+                
+                if length(valid_header)>2
+                    model_valid_indexes=ismember(model_cell(:,1),valid_header);
+                    updated_model_cell=model_cell(model_valid_indexes,:);
+                    [row_new,~]=size(updated_model_cell);
+    
+                    for j=[1:floor(row_new/2)]
+    
+                        %Prepping correct indexing
+                        model_x=updated_model_cell{j*2-1,3};
+                        model_y=updated_model_cell{j*2,3};
+                        header_x=valid_header{j*2-1};
+                        header_y=valid_header{j*2};
+                        pg_x_ind=ismember(left_headers,header_x);
+                        pg_y_ind=ismember(left_headers,header_y);
+    
+                        %Getting pupil position
+                        pupil_x=curr_row(15);
+                        pupil_y=curr_row(16);
+    
+                        %Getting Correct PG Estimation Model
+                        PG_Estimation_Headers=PG_Estimation_Models(:,1);
+                        pg_estimation_indx=ismember(PG_Estimation_Headers,header_x);
+                        pg_estimation_indy=ismember(PG_Estimation_Headers,header_y);
+    
+                        PG_model_x=PG_Estimation_Models{pg_estimation_indx,2};
+                        PG_model_y=PG_Estimation_Models{pg_estimation_indy,2};
+                        if ~isempty(PG_model_x) && ~isempty(PG_model_y)
+                            
+                            %Estimating PG
+                            PG_estim_x=PG_model_x(1)+PG_model_x(2)*pupil_x+PG_model_x(3)*pupil_y;
+                            PG_estim_y=PG_model_x(1)+PG_model_y(2)*pupil_x+PG_model_y(3)*pupil_y;
+                            
+                            %Getting delta PG 
+                            pgsonly=curr_row(7:12);
+                            
+                            pg_x=pgsonly(pg_x_ind);
+                            pg_y=pgsonly(pg_y_ind);
+                            delta_pg_x=pg_x-PG_estim_x;
+                            delta_pg_y=pg_y-PG_estim_y;
+        
+                            %Getting estimated POG
+                            
+                            [d_calib,d_curr]=findScalingFactors(dist_cell,valid_header,left_headers,pgsonly);
+                        
+                            if isnan(d_calib)||isnan(d_curr)
+                                %error_vec=[error_vec;[nan,nan,t_x,t_y]];
+                                continue
+                            end
+                            
+                            pg_x=(d_calib/d_curr).*pg_x;
+                            pg_y=(d_calib/d_curr).*pg_y;
+            
+                            [predictors_x,predictors_y]=customPolynomial(pg_x,pg_y);
+            
+                            POG_x=findPOG(model_x,predictors_x);
+                            POG_y=findPOG(model_y,predictors_y);
+                            
+        
+                            delta_POG_x=t_x-POG_x;
+                            delta_POG_y=t_y-POG_y;
+
+                            %Saving Results
+                            results_headers=compensation_data(:,1);
+                            results_ind_x=ismember(results_headers,header_x);
+                            results_ind_y=ismember(results_headers,header_y);
+
+                            data_x=compensation_data{results_ind_x,2};
+                            data_y=compensation_data{results_ind_y,2};
+
+                            data_x=[data_x;delta_POG_x,delta_pg_x,delta_pg_y];
+                            data_y=[data_y;delta_POG_y,delta_pg_x,delta_pg_y];
+
+                            compensation_data{results_ind_x,2}=data_x;
+                            compensation_data{results_ind_y,2}=data_y;
+
+
+                        end   
+    
+                    end
+                end
+            end
+    
+        end
+
+    end
+
+
+   
+    
 
 
 end
-
 
 %Subfunction used to reformat the data
 function reformatted_data=reformatMaxData(eval_data)
@@ -1327,4 +1477,45 @@ function reformatted_data=reformatMaxData(eval_data)
         eval_data(:,27),eval_data(:,28)];
 
 end
+
+
+%Max's Compensation Training
+function max_compensation_models=maxCompensationTraining(max_compensation_data)
+    %Output is a cell with columns: pg_type, compensation_model
+
+    [num_pg_cells,~]=size(max_compensation_data);
+
+    if num_pg_cells==0
+        max_compensation_models=nan;
+    else %We have detections and proceed
+        max_compensation_models=cell(num_pg_cells,2); %Final entry are the model parameters
+        max_compensation_models(:,1)=max_compensation_data(:,1);
+        for i=[1:num_pg_cells] %Looping for the detections
+
+            train_data=max_compensation_data{i,2};
+            return_model=maxCompensationRegressor(train_data);
+            max_compensation_models{i,2}=return_model;
+        end
+        
+
+    end
+
+
+
+end
+
+
+function [return_model]=maxCompensationRegressor(train_data)
+
+    REGRESS_TUNE=4.2;
+    REGRESS_FUNC='huber';
+    %--------------Iteratively Weighted Least Squares---------------
+
+    %Fitting POGx
+    %Using iteratively weighted least squares
+    [return_model,~]=robustfit(train_data(:,[2:3]),train_data(:,1),REGRESS_FUNC,REGRESS_TUNE); %Uses iteratively weighted least squares
+
+end
+
+
 
