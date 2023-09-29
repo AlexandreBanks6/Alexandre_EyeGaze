@@ -33,7 +33,7 @@ for m=[1:num_dir]
                 
                 %training Max's PG Estimator (for PG_hat)
                 
-                [PG_Estimation_Models]=maxFitPGRegressor(train_cell);
+                PG_Estimation_Models=maxFitPGRegressor(train_cell);
 
                 %Training Max's POG compensation model
                 calib_max=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Rotate.csv']);
@@ -122,7 +122,7 @@ for m=[1:num_dir]
                 data_mat=[eval_lift1_9dot;eval_lift2_9dot;eval_lift3_9dot];
                 
                 
-                [mean_accuracies,total_results]=evalModelsRegressComp(data_mat,model_poly,dist_cell,avg_corners,mdl_right_x,mdl_right_y,mdl_left_x,mdl_left_y);
+                [mean_accuracies,total_results]=evalModelsRegressComp(data_mat,model_poly,dist_cell,avg_corners,mdl_right_x,mdl_right_y,mdl_left_x,mdl_left_y,PG_Estimation_Models,max_compensation_models);
                 mean_acc_results=[mean_acc_results;mean_accuracies];
             end
         end
@@ -771,7 +771,7 @@ end
 
 
 
-function [mean_accuracies,total_results]=evalModelsRegressComp(data_mat,model_cell,dist_cell,avg_corners,comp_model_x_right,comp_model_y_right,comp_model_x_left,comp_model_y_left)
+function [mean_accuracies,total_results]=evalModelsRegressComp(data_mat,model_cell,dist_cell,avg_corners,comp_model_x_right,comp_model_y_right,comp_model_x_left,comp_model_y_left,PG_Estimation_Models,max_compensation_models)
     %{
     Inputs:
         data_mat: matrix containing the evaulation data
@@ -808,7 +808,7 @@ function [mean_accuracies,total_results]=evalModelsRegressComp(data_mat,model_ce
     %Outputs the data as: 
     reformatted_data=reformatData(data_mat);
 
-    total_results=evalAccuracyComp(model_cell,reformatted_data,right_headers,left_headers,check_model_right,check_model_left,dist_cell,avg_corners,comp_model_x_right,comp_model_y_right,comp_model_x_left,comp_model_y_left);
+    total_results=evalAccuracyComp(model_cell,reformatted_data,right_headers,left_headers,check_model_right,check_model_left,dist_cell,avg_corners,comp_model_x_right,comp_model_y_right,comp_model_x_left,comp_model_y_left,PG_Estimation_Models,max_compensation_models);
 
     mean_accuracies=mean(total_results(:,[2:7]),1,'omitnan');
     
@@ -818,7 +818,7 @@ function [mean_accuracies,total_results]=evalModelsRegressComp(data_mat,model_ce
 end
 
 
-function total_results=evalAccuracyComp(model_cell,reformatted_data,right_headers,left_headers,check_model_right,check_model_left,dist_cell,avg_corners,comp_model_x_right,comp_model_y_right,comp_model_x_left,comp_model_y_left)
+function total_results=evalAccuracyComp(model_cell,reformatted_data,right_headers,left_headers,check_model_right,check_model_left,dist_cell,avg_corners,comp_model_x_right,comp_model_y_right,comp_model_x_left,comp_model_y_left,PG_Estimation_Models,max_compensation_models)
    %{
     Inputs:
     reformatted_data:

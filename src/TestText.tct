@@ -1,73 +1,95 @@
-function error_vec=findCalibrationErrors(model_cell,reformatted_data,header,dist_cell)
-    %Returns a vector with the error in the POG estimation for the data in
-    %reformatted_data
-    %Returns: del_POG_x,del_POG_y,t_x,t_y
-    %Error is defined as del_POG_x=t_x-POG_x and del_POG_y=t_y-POG_y
-
-    [row_n,~]=size(reformatted_data);
-    error_vec=[];
-    for i=[1:row_n]
-        curr_row=reformatted_data(i,:); %Current data row  
-      % reformmated_data_right=frame_no,pg0_rightx,pg0_righty,...,pg2_rightx,pg2_righty,target_x,target_y,right_inner_x,right_inner_y,right_outer_x,right_outer_y,..
-
-        t_x=curr_row(8);
-        t_y=curr_row(9);
-        %Index of values in row that are not NaN
-        nan_indexs=isnan(curr_row(2:7));
-        nan_indx_values=find(nan_indexs);
-        if length(nan_indx_values)<3 %At least two x,y pairs are detected
-            stripped_header=header(~nan_indexs); %Extracts the pg type that is valid for this frame
+curr_row=reformatted_data(i,:); %Current data row 
             
-            valid_header=findPgWithAssociatedDistance(stripped_header,dist_cell);
+            t_x=curr_row(end-1);
+            t_y=curr_row(end);
+    
+            nan_indexs=isnan(curr_row(1:6));
+            nan_indx_values=find(nan_indexs);
+    
+            if length(nan_indx_values)<3 %At least two x,y pairs are detected
+                stripped_header=right_headers(~nan_indexs); %Extracts the pg type that is valid for this frame
+                valid_header=findPgWithAssociatedDistance(stripped_header,dist_cell);
+                
+                if length(valid_header)>2
+                    model_valid_indexes=ismember(model_cell(:,1),valid_header);
+                    updated_model_cell=model_cell(model_valid_indexes,:);
+                    [row_new,~]=size(updated_model_cell);
+    
+                    for j=[1:floor(row_new/2)]
+    
+                        %Prepping correct indexing
+                        model_x=updated_model_cell{j*2-1,3};
+                        model_y=updated_model_cell{j*2,3};
+                        header_x=valid_header{j*2-1};
+                        header_y=valid_header{j*2};
+                        pg_x_ind=ismember(right_headers,header_x);
+                        pg_y_ind=ismember(right_headers,header_y);
+    
+                        %Getting pupil position
+                        pupil_x=curr_row(13);
+                        pupil_y=curr_row(14);
+    
+                        %Getting Correct PG Estimation Model
+                        PG_Estimation_Headers=PG_Estimation_Models(:,1);
+                        pg_estimation_indx=ismember(PG_Estimation_Headers,header_x);
+                        pg_estimation_indy=ismember(PG_Estimation_Headers,header_y);
+    
+                        PG_model_x=PG_Estimation_Models{pg_estimation_indx,2};
+                        PG_model_y=PG_Estimation_Models{pg_estimation_indy,2};
+                        if ~isempty(PG_model_x) && ~isempty(PG_model_y)
+                            
+                            %Estimating PG
+                            PG_estim_x=PG_model_x(1)+PG_model_x(2)*pupil_x+PG_model_x(3)*pupil_y;
+                            PG_estim_y=PG_model_x(1)+PG_model_y(2)*pupil_x+PG_model_y(3)*pupil_y;
+                            
+                            %Getting delta PG 
+                            pgsonly=curr_row(1:6);
+                            
+                            pg_x=pgsonly(pg_x_ind);
+                            pg_y=pgsonly(pg_y_ind);
+                            delta_pg_x=pg_x-PG_estim_x;
+                            delta_pg_y=pg_y-PG_estim_y;
+        
+                            %Getting estimated POG
+                            
+                            [d_calib,d_curr]=findScalingFactors(dist_cell,valid_header,right_headers,pgsonly);
+                        
+                            if isnan(d_calib)||isnan(d_curr)
+                                %error_vec=[error_vec;[nan,nan,t_x,t_y]];
+                                continue
+                            end
+                            
+                            pg_x=(d_calib/d_curr).*pg_x;
+                            pg_y=(d_calib/d_curr).*pg_y;
+            
+                            [predictors_x,predictors_y]=customPolynomial(pg_x,pg_y);
+            
+                            POG_x=findPOG(model_x,predictors_x);
+                            POG_y=findPOG(model_y,predictors_y);
+                            
+        
+                            delta_POG_x=t_x-POG_x;
+                            delta_POG_y=t_y-POG_y;
 
-            if length(valid_header)>2
-                model_valid_indexes=ismember(model_cell(:,1),valid_header);
-                updated_model_cell=model_cell(model_valid_indexes,:);
-                [row_new,~]=size(updated_model_cell);
-                %Loops for all the number of points used and returns index of largest
-                cur_val=updated_model_cell{1,2};
-                cur_ind=1;
-                for j=[1:2:row_new]
-                    if (updated_model_cell{j,2}>cur_val) %Change > to < if using iteratively least squares
-                        cur_val=updated_model_cell{j,2};
-                        cur_ind=j;
+                            %Saving Results
+                            results_headers=compensation_data(:,1);
+                            results_ind_x=ismember(results_headers,header_x);
+                            results_ind_y=ismember(results_headers,header_y);
+
+                            data_x=compensation_data{results_ind_x,2};
+                            data_y=compensation_data{results_ind_y,2};
+
+                            data_x=[data_x;delta_POG_x,delta_pg_x,delta_pg_y];
+                            data_y=[data_y;delta_POG_y,delta_pg_x,delta_pg_y];
+
+                            compensation_data{results_ind_x,2}=data_x;
+                            compensation_data{results_ind_y,2}=data_y;
+
+
+                        end   
+    
                     end
                 end
-                model_x=updated_model_cell{cur_ind,3};
-                model_y=updated_model_cell{cur_ind+1,3};
-                header_x=valid_header{cur_ind};
-                header_y=valid_header{cur_ind+1};
-                pg_x_ind=ismember(header,header_x);
-                pg_y_ind=ismember(header,header_y);
-
-                pgsonly=curr_row(2:7);
-
-                [d_calib,d_curr]=findScalingFactors(dist_cell,valid_header,header,pgsonly);
-                
-                if isnan(d_calib)||isnan(d_curr)
-                    error_vec=[error_vec;[nan,nan,t_x,t_y]];
-                    continue
-                end
-                pg_x=(d_calib/d_curr).*pgsonly(pg_x_ind);
-                pg_y=(d_calib/d_curr).*pgsonly(pg_y_ind);
-
-                [predictors_x,predictors_y]=customPolynomial(pg_x,pg_y);
-
-                POG_x=findPOG(model_x,predictors_x);
-                POG_y=findPOG(model_y,predictors_y);
-                t_x=curr_row(8);
-                t_y=curr_row(9);
-    
-                error_vec=[error_vec;[t_x-POG_x,t_y-POG_y,t_x,t_y]]; %Appends the error as well as the target locations
-            else
-                error_vec=[error_vec;[nan,nan,t_x,t_y]];
             end
-
-
-        else
-            error_vec=[error_vec;[nan,nan,t_x,t_y]];
+    
         end
-
-    end
-
-end
