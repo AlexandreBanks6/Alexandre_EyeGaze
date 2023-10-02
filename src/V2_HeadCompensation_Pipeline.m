@@ -18,7 +18,7 @@ mean_acc_results=[];
 %Looping for all participants
 for m=[1:num_dir]
     if dirnames{m}(1)=='P' %We have a participant and run calibrations and/evaluations
-        if strcmp(dirnames{m},'P01')
+        %if strcmp(dirnames{m},'P01')
             %Reading In Data
             calib_init_data=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Init.csv']);
             check_calib=checkDetection(calib_init_data,CALIB_THRESHOLD);
@@ -46,22 +46,22 @@ for m=[1:num_dir]
                 %calib_onedot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Rotate.csv']);
                 %data_cell={calib_onedot};
 
-                %{
+                
                 calib_lift1_dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift1_dot.csv']);
                 calib_lift2_dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift2_dot.csv']);
                 calib_lift3_dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift3_dot.csv']);
                 calib_lift4_dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift4_dot.csv']);
                 calib_lift5_dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift5_dot.csv']);
                 data_cell={calib_lift1_dot,calib_lift2_dot,calib_lift3_dot,calib_lift4_dot,calib_lift5_dot};
-                %}
-
+                
+                %{
                 calib_lift1_8dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift1_8point.csv']);
                 calib_lift2_8dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift2_8point.csv']);
                 calib_lift3_8dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift3_8point.csv']);
                 calib_lift4_8dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift4_8point.csv']);
                 calib_lift5_8dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift5_8point.csv']);
                 data_cell={calib_lift1_8dot,calib_lift2_8dot,calib_lift3_8dot,calib_lift4_8dot,calib_lift5_8dot};
-                
+                %}
                 
                 
                 %-------Training My Compensation Model
@@ -125,7 +125,7 @@ for m=[1:num_dir]
                 [mean_accuracies,total_results]=evalModelsRegressComp(data_mat,model_poly,dist_cell,avg_corners,mdl_right_x,mdl_right_y,mdl_left_x,mdl_left_y,PG_Estimation_Models,max_compensation_models);
                 mean_acc_results=[mean_acc_results;mean_accuracies];
             end
-        end
+        %end
     end
 
 end
@@ -744,6 +744,12 @@ function [predictors_x,predictors_y]=compensationPolynomial(predictors)
 %predictors_y=[predictors(:,1),predictors(:,3),predictors(:,2),predictors(:,4),predictors(:,1).*predictors(:,2),predictors(:,3).*predictors(:,4)];
 %predictors_x=[predictors(:,1).*predictors(:,2),predictors(:,3).*predictors(:,4)];
 %predictors_y=[predictors(:,1).*predictors(:,2),predictors(:,3).*predictors(:,4)];
+%predictors_x=[predictors(:,1).^2,predictors(:,3).^2,predictors(:,1),predictors(:,3),predictors(:,2),predictors(:,4)];
+%predictors_y=[predictors(:,2).^2,predictors(:,4).^2,predictors(:,2),predictors(:,4),predictors(:,1),predictors(:,3)];
+%predictors_x=[predictors(:,1:4),predictors(:,1).*predictors(:,2),predictors(:,3).*predictors(:,4)];
+%predictors_y=[predictors(:,1:4),predictors(:,1).*predictors(:,2),predictors(:,3).*predictors(:,4)];
+%predictors_x=[predictors(:,1:4)];
+%predictors_y=[predictors(:,1:4)];
 predictors_x=[predictors(:,1:4)];
 predictors_y=[predictors(:,1:4)];
 
@@ -788,7 +794,8 @@ function [mean_accuracies,total_results]=evalModelsRegressComp(data_mat,model_ce
         right_tree,left_tree,combined_tree
 
         total_results: matrix with columns:
-        frame_no, accuracy_right_poly, accuracy_left_poly, accuracy_combined_poly,accuracy_right_tree, accuracy_left_tree, accuracy_combined_tree,
+        frame_no, accuracy_right_poly, accuracy_left_poly, accuracy_combined_poly,
+        accuracy_right_mycomp, accuracy_left_mycomp, accuracy_combined_mycomp,
         actual_del_pog_right_x, actual_del_pog_right_y, actual_del_pog_left_x,
         actual_del_pog_left_y, 
         estimated_del_pog_right_x, estimated_del_pog_right_y,estimated_del_pog_left_x,
@@ -796,7 +803,8 @@ function [mean_accuracies,total_results]=evalModelsRegressComp(data_mat,model_ce
         right_inner_x, right_inner_y, right_outer_x, right_outer_y
         left_inner_x, left_inner_y, left_outer_x, left_outer_y
         alpha_right, alpha_left
-        t_x, t_y        
+        t_x, t_y,
+        accuracy_right_max, accuracy_left_max, accuracy_combined_max
 
     %}
     
@@ -810,7 +818,7 @@ function [mean_accuracies,total_results]=evalModelsRegressComp(data_mat,model_ce
 
     total_results=evalAccuracyComp(model_cell,reformatted_data,right_headers,left_headers,check_model_right,check_model_left,dist_cell,avg_corners,comp_model_x_right,comp_model_y_right,comp_model_x_left,comp_model_y_left,PG_Estimation_Models,max_compensation_models);
 
-    mean_accuracies=mean(total_results(:,[2:7]),1,'omitnan');
+    mean_accuracies=mean(total_results(:,[2:7,end-2:end]),1,'omitnan');
     
 
 
@@ -824,7 +832,7 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
     reformatted_data:
     frame_no, pg0_rightx, pg0_righty, ..., pg2_rightx, pg2_righty, pg0_leftx, pg0_lefty,..., pg2_leftx, pg2_lefty,
     right_inner_x,right_inner_y,right_outer_x,right_outer_y,left_inner_x,left_inner_y,left_outer_x,left_outer_y,
-    target_x,target_y
+    target_x,target_y, pupil_right_x, pupil_right_y, pupil_left_x,pupil_left_y
 
     model_cell: contains the original polynomial model
     dist_cell: contains the distance between glints at calibration
@@ -843,23 +851,27 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
     del_right_inner_x, del_right_inner_y, del_right_outer_x, del_right_outer_y
     del_left_inner_x, del_left_inner_y, del_left_outer_x, del_left_outer_y
     alpha_right, alpha_left
-    t_x, t_y
+    t_x, t_y,
+    max_del_pog_right_x, max_del_pog_right_y, max_del_pog_left_x,max_del_pog_left_y
+    max_del_pg_right_x, max_del_pg_right_y, max_del_pg_left_x,max_del_pg_left_y
+    accuracy_right_max, accuracy_left_max, accuracy_combined_max
    %}
     NANTHRESH=0; %Number of nan values we tolerate as input to our tree model
     [row_n,~]=size(reformatted_data);
     total_results=[];
     for i=[1:row_n]
-        results_row=nan(1,27);
+        results_row=nan(1,38);
         curr_row=reformatted_data(i,:); %Current data row
 
-        t_x=curr_row(end-1);    %Targets
-        t_y=curr_row(end);
+        t_x=curr_row(end-5);    %Targets
+        t_y=curr_row(end-4);
 
-        results_row(end-1)=t_x;
-        results_row(end)=t_y;
+        results_row(26)=t_x;
+        results_row(27)=t_y;
         results_row(1)=curr_row(1); %Frame number
 
 
+        max_found_count=0;
         %--------------<Finding the right POG first>--------------
 
         %Inputs to tree regressor compensation in right eye
@@ -908,6 +920,18 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
                     header_y=valid_header{cur_ind+1};
                     pg_x_ind=ismember(right_headers,header_x);
                     pg_y_ind=ismember(right_headers,header_y);
+
+                    %Getting the pupil position (right_x, and right_y)
+                    pupil_x=curr_row(end-3);
+                    pupil_y=curr_row(end-2);
+
+                    %Getting Correct PG Estimation Model
+                    PG_Estimation_Headers=PG_Estimation_Models(:,1);
+                    pg_estimation_indx=ismember(PG_Estimation_Headers,header_x);
+                    pg_estimation_indy=ismember(PG_Estimation_Headers,header_y);
+
+                    PG_model_x=PG_Estimation_Models{pg_estimation_indx,2};
+                    PG_model_y=PG_Estimation_Models{pg_estimation_indy,2};
     
                     [d_calib,d_curr]=findScalingFactors(dist_cell,valid_header,right_headers,right_pgs);
                     
@@ -916,11 +940,52 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
                     
                         pg_x=(d_calib/d_curr).*right_pgs(pg_x_ind);
                         pg_y=(d_calib/d_curr).*right_pgs(pg_y_ind);
+
         
                         [predictors_x,predictors_y]=customPolynomial(pg_x,pg_y);
         
                         POG_x_poly_right=findPOG(model_x,predictors_x);
                         POG_y_poly_right=findPOG(model_y,predictors_y);
+
+                        %-----------<Running Max's approach>--------------
+                        if ~isempty(PG_model_x) && ~isempty(PG_model_y)
+
+                            %Estimating PG
+                            PG_estim_x=PG_model_x(1)+PG_model_x(2)*pupil_x+PG_model_x(3)*pupil_y;
+                            PG_estim_y=PG_model_x(1)+PG_model_y(2)*pupil_x+PG_model_y(3)*pupil_y;
+
+                            %Finding delta PG 
+                            delta_pg_x=right_pgs(pg_x_ind)-PG_estim_x;
+                            delta_pg_y=right_pgs(pg_y_ind)-PG_estim_y;
+
+                            %Finding appropriate POG compensation model
+                            %(max)
+                            POG_MaxModels_Headers=max_compensation_models(:,1);
+                            pog_estimation_max_indx=ismember(POG_MaxModels_Headers,header_x);
+                            pog_estimation_max_indy=ismember(POG_MaxModels_Headers,header_y);
+
+                            pog_max_modelx=max_compensation_models{pog_estimation_max_indx,2};
+                            pog_max_modely=max_compensation_models{pog_estimation_max_indy,2};
+
+                            if ~isempty(pog_max_modelx) && ~isempty(pog_max_modely)
+                                max_found_count=max_found_count+1;
+                                del_POG_max_x_right=pog_max_modelx(1)+pog_max_modelx(2)*delta_pg_x+pog_max_modelx(3)*delta_pg_y;
+                                del_POG_max_y_right=pog_max_modely(1)+pog_max_modely(2)*delta_pg_x+pog_max_modely(3)*delta_pg_y;
+                                
+                                POG_x_max_right=del_POG_max_x_right+POG_x_poly_right;
+                                POG_y_max_right=del_POG_max_y_right+POG_y_poly_right;
+
+                                results_row(28)=del_POG_max_x_right;
+                                results_row(29)=del_POG_max_y_right;
+                                results_row(32)=delta_pg_x;
+                                results_row(33)=delta_pg_y;
+                                accuracy_max_right=sqrt((t_x-POG_x_max_right)^2+(t_y-POG_y_max_right)^2);
+                                results_row(36)=accuracy_max_right;
+
+                             end
+
+                            
+                        end
                         
                         del_POG_x_actual=t_x-POG_x_poly_right;
                         del_POG_y_actual=t_y-POG_y_poly_right;
@@ -1015,6 +1080,21 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
                     pg_x_ind=ismember(left_headers,header_x);
                     pg_y_ind=ismember(left_headers,header_y);
     
+
+                    %Getting the pupil position (left_x, and left_y)
+                    pupil_x=curr_row(end-1);
+                    pupil_y=curr_row(end);
+
+
+                    %Getting Correct PG Estimation Model
+                    PG_Estimation_Headers=PG_Estimation_Models(:,1);
+                    pg_estimation_indx=ismember(PG_Estimation_Headers,header_x);
+                    pg_estimation_indy=ismember(PG_Estimation_Headers,header_y);
+
+                    PG_model_x=PG_Estimation_Models{pg_estimation_indx,2};
+                    PG_model_y=PG_Estimation_Models{pg_estimation_indy,2};
+
+
                     [d_calib,d_curr]=findScalingFactors(dist_cell,valid_header,left_headers,left_pgs);
                     
                     if ~isnan(d_calib) && ~isnan(d_curr)
@@ -1025,7 +1105,52 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
         
                         POG_x_poly_left=findPOG(model_x,predictors_x);
                         POG_y_poly_left=findPOG(model_y,predictors_y);
-                        
+
+
+                        %-----------<Running Max's approach>--------------
+                        if ~isempty(PG_model_x) && ~isempty(PG_model_y)
+   
+                            %Estimating PG
+                            PG_estim_x=PG_model_x(1)+PG_model_x(2)*pupil_x+PG_model_x(3)*pupil_y;
+                            PG_estim_y=PG_model_x(1)+PG_model_y(2)*pupil_x+PG_model_y(3)*pupil_y;
+
+                            %Finding delta PG 
+                            delta_pg_x=left_pgs(pg_x_ind)-PG_estim_x;
+                            delta_pg_y=left_pgs(pg_y_ind)-PG_estim_y;
+
+                            %Finding appropriate POG compensation model
+                            %(max)
+                            POG_MaxModels_Headers=max_compensation_models(:,1);
+                            pog_estimation_max_indx=ismember(POG_MaxModels_Headers,header_x);
+                            pog_estimation_max_indy=ismember(POG_MaxModels_Headers,header_y);
+
+                            pog_max_modelx=max_compensation_models{pog_estimation_max_indx,2};
+                            pog_max_modely=max_compensation_models{pog_estimation_max_indy,2};
+
+                            if ~isempty(pog_max_modelx) && ~isempty(pog_max_modely)
+                                max_found_count=max_found_count+1;
+                                del_POG_max_x_left=pog_max_modelx(1)+pog_max_modelx(2)*delta_pg_x+pog_max_modelx(3)*delta_pg_y;
+                                del_POG_max_y_left=pog_max_modely(1)+pog_max_modely(2)*delta_pg_x+pog_max_modely(3)*delta_pg_y;
+                                
+                                POG_x_max_left=del_POG_max_x_left+POG_x_poly_left;
+                                POG_y_max_left=del_POG_max_y_left+POG_y_poly_left;
+
+
+                                results_row(30)=del_POG_max_x_left;
+                                results_row(31)=del_POG_max_y_left;
+                                results_row(34)=delta_pg_x;
+                                results_row(34)=delta_pg_y;
+                                accuracy_max_left=sqrt((t_x-POG_x_max_left)^2+(t_y-POG_y_max_left)^2);
+                                results_row(37)=accuracy_max_left;
+
+                             end
+
+                            
+                        end
+
+
+
+
                         del_POG_x_actual=t_x-POG_x_poly_left;
                         del_POG_y_actual=t_y-POG_y_poly_left;
     
@@ -1089,6 +1214,18 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
 
         end
 
+        %Getting combined max results
+
+        if max_found_count>=2
+            POG_combined_max_x=(POG_x_max_right+POG_x_max_left)/2;
+            POG_combined_max_y=(POG_y_max_right+POG_y_max_left)/2;
+            accuracy_combined_max=sqrt((t_x-POG_combined_max_x)^2+(t_y-POG_combined_max_y)^2);
+
+            results_row(end)=accuracy_combined_max;
+
+
+        end
+
 
         total_results=[total_results;results_row];
     end
@@ -1100,7 +1237,7 @@ function reformatted_data=reformatData(eval_data)
     %Returns the data to evaluate the model in the format of: 
     % frame_no, pg0_rightx, pg0_righty, ..., pg2_rightx, pg2_righty, pg0_leftx, pg0_lefty,..., pg2_leftx, pg2_lefty,
     % right_inner_x,right_inner_y,right_outer_x,right_outer_y,left_inner_x,left_inner_y,left_outer_x,left_outer_y,
-    % target_x,target_y
+    % target_x,target_y, pupil_right_x, pupil_right_y, pupil_left_x,pupil_left_y
 
 
     glintspupils_right_ind=[3,4,9,10,11,12,13,14]; %Contains the glints and pupil positions such that pupil_x,pupil_y,glint0_x,glint0_y...
@@ -1118,7 +1255,8 @@ function reformatted_data=reformatData(eval_data)
         glintspupils_left(:,6)-glintspupils_left(:,2),glintspupils_left(:,7)-glintspupils_left(:,1),...
         glintspupils_left(:,8)-glintspupils_left(:,2),...
         eval_data(:,50:57),...
-        eval_data(:,27),eval_data(:,28)];
+        eval_data(:,27),eval_data(:,28),glintspupils_right(:,1),glintspupils_right(:,2),...
+        glintspupils_left(:,1),glintspupils_left(:,2)];
 
 end
 
