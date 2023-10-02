@@ -18,6 +18,7 @@ mean_acc_results=[];
 %Looping for all participants
 for m=[1:num_dir]
     if dirnames{m}(1)=='P' %We have a participant and run calibrations and/evaluations
+        disp(dirnames{m})
         %if strcmp(dirnames{m},'P01')
             %Reading In Data
             calib_init_data=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Init.csv']);
@@ -78,13 +79,17 @@ for m=[1:num_dir]
                 del_POG_x_left=left_data(:,1);
                 del_POG_y_left=left_data(:,2);
                 predictors_left=left_data(:,3:7);
-                
-                if sum(~isnan(predictors_right(:,1)))<4 || sum(~isnan(predictors_right(:,2)))<4 || sum(~isnan(predictors_right(:,3)))<4 || sum(~isnan(predictors_right(:,4)))<4 || sum(~isnan(predictors_left(:,1)))<4 || sum(~isnan(predictors_left(:,2)))<4 || sum(~isnan(predictors_left(:,3)))<4 || sum(~isnan(predictors_left(:,4)))<4
-                    continue;
-                end
+                mdl_right_x=[];
+                mdl_right_y=[];
+                mdl_left_x=[];
+                mdl_left_y=[];
+                if ~(sum(~isnan(predictors_right(:,1)))<4 || sum(~isnan(predictors_right(:,2)))<4 || sum(~isnan(predictors_right(:,3)))<4 || sum(~isnan(predictors_right(:,4)))<4)
+                                    
                 [mdl_right_x,mdl_right_y]=fitCompensationRegressor(del_POG_x_right,del_POG_y_right,predictors_right);
+                end
+                if ~(sum(~isnan(predictors_left(:,1)))<4 || sum(~isnan(predictors_left(:,2)))<4 || sum(~isnan(predictors_left(:,3)))<4 || sum(~isnan(predictors_left(:,4)))<4)
                 [mdl_left_x,mdl_left_y]=fitCompensationRegressor(del_POG_x_left,del_POG_y_left,predictors_left);
-
+                end
                 %------Evaluating the model
                 
                 %Evaluation data
