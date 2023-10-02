@@ -1872,7 +1872,7 @@ function total_results=evalAccuracy(model_cell,reformatted_data,right_headers,le
     max_del_pg_right_x, max_del_pg_right_y, max_del_pg_left_x,max_del_pg_left_y
     accuracy_right_max, accuracy_left_max, accuracy_combined_max
    %}
-    NANTHRESH=0; %Number of nan values we tolerate as input to our tree model
+    NANTHRESH=2; %Number of nan values we tolerate as input to our tree model
     [row_n,~]=size(reformatted_data);
     total_results=[];
     for i=[1:row_n]
