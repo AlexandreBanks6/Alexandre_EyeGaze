@@ -499,7 +499,7 @@ function [compensation_data]=prepCompensationData(data_cell,model_cell,dist_cell
                 inner_corner_distance]; %Appends pupil_x, pupil_y,inner corner distance
 
         else
-            compensation_data{1}=[compensation_data{1};nan(1,26)];
+            compensation_data{1}=[compensation_data{1};nan(1,25)];
         end
 
         if ~all(isnan(error_vec_left(:,1)))
@@ -527,7 +527,7 @@ function [compensation_data]=prepCompensationData(data_cell,model_cell,dist_cell
                 inner_corner_distance];
 
         else
-            compensation_data{2}=[compensation_data{2};nan(1,26)];
+            compensation_data{2}=[compensation_data{2};nan(1,25)];
         end
         
     end
@@ -2084,7 +2084,7 @@ function total_results=evalAccuracy(model_cell,reformatted_data,right_headers,le
                             accuracy_get=0;  
                             if sum(isnan(predictors))<=NANTHRESH %If we have only NANTHRESH nans in our predictor variable we continue
                                 accuracy_get=accuracy_get+1;  
-                                check_title={'d_corner_inner_x','d_corner_inner_y','d_corner_outer_x','d_corner_outer_y','alpha','pupil_x','pupil_y','inner_corner_distance'};
+                                check_title={'d_corner_inner_x','d_corner_inner_y','d_corner_outer_x','d_corner_outer_y','alpha','pupil_x','pupil_y','inner_pupil_distance'};
                                 [~,check_inds]=ismember(input_vars_x,check_title);
                                 predictors=predictors(check_inds);
                                 del_POG_x_tree=predict(tree_model_x,predictors);
@@ -2096,11 +2096,11 @@ function total_results=evalAccuracy(model_cell,reformatted_data,right_headers,le
                             
                             input_vars_y=tree_models{ind_y,3};
                             tree_model_y=tree_models{ind_y,2};
-                            predictors=[del_corner_inner_x,del_corner_inner_y,del_corner_outer_x,del_corner_outer_y,alpha,pupil_x,pupil_y,curr_row(:,28)];
+                            predictors=[del_corner_inner_x,del_corner_inner_y,del_corner_outer_x,del_corner_outer_y,alpha,pupil_x,pupil_y,curr_row(:,)];
                             if sum(isnan(predictors))<=NANTHRESH %If we have only NANTHRESH nans in our predictor variable we continue
 
                                 accuracy_get=accuracy_get+1;  
-                                check_title={'d_corner_inner_x','d_corner_inner_y','d_corner_outer_x','d_corner_outer_y','alpha','pupil_x','pupil_y','inner_corner_distance'};
+                                check_title={'d_corner_inner_x','d_corner_inner_y','d_corner_outer_x','d_corner_outer_y','alpha','pupil_x','pupil_y'};
                                 [~,check_inds]=ismember(input_vars_y,check_title);
                                 predictors=predictors(check_inds);
                                 del_POG_y_tree=predict(tree_model_y,predictors);
@@ -2175,8 +2175,8 @@ function total_results=evalAccuracy(model_cell,reformatted_data,right_headers,le
                     pg_y_ind=ismember(left_headers,header_y);
     
                     %Getting the pupil position (left_x, and left_y)
-                    pupil_x=curr_row(26);
-                    pupil_y=curr_row(27);
+                    pupil_x=curr_row(end-1);
+                    pupil_y=curr_row(end);
 
 
                     %Getting Correct PG Estimation Model
@@ -2257,11 +2257,11 @@ function total_results=evalAccuracy(model_cell,reformatted_data,right_headers,le
                             %Compensating in x-direction
                             input_vars_x=tree_models{ind_x,3};
                             tree_model_x=tree_models{ind_x,2};
-                            predictors=[del_corner_inner_x,del_corner_inner_y,del_corner_outer_x,del_corner_outer_y,alpha,pupil_x,pupil_y,curr_row(:,28)];
+                            predictors=[del_corner_inner_x,del_corner_inner_y,del_corner_outer_x,del_corner_outer_y,alpha,pupil_x,pupil_y];
                             accuracy_get=0;
                             if sum(isnan(predictors))<=NANTHRESH %If we have only NANTHRESH nans in our predictor variable we continue
                                 accuracy_get=accuracy_get+1;
-                                check_title={'d_corner_inner_x','d_corner_inner_y','d_corner_outer_x','d_corner_outer_y','alpha','pupil_x','pupil_y','inner_corner_distance'};
+                                check_title={'d_corner_inner_x','d_corner_inner_y','d_corner_outer_x','d_corner_outer_y','alpha','pupil_x','pupil_y'};
                                 [~,check_inds]=ismember(input_vars_x,check_title);
                                 predictors=predictors(check_inds);
                                 del_POG_x_tree=predict(tree_model_x,predictors);
@@ -2274,10 +2274,10 @@ function total_results=evalAccuracy(model_cell,reformatted_data,right_headers,le
                             
                             input_vars_y=tree_models{ind_y,3};
                             tree_model_y=tree_models{ind_y,2};
-                            predictors=[del_corner_inner_x,del_corner_inner_y,del_corner_outer_x,del_corner_outer_y,alpha,pupil_x,pupil_y,curr_row(:,28)];
+                            predictors=[del_corner_inner_x,del_corner_inner_y,del_corner_outer_x,del_corner_outer_y,alpha,pupil_x,pupil_y];
                             if sum(isnan(predictors))<=NANTHRESH %If we have only NANTHRESH nans in our predictor variable we continue
                                 accuracy_get=accuracy_get+1;
-                                check_title={'d_corner_inner_x','d_corner_inner_y','d_corner_outer_x','d_corner_outer_y','alpha','pupil_x','pupil_y','inner_corner_distance'};
+                                check_title={'d_corner_inner_x','d_corner_inner_y','d_corner_outer_x','d_corner_outer_y','alpha','pupil_x','pupil_y'};
                                 [~,check_inds]=ismember(input_vars_y,check_title);
                                 predictors=predictors(check_inds);
                                 del_POG_y_tree=predict(tree_model_y,predictors);
