@@ -51,12 +51,14 @@ for m=[1:num_dir]
                 %data_cell={calib_onedot};
 
                 
+                
                 calib_lift1_dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift1_dot.csv']);
                 calib_lift2_dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift2_dot.csv']);
                 calib_lift3_dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift3_dot.csv']);
                 calib_lift4_dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift4_dot.csv']);
                 calib_lift5_dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift5_dot.csv']);
                 data_cell={calib_lift1_dot,calib_lift2_dot,calib_lift3_dot,calib_lift4_dot,calib_lift5_dot};
+                
                 
                 %{
                 calib_lift1_8dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift1_8point.csv']);
@@ -101,6 +103,7 @@ for m=[1:num_dir]
                 data_mat=[eval_lift1_8dot;eval_lift2_8dot;eval_lift3_8dot;eval_lift4_8dot;eval_lift5_8dot];
                 %}
                 
+                
                 %{
                 eval_lift1_8dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Eval_Lift1_8Point.csv']);
                 eval_lift2_8dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Eval_Lift2_8Point.csv']);
@@ -108,6 +111,7 @@ for m=[1:num_dir]
 
                 data_mat=[eval_lift1_8dot;eval_lift2_8dot;eval_lift3_8dot];
                 %}
+                                
                 
                 eval_lift1_9dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Eval_Lift1_9Point.csv']);
                 eval_lift2_9dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Eval_Lift2_9Point.csv']);
@@ -432,11 +436,13 @@ function [compensation_data]=prepCompensationData(data_cell,model_cell,dist_cell
     compensationData is a cell array with two cells having:
     cell 1: del_POG_x_right,del_POG_y_right,del_corner_inner_x_right,del_corner_inner_y_right,
     del_corner_outer_x_right,del_corner_outer_y_right,alpha_right,t_x,t_y,
-    then we append head rotations/poses:
     Tx1,Ty1,Tz1,Q01,Qx1,Qy1,Qz1,Tx2,Ty2,Tz2,Q02,Qx2,Qy2,Qz2
+    pupil_right_x, pupil_right_y
 
     cell 2: del_POG_x_left,del_POG_y_left,del_corner_inner_x_left,del_corner_inner_y_left,
     del_corner_outer_x_left,del_corner_outer_y_left,alpha_left,t_x,t_y
+    Tx1,Ty1,Tz1,Q01,Qx1,Qy1,Qz1,Tx2,Ty2,Tz2,Q02,Qx2,Qy2,Qz2
+    pupil_left_x, pupil_left_y
 
     values are replaced with nan if they don't exist
     target locations are included for evaluation
@@ -469,10 +475,10 @@ function [compensation_data]=prepCompensationData(data_cell,model_cell,dist_cell
         if ~all(isnan(error_vec_right(:,1)))
             % reformmated_data_right=frame_no,pg0_rightx,pg0_righty,...,pg2_rightx,pg2_righty,target_x,target_y,right_inner_x,right_inner_y,right_outer_x,right_outer_y,..
 
-            del_corner_inner_x=avg_corners(1)-reformatted_data_right(:,end-3);
-            del_corner_inner_y=avg_corners(2)-reformatted_data_right(:,end-2);
-            del_corner_outer_x=avg_corners(3)-reformatted_data_right(:,end-1);
-            del_corner_outer_y=avg_corners(4)-reformatted_data_right(:,end);
+            del_corner_inner_x=avg_corners(1)-reformatted_data_right(:,end-5);
+            del_corner_inner_y=avg_corners(2)-reformatted_data_right(:,end-4);
+            del_corner_outer_x=avg_corners(3)-reformatted_data_right(:,end-3);
+            del_corner_outer_y=avg_corners(4)-reformatted_data_right(:,end-2);
             v_calib_x=avg_corners(1)-avg_corners(3);
             v_calib_y=avg_corners(2)-avg_corners(4);
             v_curr_x=reformatted_data_right(:,end-3)-reformatted_data_right(:,end-1);
@@ -485,17 +491,17 @@ function [compensation_data]=prepCompensationData(data_cell,model_cell,dist_cell
                 error_vec_right(:,2),del_corner_inner_x,del_corner_inner_y,...
                 del_corner_outer_x,del_corner_outer_y,alpha,...
                 error_vec_right(:,3),error_vec_right(:,4),...
-                curr_mat(:,[[32:38],[42:48]])];
+                curr_mat(:,[[32:38],[42:48]]),reformatted_data_right(:,end-1),reformatted_data_right(:,end)]; %Appends pupil_x, pupil_y
 
         else
-            compensation_data{1}=[compensation_data{1};nan(1,23)];
+            compensation_data{1}=[compensation_data{1};nan(1,25)];
         end
 
         if ~all(isnan(error_vec_left(:,1)))
-            del_corner_inner_x=avg_corners(5)-reformatted_data_left(:,end-3);
-            del_corner_inner_y=avg_corners(6)-reformatted_data_left(:,end-2);
-            del_corner_outer_x=avg_corners(7)-reformatted_data_left(:,end-1);
-            del_corner_outer_y=avg_corners(8)-reformatted_data_left(:,end);
+            del_corner_inner_x=avg_corners(5)-reformatted_data_left(:,end-5);
+            del_corner_inner_y=avg_corners(6)-reformatted_data_left(:,end-4);
+            del_corner_outer_x=avg_corners(7)-reformatted_data_left(:,end-3);
+            del_corner_outer_y=avg_corners(8)-reformatted_data_left(:,end-2);
 
             v_calib_x=avg_corners(5)-avg_corners(7);
             v_calib_y=avg_corners(6)-avg_corners(8);
@@ -509,10 +515,10 @@ function [compensation_data]=prepCompensationData(data_cell,model_cell,dist_cell
                 error_vec_left(:,2),del_corner_inner_x,del_corner_inner_y,...
                 del_corner_outer_x,del_corner_outer_y,alpha,...
                 error_vec_left(:,3),error_vec_left(:,4),...
-                curr_mat(:,[[32:38],[42:48]])];
+                curr_mat(:,[[32:38],[42:48]]),reformatted_data_left(:,end-1),reformatted_data_left(:,end)];
 
         else
-            compensation_data{2}=[compensation_data{2};nan(1,23)];
+            compensation_data{2}=[compensation_data{2};nan(1,25)];
         end
         
     end
@@ -526,8 +532,8 @@ end
 
 function [reformatted_data_right,reformatted_data_left]=reformatDataEval(eval_data)
     %Returns the data to compute the conventional model in the format of: 
-    % reformmated_data_right=frame_no,pg0_rightx,pg0_righty,...,pg2_rightx,pg2_righty,target_x,target_y,right_inner_x,right_inner_y,right_outer_x,right_outer_y,..
-    % reformatted_data_left=frame_no,pg0_leftx,pg0_lefty,...,pg2_leftx,pg2_lefty,target_x,target_y,left_inner_x,left_inner_y,left_outer_x,left_outer_y,..
+    % reformmated_data_right=frame_no,pg0_rightx,pg0_righty,...,pg2_rightx,pg2_righty,target_x,target_y,right_inner_x,right_inner_y,right_outer_x,right_outer_y,pupil_right_x,pupil_right_y
+    % reformatted_data_left=frame_no,pg0_leftx,pg0_lefty,...,pg2_leftx,pg2_lefty,target_x,target_y,left_inner_x,left_inner_y,left_outer_x,left_outer_y,pupil_left_x,pupil_left_y
     glintspupils_right_ind=[3,4,9,10,11,12,13,14]; %Contains the glints and pupil positions such that pupil_x,pupil_y,glint0_x,glint0_y...
     glintspupils_left_ind=[15,16,21,22,23,24,25,26];
 
@@ -537,12 +543,14 @@ function [reformatted_data_right,reformatted_data_left]=reformatDataEval(eval_da
     reformatted_data_right=[eval_data(:,2),glintspupils_right(:,3)-glintspupils_right(:,1),...
         glintspupils_right(:,4)-glintspupils_right(:,2),glintspupils_right(:,5)-glintspupils_right(:,1),...
         glintspupils_right(:,6)-glintspupils_right(:,2),glintspupils_right(:,7)-glintspupils_right(:,1),...
-        glintspupils_right(:,8)-glintspupils_right(:,2),eval_data(:,27),eval_data(:,28),eval_data(:,50:53)];
+        glintspupils_right(:,8)-glintspupils_right(:,2),eval_data(:,27),eval_data(:,28),eval_data(:,50:53),...
+        glintspupils_right(:,1),glintspupils_right(:,2)]; %Added pupil_right_x, pupil_right_y
 
     reformatted_data_left=[eval_data(:,2),glintspupils_left(:,3)-glintspupils_left(:,1),...
         glintspupils_left(:,4)-glintspupils_left(:,2),glintspupils_left(:,5)-glintspupils_left(:,1),...
         glintspupils_left(:,6)-glintspupils_left(:,2),glintspupils_left(:,7)-glintspupils_left(:,1),...
-        glintspupils_left(:,8)-glintspupils_left(:,2),eval_data(:,27),eval_data(:,28),eval_data(:,54:57)];
+        glintspupils_left(:,8)-glintspupils_left(:,2),eval_data(:,27),eval_data(:,28),eval_data(:,54:57),...
+        glintspupils_left(:,1),glintspupils_left(:,2)];
     
 
 end
@@ -1720,6 +1728,24 @@ function [tree_mdl_x,tree_mdl_y,input_var_names_x,input_var_names_y]=fitTreeMode
         input_var_names_x=[input_var_names_x,'d_corner_outer_y'];
 
     end
+
+    if ~all(isnan(train_data(:,end-1))) %pupil x
+        predictors_y=[predictors_y,train_data(:,end-1)];
+        input_var_names_y=[input_var_names_y,'pupil_x'];
+
+        predictors_x=[predictors_x,train_data(:,end-1)];
+        input_var_names_x=[input_var_names_x,'pupil_x'];
+
+    end
+
+    if ~all(isnan(train_data(:,end))) %pupil y
+        predictors_y=[predictors_y,train_data(:,end)];
+        input_var_names_y=[input_var_names_y,'pupil_y'];
+
+        predictors_x=[predictors_x,train_data(:,end)];
+        input_var_names_x=[input_var_names_x,'pupil_y'];
+
+    end
     
     %{
     if ~all(isnan(train_data(:,7)))
@@ -2024,11 +2050,11 @@ function total_results=evalAccuracy(model_cell,reformatted_data,right_headers,le
                             %Compensating in x-direction
                             input_vars_x=tree_models{ind_x,3};
                             tree_model_x=tree_models{ind_x,2};
-                            predictors=[del_corner_inner_x,del_corner_inner_y,del_corner_outer_x,del_corner_outer_y,alpha];
+                            predictors=[del_corner_inner_x,del_corner_inner_y,del_corner_outer_x,del_corner_outer_y,alpha,pupil_x,pupil_y];
                             accuracy_get=0;  
                             if sum(isnan(predictors))<=NANTHRESH %If we have only NANTHRESH nans in our predictor variable we continue
                                 accuracy_get=accuracy_get+1;  
-                                check_title={'d_corner_inner_x','d_corner_inner_y','d_corner_outer_x','d_corner_outer_y','alpha'};
+                                check_title={'d_corner_inner_x','d_corner_inner_y','d_corner_outer_x','d_corner_outer_y','alpha','pupil_x','pupil_y'};
                                 [~,check_inds]=ismember(input_vars_x,check_title);
                                 predictors=predictors(check_inds);
                                 del_POG_x_tree=predict(tree_model_x,predictors);
@@ -2040,11 +2066,11 @@ function total_results=evalAccuracy(model_cell,reformatted_data,right_headers,le
                             
                             input_vars_y=tree_models{ind_y,3};
                             tree_model_y=tree_models{ind_y,2};
-                            predictors=[del_corner_inner_x,del_corner_inner_y,del_corner_outer_x,del_corner_outer_y,alpha];
+                            predictors=[del_corner_inner_x,del_corner_inner_y,del_corner_outer_x,del_corner_outer_y,alpha,pupil_x,pupil_y];
                             if sum(isnan(predictors))<=NANTHRESH %If we have only NANTHRESH nans in our predictor variable we continue
 
                                 accuracy_get=accuracy_get+1;  
-                                check_title={'d_corner_inner_x','d_corner_inner_y','d_corner_outer_x','d_corner_outer_y','alpha'};
+                                check_title={'d_corner_inner_x','d_corner_inner_y','d_corner_outer_x','d_corner_outer_y','alpha','pupil_x','pupil_y'};
                                 [~,check_inds]=ismember(input_vars_y,check_title);
                                 predictors=predictors(check_inds);
                                 del_POG_y_tree=predict(tree_model_y,predictors);
@@ -2174,7 +2200,7 @@ function total_results=evalAccuracy(model_cell,reformatted_data,right_headers,le
                                 results_row(30)=del_POG_max_x_left;
                                 results_row(31)=del_POG_max_y_left;
                                 results_row(34)=delta_pg_x;
-                                results_row(34)=delta_pg_y;
+                                results_row(35)=delta_pg_y;
                                 accuracy_max_left=sqrt((t_x-POG_x_max_left)^2+(t_y-POG_y_max_left)^2);
                                 results_row(37)=accuracy_max_left;
 
@@ -2201,11 +2227,11 @@ function total_results=evalAccuracy(model_cell,reformatted_data,right_headers,le
                             %Compensating in x-direction
                             input_vars_x=tree_models{ind_x,3};
                             tree_model_x=tree_models{ind_x,2};
-                            predictors=[del_corner_inner_x,del_corner_inner_y,del_corner_outer_x,del_corner_outer_y,alpha];
+                            predictors=[del_corner_inner_x,del_corner_inner_y,del_corner_outer_x,del_corner_outer_y,alpha,pupil_x,pupil_y];
                             accuracy_get=0;
                             if sum(isnan(predictors))<=NANTHRESH %If we have only NANTHRESH nans in our predictor variable we continue
                                 accuracy_get=accuracy_get+1;
-                                check_title={'d_corner_inner_x','d_corner_inner_y','d_corner_outer_x','d_corner_outer_y','alpha'};
+                                check_title={'d_corner_inner_x','d_corner_inner_y','d_corner_outer_x','d_corner_outer_y','alpha','pupil_x','pupil_y'};
                                 [~,check_inds]=ismember(input_vars_x,check_title);
                                 predictors=predictors(check_inds);
                                 del_POG_x_tree=predict(tree_model_x,predictors);
@@ -2218,10 +2244,10 @@ function total_results=evalAccuracy(model_cell,reformatted_data,right_headers,le
                             
                             input_vars_y=tree_models{ind_y,3};
                             tree_model_y=tree_models{ind_y,2};
-                            predictors=[del_corner_inner_x,del_corner_inner_y,del_corner_outer_x,del_corner_outer_y]; %alpha];
+                            predictors=[del_corner_inner_x,del_corner_inner_y,del_corner_outer_x,del_corner_outer_y,alpha,pupil_x,pupil_y];
                             if sum(isnan(predictors))<=NANTHRESH %If we have only NANTHRESH nans in our predictor variable we continue
                                 accuracy_get=accuracy_get+1;
-                                check_title={'d_corner_inner_x','d_corner_inner_y','d_corner_outer_x','d_corner_outer_y'}; %'alpha'};
+                                check_title={'d_corner_inner_x','d_corner_inner_y','d_corner_outer_x','d_corner_outer_y','alpha','pupil_x','pupil_y'};
                                 [~,check_inds]=ismember(input_vars_y,check_title);
                                 predictors=predictors(check_inds);
                                 del_POG_y_tree=predict(tree_model_y,predictors);
