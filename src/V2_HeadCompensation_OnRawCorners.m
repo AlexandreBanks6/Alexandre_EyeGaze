@@ -19,7 +19,7 @@ mean_acc_results=[];
 for m=[1:num_dir]
     if dirnames{m}(1)=='P' %We have a participant and run calibrations and/evaluations
         disp(dirnames{m})
-        %if strcmp(dirnames{m},'P01')
+        %if strcmp(dirnames{m},'P01') || strcmp(dirnames{m},'P02')
             %Reading In Data
             calib_init_data=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Init.csv']);
             check_calib=checkDetection(calib_init_data,CALIB_THRESHOLD);
@@ -74,15 +74,26 @@ for m=[1:num_dir]
 
                 del_POG_x_right=right_data(:,1);
                 del_POG_y_right=right_data(:,2);
-                predictors_right=right_data(:,3:6);
+                predictors_right=right_data(:,[3:6,23]);
                 
                 del_POG_x_left=left_data(:,1);
                 del_POG_y_left=left_data(:,2);
-                predictors_left=left_data(:,3:6);
+                predictors_left=left_data(:,[3:6,23]);
+                predictors_total=[right_data(:,[3:6]),left_data(:,[3:6,23])];
                 mdl_right_x=[];
                 mdl_right_y=[];
                 mdl_left_x=[];
                 mdl_left_y=[];
+                if ~(sum(~isnan(predictors_total(:,1)))<4 || sum(~isnan(predictors_total(:,2)))<4 || sum(~isnan(predictors_total(:,3)))<4 ||...
+                        sum(~isnan(predictors_total(:,4)))<4 || sum(~isnan(predictors_total(:,5)))<4 || sum(~isnan(predictors_total(:,6)))<4 ||...
+                        sum(~isnan(predictors_total(:,7)))<4 || sum(~isnan(predictors_total(:,8)))<4)
+                                    
+                [mdl_right_x,mdl_right_y]=fitCompensationRegressor(del_POG_x_right,del_POG_y_right,predictors_total);
+
+                [mdl_left_x,mdl_left_y]=fitCompensationRegressor(del_POG_x_left,del_POG_y_left,predictors_total);
+                end
+
+                %{
                 if ~(sum(~isnan(predictors_right(:,1)))<4 || sum(~isnan(predictors_right(:,2)))<4 || sum(~isnan(predictors_right(:,3)))<4 || sum(~isnan(predictors_right(:,4)))<4)
                                     
                 [mdl_right_x,mdl_right_y]=fitCompensationRegressor(del_POG_x_right,del_POG_y_right,predictors_right);
@@ -90,6 +101,7 @@ for m=[1:num_dir]
                 if ~(sum(~isnan(predictors_left(:,1)))<4 || sum(~isnan(predictors_left(:,2)))<4 || sum(~isnan(predictors_left(:,3)))<4 || sum(~isnan(predictors_left(:,4)))<4)
                 [mdl_left_x,mdl_left_y]=fitCompensationRegressor(del_POG_x_left,del_POG_y_left,predictors_left);
                 end
+                %}
                 %------Evaluating the model
                 
                 %Evaluation data
@@ -444,6 +456,9 @@ function [compensation_data]=prepCompensationData(data_cell,model_cell,dist_cell
     del_corner_outer_x_right,del_corner_outer_y_right,alpha_right,t_x,t_y,
     then we append head rotations/poses:
     Tx1,Ty1,Tz1,Q01,Qx1,Qy1,Qz1,Tx2,Ty2,Tz2,Q02,Qx2,Qy2,Qz2
+    inner_corner_distance
+
+    inner_corner_distance is sqrt((right_inner_x-left_inner_x).^2+(right_inner_y-left_inner_y).^2)
 
     cell 2: del_POG_x_left,del_POG_y_left,del_corner_inner_x_left,del_corner_inner_y_left,
     del_corner_outer_x_left,del_corner_outer_y_left,alpha_left,t_x,t_y
@@ -464,6 +479,7 @@ function [compensation_data]=prepCompensationData(data_cell,model_cell,dist_cell
     for i=[1:length(data_cell)]
         curr_mat=data_cell{i}; 
         [reformatted_data_right,reformatted_data_left]=reformatDataEval(curr_mat);
+        [row_dat,~]=size(reformatted_data_right);
         if check_model_right            
             error_vec_right=findCalibrationErrors(model_cell,reformatted_data_right,right_headers,dist_cell);
         else
@@ -491,14 +507,16 @@ function [compensation_data]=prepCompensationData(data_cell,model_cell,dist_cell
             %alpha=2.*atan(sqrt((v_calib_x-v_curr_x).^2+(v_calib_y-v_curr_y).^2)./...
              %   sqrt((v_calib_x+v_curr_x).^2+(v_calib_y+v_curr_y).^2));
 
+            inner_corner_distance=sqrt((reformatted_data_right(:,10)-reformatted_data_left(:,10)).^2+...
+                (reformatted_data_right(:,11)-reformatted_data_left(:,11)).^2);
             compensation_data{1}=[compensation_data{1};error_vec_right(:,1),...
                 error_vec_right(:,2),del_corner_inner_x,del_corner_inner_y,...
                 del_corner_outer_x,del_corner_outer_y,...
                 error_vec_right(:,3),error_vec_right(:,4),...
-                curr_mat(:,[[32:38],[42:48]])];
+                curr_mat(:,[[32:38],[42:48]]),inner_corner_distance];
 
         else
-            compensation_data{1}=[compensation_data{1};nan(1,22)];
+            compensation_data{1}=[compensation_data{1};nan(row_dat,23)];
         end
 
         if ~all(isnan(error_vec_left(:,1)))
@@ -515,14 +533,16 @@ function [compensation_data]=prepCompensationData(data_cell,model_cell,dist_cell
             %alpha=2.*atan(sqrt((v_calib_x-v_curr_x).^2+(v_calib_y-v_curr_y).^2)./...
              %   sqrt((v_calib_x+v_curr_x).^2+(v_calib_y+v_curr_y).^2));
 
+            inner_corner_distance=sqrt((reformatted_data_right(:,10)-reformatted_data_left(:,10)).^2+...
+                (reformatted_data_right(:,11)-reformatted_data_left(:,11)).^2);
             compensation_data{2}=[compensation_data{2};error_vec_left(:,1),...
                 error_vec_left(:,2),del_corner_inner_x,del_corner_inner_y,...
                 del_corner_outer_x,del_corner_outer_y,...
                 error_vec_left(:,3),error_vec_left(:,4),...
-                curr_mat(:,[[32:38],[42:48]])];
+                curr_mat(:,[[32:38],[42:48]]),inner_corner_distance];
 
         else
-            compensation_data{2}=[compensation_data{2};nan(1,22)];
+            compensation_data{2}=[compensation_data{2};nan(row_dat,23)];
         end
         
     end
@@ -755,14 +775,31 @@ function [predictors_x,predictors_y]=compensationPolynomial(predictors)
 %predictors_y=[predictors(:,1:4),predictors(:,1).*predictors(:,2),predictors(:,3).*predictors(:,4)];
 %predictors_x=[predictors(:,1:4)];
 %predictors_y=[predictors(:,1:4)];
-%Best so far:
+
 %predictors_x=[predictors(:,1).*predictors(:,2),predictors(:,1)];
 %predictors_y=[predictors(:,1).*predictors(:,2),predictors(:,2)];
 
-%Second Best so far:
-predictors_x=[predictors(:,1:4),log2(predictors(:,1))];
-predictors_y=[predictors(:,1:4),log2(predictors(:,1))];
+%predictors_x=[predictors(:,1:4),log2(predictors(:,1))];
+%predictors_y=[predictors(:,1:4),log2(predictors(:,2))];
+%predictors_x=[predictors(:,1:4),predictors(:,1).*predictors(:,2),predictors(:,3).*predictors(:,4)];
+%predictors_y=[predictors(:,1:4),predictors(:,1).*predictors(:,2),predictors(:,3).*predictors(:,4)];
 
+
+%Best polynomial model:
+%predictors_x=[predictors(:,1),predictors(:,3)];
+%predictors_y=[predictors(:,2),predictors(:,4)];
+
+
+%predictors_x=[predictors(:,1),predictors(:,3),predictors(:,5)];
+%predictors_y=[predictors(:,2),predictors(:,4),predictors(:,5)];
+%predictors_x=[predictors(:,1),predictors(:,3),predictors(:,5),predictors(:,7)];
+%predictors_y=[predictors(:,2),predictors(:,4),predictors(:,6),predictors(:,8)];
+
+predictors_x=[predictors(:,1),predictors(:,5)];
+predictors_y=[predictors(:,2),predictors(:,6)];
+
+%predictors_x=[predictors(:,1),predictors(:,3),predictors(:,1).*predictors(:,2)];
+%predictors_y=[predictors(:,2),predictors(:,4),predictors(:,1).*predictors(:,2)];
 end
 
 function [mdl_x,mdl_y]=fitCompensationRegressor(del_POG_x,del_POG_y,predictors)
@@ -842,7 +879,8 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
     reformatted_data:
     frame_no, pg0_rightx, pg0_righty, ..., pg2_rightx, pg2_righty, pg0_leftx, pg0_lefty,..., pg2_leftx, pg2_lefty,
     right_inner_x,right_inner_y,right_outer_x,right_outer_y,left_inner_x,left_inner_y,left_outer_x,left_outer_y,
-    target_x,target_y, pupil_right_x, pupil_right_y, pupil_left_x,pupil_left_y
+    target_x,target_y, pupil_right_x, pupil_right_y,
+    pupil_left_x,pupil_left_y,inner_corner_distance
 
     model_cell: contains the original polynomial model
     dist_cell: contains the distance between glints at calibration
@@ -873,8 +911,8 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
         results_row=nan(1,38);
         curr_row=reformatted_data(i,:); %Current data row
 
-        t_x=curr_row(end-5);    %Targets
-        t_y=curr_row(end-4);
+        t_x=curr_row(22);    %Targets
+        t_y=curr_row(23);
 
         results_row(26)=t_x;
         results_row(27)=t_y;
@@ -885,11 +923,11 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
         %--------------<Finding the right POG first>--------------
 
         %Inputs to tree regressor compensation in right eye
-        del_corner_inner_x=curr_row(14);
-        del_corner_outer_x=curr_row(16);
+        del_corner_inner_x_right=curr_row(14);
+        del_corner_outer_x_right=curr_row(16);
 
-        del_corner_inner_y=curr_row(15);
-        del_corner_outer_y=curr_row(17);
+        del_corner_inner_y_right=curr_row(15);
+        del_corner_outer_y_right=curr_row(17);
 
         %v_calib_x=avg_corners(1)-avg_corners(3);
         %v_calib_y=avg_corners(2)-avg_corners(4);
@@ -899,7 +937,7 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
         %alpha=2*atan(sqrt((v_calib_x-v_curr_x)^2+(v_calib_y-v_curr_y)^2)/...
          %   sqrt((v_calib_x+v_curr_x)^2+(v_calib_y+v_curr_y)^2));
 
-        results_row(16:19)=[del_corner_inner_x,del_corner_inner_y,del_corner_outer_x,del_corner_outer_y];
+        results_row(16:19)=[del_corner_inner_x_right,del_corner_inner_y_right,del_corner_outer_x_right,del_corner_outer_y_right];
         results_row(24)=nan;
         if check_model_right
             right_pgs=curr_row(2:7);
@@ -932,8 +970,8 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
                     pg_y_ind=ismember(right_headers,header_y);
 
                     %Getting the pupil position (right_x, and right_y)
-                    pupil_x=curr_row(end-3);
-                    pupil_y=curr_row(end-2);
+                    pupil_x=curr_row(24);
+                    pupil_y=curr_row(25);
 
                     %Getting Correct PG Estimation Model
                     PG_Estimation_Headers=PG_Estimation_Models(:,1);
@@ -1004,7 +1042,8 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
                         results_row(2)=accuracy_poly;
                         results_row(8)=del_POG_x_actual;
                         results_row(9)=del_POG_y_actual;
-                        predictors=[del_corner_inner_x,del_corner_inner_y,del_corner_outer_x,del_corner_outer_y];
+                        predictors=[del_corner_inner_x_right,del_corner_inner_y_right,del_corner_outer_x_right,del_corner_outer_y_right,...
+                            curr_row(18:21)];
                         [predictors_x,predictors_y]=compensationPolynomial(predictors);
                         %Compensating in x-direction
                         accuracy_get=0;
@@ -1044,11 +1083,11 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
         %-------------<Finding the left POG next>--------------
 
         %Inputs to tree regressor compensation in left eye
-        del_corner_inner_x=curr_row(18);
-        del_corner_outer_x=curr_row(20);
+        del_corner_inner_x_left=curr_row(18);
+        del_corner_outer_x_left=curr_row(20);
 
-        del_corner_inner_y=curr_row(19);
-        del_corner_outer_y=curr_row(21);
+        del_corner_inner_y_left=curr_row(19);
+        del_corner_outer_y_left=curr_row(21);
 
         %v_calib_x=avg_corners(5)-avg_corners(7);
         %v_calib_y=avg_corners(6)-avg_corners(8);
@@ -1058,7 +1097,7 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
         %alpha=2*atan(sqrt((v_calib_x-v_curr_x)^2+(v_calib_y-v_curr_y)^2)/...
          %   sqrt((v_calib_x+v_curr_x)^2+(v_calib_y+v_curr_y)^2));
 
-        results_row(20:23)=[del_corner_inner_x,del_corner_inner_y,del_corner_outer_x,del_corner_outer_y];
+        results_row(20:23)=[del_corner_inner_x_left,del_corner_inner_y_left,del_corner_outer_x_left,del_corner_outer_y_left];
         results_row(25)=nan;
         if check_model_left
             left_pgs=curr_row(8:13);
@@ -1092,8 +1131,8 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
     
 
                     %Getting the pupil position (left_x, and left_y)
-                    pupil_x=curr_row(end-1);
-                    pupil_y=curr_row(end);
+                    pupil_x=curr_row(26);
+                    pupil_y=curr_row(27);
 
 
                     %Getting Correct PG Estimation Model
@@ -1169,7 +1208,8 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
                         results_row(10)=del_POG_x_actual;
                         results_row(11)=del_POG_y_actual;
 
-                        predictors=[del_corner_inner_x,del_corner_inner_y,del_corner_outer_x,del_corner_outer_y];
+                        predictors=[del_corner_inner_x_right,del_corner_inner_y_right,del_corner_outer_x_right,del_corner_outer_y_right,...
+                            del_corner_inner_x_left,del_corner_inner_y_left,del_corner_outer_x_left,del_corner_outer_y_left];
                         [predictors_x,predictors_y]=compensationPolynomial(predictors);
                         %Compensating in x-direction
                         accuracy_get=0;
@@ -1266,7 +1306,8 @@ function reformatted_data=reformatData(eval_data)
         glintspupils_left(:,8)-glintspupils_left(:,2),...
         eval_data(:,50:57),...
         eval_data(:,27),eval_data(:,28),glintspupils_right(:,1),glintspupils_right(:,2),...
-        glintspupils_left(:,1),glintspupils_left(:,2)];
+        glintspupils_left(:,1),glintspupils_left(:,2),sqrt((eval_data(:,50)-eval_data(:,54)).^2+...
+        (eval_data(:,51)-eval_data(:,55)).^2)];%Adds the inner corner distance
 
 end
 
