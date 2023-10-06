@@ -1,0 +1,27 @@
+%{
+Title: Barycentric Interpolation 
+Author: Alexandre Banks Gadbois
+Description:
+We run the head compensation by interpolating polynomial regressions using
+barycentric coordinates as the weighting function. 
+Algorithm Steps:
+
+Training:
+1. Fit 6 regressions f1...f6 (x and y) for each eye (so twelve regressions for each eye).
+2. For each regression, record the average inner and outer eye corner position
+(C_innerx,C_innery, C_outerx, C_outery) of each eye
+
+Implementation:
+1. If two eye corners are currently detected & >3 sets of two averages were detected:
+    1.1 use average of both corners
+    1.2 use average of calibration corners
+2. Else 1 eye corner is currently detected or <3 sets of two averafes were
+detected
+    2.1 
+
+%}
+
+
+clear
+clc
+close all
