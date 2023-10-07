@@ -66,6 +66,17 @@ for m=[1:num_dir]
         calib_init_data=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Init.csv']);
         check_calib=checkDetection(calib_init_data,CALIB_THRESHOLD);
         if (check_calib==true)
+                [train_cell_init,dist_cell_init,avg_corners_init]=getRegressionData(calib_init_data,CALIB_THRESHOLD); %Also gets the average eye corner location at the calibration
+                if length(dist_cell_init)==0
+                    continue;
+                end
+                model_poly_init=robustRegressor(train_cell_init); %Get the vanilla model from the initial calibration
+
+                %poly_function_array will contain 6 rows for each of the
+                %calibrated polynomials. There are 4 columns with:
+                %col1: fitted polynomials, col2: avg corners, col3:
+                %residual error, col4=#of points
+                poly_function_array=cell(6,1); %Each cell has the above array for each calibration
 
 
         end
@@ -73,6 +84,61 @@ for m=[1:num_dir]
 
 
     end
+
+end
+
+
+function [dist]=findPgDistance(distance_type,train_cell)
+    dist_header={'d_01_right','d_02_right','d_12_right','d_01_left','d_02_left','d_12_left'};
+    switch distance_type
+        case dist_header{1}
+            search_pgs={'pg0_right','pg1_right'};
+        case dist_header{2}
+            search_pgs={'pg0_right','pg2_right'};
+        case dist_header{3}
+            search_pgs={'pg1_right','pg2_right'};
+        case dist_header{4}
+            search_pgs={'pg0_left','pg1_left'};
+        case dist_header{5}
+            search_pgs={'pg0_left','pg2_left'};
+        case dist_header{6}
+            search_pgs={'pg1_left','pg2_left'};
+    end
+
+    ind_2=NaN;
+    ind_1=NaN;
+
+    for i=[1:length(train_cell)]
+        if strcmp(train_cell{i}(1),search_pgs(1))
+            ind_1=i;
+        end
+        if strcmp(train_cell{i}(1),search_pgs(2))
+            ind_2=i;
+        end
+
+    end
+
+    if isnan(ind_1)||isnan(ind_2)
+        dist=NaN;
+
+    else
+        dist=mean(sqrt((train_cell{ind_2}{2}(:,1)-train_cell{ind_1}{2}(:,1)).^2+(train_cell{ind_2}{2}(:,2)-train_cell{ind_1}{2}(:,2)).^2),"omitnan");
+    end
+    
+
+
+
+end
+
+
+function [predictors_x,predictors_y]=customPolynomial(pg_x,pg_y)
+    %predictors=[pg_x.^2,pg_x.*pg_y,pg_y.^2,pg_x,pg_y];
+    %predictors_x=[pg_x,pg_y,pg_x.^2];
+    %predictors_y=[pg_y,pg_x.^2,pg_x.*pg_y,pg_x.^2.*pg_y];
+    predictors_x=[pg_x.^2,pg_x.*pg_y,pg_y.^2,pg_x,pg_y];
+    predictors_y=[pg_x.^2,pg_x.*pg_y,pg_y.^2,pg_x,pg_y];
+    %predictors_x=[pg_x.^2,pg_x.*pg_y,pg_y.^2,pg_x,pg_y];
+    %predictors_y=[pg_x.^2,pg_x.*pg_y,pg_y.^2,pg_x,pg_y];
 
 end
 
@@ -85,11 +151,230 @@ end
 
 
 
-
 %##########################Function Definitions############################
 
+%---------------------<Initial Calibration Functions>----------------------
+function valid=checkDetection(calib_data,thresh)
+    [row_n,col_n]=size(calib_data);
+    pupil_detect_count=0; %Counts the number of pupils detected per unique calib point
+    calib_pastx=calib_data(1,27);
+    calib_pasty=calib_data(1,28);
+    switched=false;
+    valid=false;
+    for i=[1:row_n] %Loops for the number of rows
+        if (calib_data(i,27)~=calib_pastx)||(calib_data(i,28)~=calib_pasty)
+            switched=false;
+            calib_pastx=calib_data(i,27);
+            calib_pasty=calib_data(i,28);
+
+        end
+        if ((calib_data(i,8)==1)||(calib_data(i,20)==1)) && (~switched)
+            switched=true;
+            pupil_detect_count=pupil_detect_count+1;
+        end
 
 
+    end
+    if pupil_detect_count>=thresh
+        valid=true;
+    end
+
+end
+
+
+function [trainCell,dist_cell,avg_corners]=getRegressionData(data_matrix,thresh)
+%Returns trainCell which has a cell for each of the training types, as well
+%as dist_cell which has up to six cells for the distance between each of
+%the pg vectors for the left and right eyes such that:
+%d_01_right,d_02_right,d_12_right,d_01_left,d_02_left,d_12_left
+
+%Also returns the average corner positions as a cell such that:
+%right_inner_x,right_inner_y,right_outer_x,right_outer_y,left_inner_x,...
+
+
+pg_types={'pg0_left','pg1_left','pg2_left','pg0_right','pg1_right','pg2_right'};
+trainCell={};
+
+    for i=[1:length(pg_types)]
+        trainMatrix=getIndividualRegressionData(data_matrix,pg_types{i},thresh);
+        if all(isnan(trainMatrix))
+            continue
+    
+        else
+            trainCell{end+1}={pg_types{i},trainMatrix};
+        end
+           
+    
+    
+    end
+    
+    %Finding inter-glint distance
+    dist_header={'d_01_right','d_02_right','d_12_right','d_01_left','d_02_left','d_12_left'};
+    cell_count=1;
+    for i=[1:length(dist_header)]
+        dist=findPgDistance(dist_header{i},trainCell);
+        if all(isnan(dist))
+            continue    
+        else
+            dist_cell{cell_count,1}=dist_header{i};
+            dist_cell{cell_count,2}=dist;
+            cell_count=cell_count+1;
+
+        end
+
+    end
+    for i=[1:length(trainCell)]
+
+        old_train_cell=trainCell{i}{2};
+        trainCell{i}{2}=old_train_cell(~isnan(old_train_cell(:,1)),:);
+
+
+    end
+
+    if cell_count==1
+        dist_cell=cell(0);
+    end
+
+
+    %Finding the average corner locations
+    corner_data=data_matrix(:,50:57);
+    %Change the corner locations to be in 640x480 not the 1280x480 so
+    %corner_data(:,1)=corner_data(:,1);
+    %corner_data(:,3)=corner_data(:,3);
+    avg_corners=mean(corner_data,1,'omitnan');
+    
+end
+
+function train_matrix=getIndividualRegressionData(data_matrix,pg_type,thresh)
+    %Function tha returns data to train polynomial regressor from the toal
+    %data matrix in eye gaze tracking. 
+    %Returns: train_matrix with columns:
+    %pg(pg_type)_x,pg(pg_type)_y,target_x,target_y,pupil_x,pupil_y
+    %Where pg_type is either 0, 1, or 2
+    %If train_matrix is not valid then train_matrix=NaN
+    
+    %Data index indexes for: pupil_x, glint_x, pupily, glint_y,
+    %target_x,target_y
+    switch pg_type
+        case 'pg0_left'
+            data_indx=[15,21,16,22,27,28];
+        case 'pg0_right'
+            data_indx=[3,9,4,10,27,28];
+        case 'pg1_left'
+            data_indx=[15,23,16,24,27,28];
+        case 'pg1_right'
+            data_indx=[3,11,4,12,27,28];
+        case 'pg2_left'
+            data_indx=[15,25,16,26,27,28];
+        case 'pg2_right'
+            data_indx=[3,13,4,14,27,28];
+        otherwise
+            disp('Invalid PG Type')
+    end
+    
+    data_raw=data_matrix(:,data_indx);
+    [row_n,col_n]=size(data_raw); 
+    %We check to see if we have enough unique points, and also remove any
+    %NaNs from data_raw
+    pupil_detect_count=0; %Counts the number of pupils detected per unique calib point
+    calib_pastx=data_matrix(1,27);
+    calib_pasty=data_matrix(1,28);
+    switched=false;
+    train_matrix=[];
+    for i=[1:row_n]
+        if (data_matrix(i,27)~=calib_pastx)||(data_matrix(i,28)~=calib_pasty)
+            switched=false;
+            calib_pastx=data_matrix(i,27);
+            calib_pasty=data_matrix(i,28);
+
+        end
+
+        if (~anynan(data_raw(i,[1:4]))) && (~switched) %We have a new target point and a valid glint detection
+            switched=true;
+            train_matrix=[train_matrix;[data_raw(i,2)-data_raw(i,1),data_raw(i,4)-data_raw(i,3),data_raw(i,5),data_raw(i,6),data_raw(i,1),data_raw(i,3)]];
+            pupil_detect_count=pupil_detect_count+1;
+        elseif ~anynan(data_raw(i,[1:4]))
+            train_matrix=[train_matrix;[data_raw(i,2)-data_raw(i,1),data_raw(i,4)-data_raw(i,3),data_raw(i,5),data_raw(i,6),data_raw(i,1),data_raw(i,3)]];
+        else
+            train_matrix=[train_matrix;[NaN,NaN,NaN,NaN,NaN,NaN]];
+        end
+
+
+    end
+    if pupil_detect_count<thresh
+        train_matrix=nan; %Not a valid sample of points, too few detections
+    end
+
+
+
+end
+
+function robust_regressor_output=robustRegressor(train_cell)
+    %Output is a cell with columns: pg_type, rmse, model parameters
+    %pg_type is: pg0_leftx, pg0_lefty,pg1_leftx,pg1_lefty... for pg1->pg3
+    %and right/left
+    num_pg_detect=length(train_cell);
+
+    if num_pg_detect==0
+        robust_regressor_output=nan;
+    else %We have detections and proceed
+        robust_regressor_output=cell(num_pg_detect*2,3); %Final entry are the model parameters
+        for i=[1:num_pg_detect] %Looping for the detections
+            train_data=train_cell{i}{2};
+            [rmse_x,rmse_y,b_x,b_y]=customRegressor(train_data);
+            %Saving x-results
+            robust_regressor_output{i*2-1,1}=strcat(train_cell{i}{1},'_x');
+            %robust_regressor_output{i*2-1,2}=(rmse_x+rmse_y)/2;
+            robust_regressor_output{i*2-1,2}=size(train_data,1);
+            robust_regressor_output{i*2-1,3}=b_x;
+
+            robust_regressor_output{i*2,1}=strcat(train_cell{i}{1},'_y');
+            %robust_regressor_output{i*2,2}=(rmse_x+rmse_y)/2;
+            robust_regressor_output{i*2,2}=size(train_data,1);
+            robust_regressor_output{i*2,3}=b_y;
+
+        end
+        
+
+    end
+
+
+
+end
+
+function [rmse_x,rmse_y,b_x,b_y]=customRegressor(train_data)
+    %Training data is a nx4 vector where col1=pg_x, col2=pg_y, col3=target_x, col4=target_y
+    %Output are 6 model parameters and the residual error for x and y
+    %The model parameters are such that
+    %b(1)+b(2)*pg_x^2+b(3)*pg_x*pg_y+b(4)*pg_y^2+b(5)*pg_x+b(6)*pg_y
+    %The tuning constant is set to 4.685 for bisquare
+    REGRESS_TUNE=4.2;
+    REGRESS_FUNC='huber';
+    pg_x=train_data(:,1);
+    pg_y=train_data(:,2);
+
+    t_x=train_data(:,3);
+    t_y=train_data(:,4);
+    
+
+    %--------------Iteratively Weighted Least Squares---------------
+    [predictors_x,predictors_y]=customPolynomial(pg_x,pg_y);
+    
+    
+
+    %Fitting POGx
+    %Using iteratively weighted least squares
+    [b_x,stats_x]=robustfit(predictors_x,t_x,REGRESS_FUNC,REGRESS_TUNE); %Uses iteratively weighted least squares
+
+    %Fitting POGy
+    [b_y,stats_y]=robustfit(predictors_y,t_y,REGRESS_FUNC,REGRESS_TUNE); %Uses iteratively weighted least squares
+    
+    residual_x=stats_x.resid;
+    residual_y=stats_y.resid;
+
+    rmse_x=sqrt(mean(residual_x.^2));
+    rmse_y=sqrt(mean(residual_y.^2));
+end
 
 %------------------<Multivariable Interpolation Functions>-----------------
 
