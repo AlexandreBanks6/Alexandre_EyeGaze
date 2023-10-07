@@ -29,21 +29,23 @@ clc
 close all
 
 %% Testing multivariate interpolation approach
-curr_corners=[342,145,201,250];
-poly_functions={[2,2.8,3,3.8,5],[350,142,195,253];...
-    [2.4,2.55,3.01,3.81,5.2],[340,144,198,251];...
-    [1.9,2.8,3.035,3.82,5.12],[352,141,192,243];...
-    [2.2,2.75,2.95,3.83,4.82],[345,138,197,249];...
-    [2.35,2.8,3.05,3.79,4.92],[339,148,204,252];...
-    [1.99,2.85,3.1,3.78,5.01],[347,152,207,255];...
+%{
+curr_corners=[351,145,201,250];
+poly_functions={[2,2.8,3,3.8,5],[nan,nan,195,253];...
+    nan(1,5),[340,144,198,251];...
+    [1.9,2.8,3.035,3.82,5.12],[nan,nan,192,243];...
+    [2.2,2.75,2.95,3.83,4.82],[345,138,nan,nan];...
+    [2.35,2.8,3.05,3.79,4.92],[nan,nan,204,252];...
+    [1.99,2.85,3.1,3.78,5.01],nan(1,4);...
     };
 closest_type='euclidean';
 weighting_type='idw';
 k=3;
-weighted_poly=multivariateInterp(poly_functions,curr_corners,closest_type,weighting_type,k);
+p=1;
+weighted_poly=multivariateInterp(poly_functions,curr_corners,closest_type,weighting_type,k,p);
+%}
 
-
-%%
+%% Testing on Actual Data
 
 %Looping Through All Participants
 data_root='F:/Alexandre_EyeGazeProject/eyecorner_userstudy2_converted';
@@ -91,7 +93,7 @@ end
 
 %------------------<Multivariable Interpolation Functions>-----------------
 
-function weighted_poly=multivariateInterp(poly_functions,curr_corners,closest_type,weighting_type,k)
+function weighted_poly=multivariateInterp(poly_functions,curr_corners,closest_type,weighting_type,k,p)
 %{
 Description: Performs multivariate inerpolation where we are given the
 calibrated polynomials f1...fn, and the corresponding inner/outer eye
@@ -115,6 +117,8 @@ weighting_type: type of weighting function to use options are: 'idw' for
 inverse distance weighting
 
 k: the k-closest eye corner positions that we use to weight the function
+p: order of the exponent term in inverse distance weighting function
+(typically 1)
 
 %}
 
@@ -130,49 +134,31 @@ k: the k-closest eye corner positions that we use to weight the function
     %corner from the calibrated corner locations
     %We also check for nan values in the calibrated corner locations 
     
-    [num_notnan,calibrated_corners,calibrated_functions]=checkCalibratedCorners(calibrated_corners,calibrated_functions);
-    if num_notnan>=k %We have an acceptable number of calibration corner locations
-        bool_check=false;
-        if ~isnan(curr_corners(1)) && ~isnan(curr_corners(3)) %We have both inner and outer current eye corners
-            bool_check=true;
-            %so we just continue without changing anything
-        elseif ~isnan(curr_corners(1)) && isnan(curr_corners(3)) %We have the inner corner, but not the outer
-            %Only use the inner corners
-            calibrated_corners=calibrated_corners(:,[1:2]);
-            curr_corners=curr_corners([1:2]);
-            bool_check=true;
-        elseif isnan(curr_corners(1)) && ~isnan(curr_corners(3)) %We don't have inner corner, but we have the outer
-            %Only use the outer corner
-            calibrated_corners=calibrated_corners(:,[3:4]);
-            curr_corners=curr_corners([3:4]);
-            bool_check=true;
-        else %We dont have either corners currently
-            weighted_poly=nan(1,length(calibrated_functions(1,:))); %Returns nan for the current polynomial
-        end
+    [calibrated_corners,calibrated_functions,curr_corners,bool_check]=checkCalibratedCorners(calibrated_corners,calibrated_functions,curr_corners,k);
+    if bool_check %We have an acceptable number of calibration corner locations
+
+        %Finding closesness between current corners and calibrated corners 
+        score=closenessScore(calibrated_corners,curr_corners,closest_type);
         
-        if bool_check
-            %Finding closesness between current corners and calibrated corners 
-            score=closenessScore(calibrated_corners,curr_corners,closest_type);
-            
-            %Arrange scores from lowest to highest (highest means further away)
-            [ascend_scores,inds]=sort(score);
-            ascend_functions=calibrated_functions(inds,:);
-            ascend_corners=calibrated_corners(inds,:);
-            
-            %Truncating to k-closest
-            k_functions=ascend_functions(1:k,:); %matrix where each row are the top k fitted polynomials
-            k_corners=ascend_corners(1:k,:);
-            
-            p=1; %order of weighting
-            weights=weightingFunction(k_corners,curr_corners,weighting_type,p);
-            
-            %we multiply every row by the corresponding weight (row 1*weights(1)+row
-            %2*weights(2) and final polynomial weights are the sum along the columns
-            
-            scaled_functions=weights.*k_functions; 
-            
-            weighted_poly=sum(scaled_functions,1); %Sums the polynomial coefficients to give our final interpolated polynomial
-        end
+        %Arrange scores from lowest to highest (highest means further away)
+        [ascend_scores,inds]=sort(score);
+        ascend_functions=calibrated_functions(inds,:);
+        ascend_corners=calibrated_corners(inds,:);
+        
+        %Truncating to k-closest
+        k_functions=ascend_functions(1:k,:); %matrix where each row are the top k fitted polynomials
+        k_corners=ascend_corners(1:k,:);
+        
+
+        weights=weightingFunction(k_corners,curr_corners,weighting_type,p);
+        
+        %we multiply every row by the corresponding weight (row 1*weights(1)+row
+        %2*weights(2) and final polynomial weights are the sum along the columns
+        
+        scaled_functions=weights.*k_functions; 
+        
+        weighted_poly=sum(scaled_functions,1); %Sums the polynomial coefficients to give our final interpolated polynomial
+
 
     else
         weighted_poly=nan(1,length(calibrated_functions(1,:))); %Returns nan for the current polynomial
@@ -237,13 +223,51 @@ function weights=weightingFunction(calibrated_corners,current_corners,weighting_
 end
 
 
-function [num_notnan,new_corners,new_functions]=checkCalibratedCorners(calibrated_corners,calibrated_functions)
+function [new_calib_corners,new_calib_functions,new_curr_corners,bool_check]=checkCalibratedCorners(calibrated_corners,calibrated_functions,curr_corners,k)
     inds_innercorners_notnan=~isnan(calibrated_corners(:,1)); %Gets row index where inner corners are not nan
     inds_outercorners_notnan=~isnan(calibrated_corners(:,3)); %Gets row index where outer corners are not nan
     inds_functions_notnan=~isnan(calibrated_functions(:,1)); %Gets row index where polynomial functions are not nan
 
-    joint_notnan=inds_innercorners_notnan&inds_outercorners_notnan&inds_functions_notnan; %Indexes where we have only the function
-    num_notnan=sum(joint_notnan);
-    new_functions=calibrated_functions(joint_notnan,:);
-    new_corners=calibrated_corners(joint_notnan,:);
+    %Init parameters
+    new_calib_corners=nan;
+    new_calib_functions=nan;
+    new_curr_corners=nan;
+    bool_check=false;
+
+    if ~isnan(curr_corners(1)) && ~isnan(curr_corners(3)) %We have both inner and outer current eye corners
+        if sum(inds_innercorners_notnan&inds_functions_notnan)>=k && sum(inds_outercorners_notnan&inds_functions_notnan)>=k %We have enough calibrated for both corners
+            joint_notnan=inds_innercorners_notnan&inds_outercorners_notnan&inds_functions_notnan; %Indexes where we have only the function
+            new_calib_functions=calibrated_functions(joint_notnan,:);
+            new_calib_corners=calibrated_corners(joint_notnan,:);
+            new_curr_corners=curr_corners;
+            bool_check=true;
+        elseif sum(inds_innercorners_notnan&inds_functions_notnan)>=k %We have enough inner corners from our calibrated corners
+            joint_notnan=inds_innercorners_notnan&inds_functions_notnan; %Indexes where we have only the function
+            new_calib_functions=calibrated_functions(joint_notnan,:);
+            new_calib_corners=calibrated_corners(joint_notnan,[1:2]);
+            new_curr_corners=curr_corners([1:2]);
+            bool_check=true;
+
+        elseif sum(inds_outercorners_notnan&inds_functions_notnan)>=k %We have enough outer corners from our calibrated corners
+            joint_notnan=inds_outercorners_notnan&inds_functions_notnan; %Indexes where we have only the function
+            new_calib_functions=calibrated_functions(joint_notnan,:);
+            new_calib_corners=calibrated_corners(joint_notnan,[3:4]);
+            new_curr_corners=curr_corners([3:4]);
+            bool_check=true;
+        end
+
+    elseif ~isnan(curr_corners(1)) && isnan(curr_corners(3)) %We have the current inner corner, but not the outer
+            joint_notnan=inds_innercorners_notnan&inds_functions_notnan; %Indexes where we have only the function
+            new_calib_functions=calibrated_functions(joint_notnan,:);
+            new_calib_corners=calibrated_corners(joint_notnan,[1:2]);
+            new_curr_corners=curr_corners([1:2]);
+            bool_check=true;
+    elseif isnan(curr_corners(1)) && ~isnan(curr_corners(3)) %We don't have current inner corner, but we have the current outer
+            joint_notnan=inds_outercorners_notnan&inds_functions_notnan; %Indexes where we have only the function
+            new_calib_functions=calibrated_functions(joint_notnan,:);
+            new_calib_corners=calibrated_corners(joint_notnan,[3:4]);
+            new_curr_corners=curr_corners([3:4]);
+            bool_check=true;
+    end
+
 end
