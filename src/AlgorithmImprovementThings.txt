@@ -1,0 +1,9 @@
+Things to try:
+- Look into dist cell, how it corresponds to the calibration functions (either recording distance for each polynomial
+and then weighting the distance as well, or scaling the PG vectors to match the initial polynomial)
+- Filter the compensated POG
+- Take the last 80% of PG vectors for every target (for training)
+- Take the 1-dot data from 1second upwards
+- Run compensation on average and not just individual right/left POGs
+- Maybe get average eye corner location for each pupil direction?
+- Look at my old approach, and the training data am I scaling the PG vectors?
