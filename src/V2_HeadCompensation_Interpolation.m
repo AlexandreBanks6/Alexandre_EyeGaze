@@ -119,7 +119,7 @@ for m=[1:num_dir]
             data_mat=[eval_lift1_9dot;eval_lift2_9dot;eval_lift3_9dot];
             
             
-            [mean_accuracies,total_results]=evalModelsRegressComp(data_mat,model_poly,dist_cell,avg_corners,mdl_right_x,mdl_right_y,mdl_left_x,mdl_left_y,PG_Estimation_Models,max_compensation_models);
+            [mean_accuracies,total_results]=evalModelsRegressComp(data_mat,model_poly,dist_cell,avg_corners,PG_Estimation_Models,max_compensation_models,poly_functions_array);
             mean_acc_results=[mean_acc_results;mean_accuracies];
 
         end
@@ -130,6 +130,8 @@ for m=[1:num_dir]
 
 end
 
+mean_acc_total=mean(mean_acc_results,1,'omitnan');
+disp(mean_acc_total);
 
 
 
@@ -614,7 +616,7 @@ function [new_calib_corners,new_calib_functions,new_curr_corners,bool_check]=che
 
 end
 
-function poly_functions=reformatDataMultivariateInterp(poly_functions_array,header)
+function poly_functions=reformatDataMultivariateInterp(poly_functions_array,header,side_type)
 %{
 output:
 poly_functions: cell array where: col1=fitted polynomials (if it is nan, make sure to put all 
@@ -632,11 +634,20 @@ col4= number of calibration points used
     poly_functions_count=1;
     for i=[1:num_row]
         corners=poly_functions_array{i,2};
+        switch side_type
+            case 'right'
+                corners=corners(1:4);
+            case 'left'
+                corners=corners(5:8);
+            otherwise
+                error('wrong side type when reformatting data for interpolation function')
+        end
+
         curr_occurence=poly_functions_array{i,1};
         headers=curr_occurence(:,1);
         poly_ind=ismember(headers,header);
         if sum(poly_ind)>=1
-            poly_functions{poly_functions_count,1}=curr_occurence{poly_ind,2};
+            poly_functions{poly_functions_count,1}=curr_occurence{poly_ind,2}';
             poly_functions{poly_functions_count,2}=corners;
             poly_functions{poly_functions_count,3}=curr_occurence{poly_ind,3};
             poly_functions{poly_functions_count,4}=curr_occurence{poly_ind,4};
@@ -1099,38 +1110,44 @@ function [d_calib,d_curr]=findScalingFactors(dist_cell,valid_header,overall_head
         dist_names={'d_12_left'};
 
     end
-    dist_ind=ismember(dist_cell(:,1),dist_names);
-    if all(~dist_ind) %We don't have any corresponding distances in the calibration
-        d_calib=nan;
-        d_curr=nan;
-    else
-        dist_vec=cell2mat(dist_cell(dist_ind,2));
-        d_calib=mean(dist_vec);
-    
-        %Finding the current inter-glint distance
-    
-        valid_inds=ismember(overall_header,valid_header);
-        valid_pgs=pgs_only(valid_inds);
-        x_vals=[];
-        y_vals=[];
-        for i=[1:2:length(valid_pgs)]
-            x_vals=[x_vals,valid_pgs(i)];
-            y_vals=[y_vals,valid_pgs(i+1)];
-    
-        end
-        if length(x_vals)==2
-            d_curr=sqrt((y_vals(1)-y_vals(2)).^2+(x_vals(1)-x_vals(2)).^2);
-    
-        elseif length(x_vals)==3
-            diff_1=sqrt((y_vals(1)-y_vals(2)).^2+(x_vals(1)-x_vals(2)).^2);
-            diff_2=sqrt((y_vals(1)-y_vals(3)).^2+(x_vals(1)-x_vals(3)).^2);
-            diff_3=sqrt((y_vals(2)-y_vals(3)).^2+(x_vals(2)-x_vals(3)).^2);
-            d_curr=(diff_1+diff_2+diff_3)/3;
-        else
-            d_curr=nan;
+    if exist('dist_names','var') 
+        dist_ind=ismember(dist_cell(:,1),dist_names);
+        if all(~dist_ind) %We don't have any corresponding distances in the calibration
             d_calib=nan;
-    
+            d_curr=nan;
+        else
+            dist_vec=cell2mat(dist_cell(dist_ind,2));
+            d_calib=mean(dist_vec);
+        
+            %Finding the current inter-glint distance
+        
+            valid_inds=ismember(overall_header,valid_header);
+            valid_pgs=pgs_only(valid_inds);
+            x_vals=[];
+            y_vals=[];
+            for i=[1:2:length(valid_pgs)]
+                x_vals=[x_vals,valid_pgs(i)];
+                y_vals=[y_vals,valid_pgs(i+1)];
+        
+            end
+            if length(x_vals)==2
+                d_curr=sqrt((y_vals(1)-y_vals(2)).^2+(x_vals(1)-x_vals(2)).^2);
+        
+            elseif length(x_vals)==3
+                diff_1=sqrt((y_vals(1)-y_vals(2)).^2+(x_vals(1)-x_vals(2)).^2);
+                diff_2=sqrt((y_vals(1)-y_vals(3)).^2+(x_vals(1)-x_vals(3)).^2);
+                diff_3=sqrt((y_vals(2)-y_vals(3)).^2+(x_vals(2)-x_vals(3)).^2);
+                d_curr=(diff_1+diff_2+diff_3)/3;
+            else
+                d_curr=nan;
+                d_calib=nan;
+        
+            end
         end
+    else
+        d_curr=nan;
+        d_calib=nan;
+
     end
     
 
@@ -1247,7 +1264,7 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
                 
                 valid_header=findPgWithAssociatedDistance(stripped_header,dist_cell);
     
-                if length(valid_header)>=2
+                if length(valid_header)>2
                     model_valid_indexes=ismember(model_cell(:,1),valid_header);
                     updated_model_cell=model_cell(model_valid_indexes,:);
                     [row_new,~]=size(updated_model_cell);
@@ -1301,11 +1318,20 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
                         right_corners=curr_row(14:17); %Gets the calues for the right corners
 
                         %Weighted Functions in the x-direction
-                        poly_functions_x=reformatDataMultivariateInterp(poly_functions_array,header_x);
-                        weighted_poly_x=multivariateInterp(poly_functions,right_corners,closest_type,weighting_type,k,p);
+                        poly_functions_x=reformatDataMultivariateInterp(poly_functions_array,header_x,'right');
+                        weighted_poly_x=multivariateInterp(poly_functions_x,right_corners,closest_type,weighting_type,k,p);
 
-                        poly_functions_y=reformatDataMultivariateInterp(poly_functions_array,header_y);
-                        weighted_poly_y=multivariateInterp(poly_functions,right_corners,closest_type,weighting_type,k,p);
+                        poly_functions_y=reformatDataMultivariateInterp(poly_functions_array,header_y,'right');
+                        weighted_poly_y=multivariateInterp(poly_functions_y,right_corners,closest_type,weighting_type,k,p);
+
+                        %Finding interpolation results
+                        if ~all(isnan(weighted_poly_x)) && ~all(isnan(weighted_poly_y))
+                            POG_x_interp_right=findPOG(weighted_poly_x',predictors_x);
+                            POG_y_interp_right=findPOG(weighted_poly_y',predictors_x);
+                            
+                            accuracy_interp_right=sqrt((POG_x_interp_right-t_x)^2+(POG_y_interp_right-t_y)^2);
+                            results_row(4)=accuracy_interp_right;
+                        end
 
                         %-----------Running Max's approach
                         if ~isempty(PG_model_x) && ~isempty(PG_model_y)
@@ -1341,40 +1367,8 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
                              end
 
                             
-                        end
-                        
-    
-
-
-
-                        predictors=[del_corner_inner_x_right,del_corner_inner_y_right,del_corner_outer_x_right,del_corner_outer_y_right,...
-                            curr_row(18:21)];
-                        [predictors_x,predictors_y]=compensationPolynomial(predictors);
-                        %Compensating in x-direction
-                        accuracy_get=0;
-                        if length(comp_model_x_right)>0 && ~any(isnan(predictors_x))
-                                accuracy_get=accuracy_get+1;
-                                del_POG_x_tree=findCompensation(comp_model_x_right,predictors_x);
-                                del_POG_x_tree=del_POG_x_tree;
-
-                                POG_x_tree_right=del_POG_x_tree+POG_x_poly_right;
-
-                        end
-
-                        if length(comp_model_y_right)>0 && ~any(isnan(predictors_y))
-                                accuracy_get=accuracy_get+1;
-                                del_POG_y_tree=findCompensation(comp_model_y_right,predictors_y);
-                                del_POG_y_tree=del_POG_y_tree;
-
-                                POG_y_tree_right=del_POG_y_tree+POG_y_poly_right;
-
-                        end
-
-                        if accuracy_get>=2
-                                accuracy_tree=sqrt((t_x-POG_x_tree_right)^2+(t_y-POG_y_tree_right)^2);
-                                results_row(4)=accuracy_tree;
-                        end
-    
+                        end 
+   
                         
                     end
                       
@@ -1397,7 +1391,7 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
                 
                 valid_header=findPgWithAssociatedDistance(stripped_header,dist_cell);
     
-                if length(valid_header)>=2
+                if length(valid_header)>2
                     model_valid_indexes=ismember(model_cell(:,1),valid_header);
                     updated_model_cell=model_cell(model_valid_indexes,:);
                     [row_new,~]=size(updated_model_cell);
@@ -1449,19 +1443,26 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
                         accuracy_poly=sqrt((POG_x_poly_left-t_x)^2+(POG_y_poly_left-t_y)^2);
                         results_row(2)=accuracy_poly;
 
-                        
+
                         %-----------Running Polynomial Interpolation Approcah
 
                         left_corners=curr_row(18:21); %Gets the calues for the right corners
 
                         %Weighted Functions in the x-direction
-                        poly_functions_x=reformatDataMultivariateInterp(poly_functions_array,header_x);
-                        weighted_poly_x=multivariateInterp(poly_functions,left_corners,closest_type,weighting_type,k,p);
+                        poly_functions_x=reformatDataMultivariateInterp(poly_functions_array,header_x,'left');
+                        weighted_poly_x=multivariateInterp(poly_functions_x,left_corners,closest_type,weighting_type,k,p);
 
-                        poly_functions_y=reformatDataMultivariateInterp(poly_functions_array,header_y);
-                        weighted_poly_y=multivariateInterp(poly_functions,left_corners,closest_type,weighting_type,k,p);
-
-
+                        poly_functions_y=reformatDataMultivariateInterp(poly_functions_array,header_y,'left');
+                        weighted_poly_y=multivariateInterp(poly_functions_y,left_corners,closest_type,weighting_type,k,p);
+                        if ~all(isnan(weighted_poly_x)) && ~all(isnan(weighted_poly_y))
+                        %Finding interpolation results
+                            POG_x_interp_left=findPOG(weighted_poly_x',predictors_x);
+                            POG_y_interp_left=findPOG(weighted_poly_y',predictors_x);
+    
+                            accuracy_interp_left=sqrt((POG_x_interp_left-t_x)^2+(POG_y_interp_left-t_y)^2);
+                            results_row(5)=accuracy_interp_left;
+                        end
+                        
                         %-----------<Running Max's approach>--------------
                         if ~isempty(PG_model_x) && ~isempty(PG_model_y)
    
@@ -1499,31 +1500,7 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
                             
                         end
 
-                        predictors=[del_corner_inner_x_right,del_corner_inner_y_right,del_corner_outer_x_right,del_corner_outer_y_right,...
-                            del_corner_inner_x_left,del_corner_inner_y_left,del_corner_outer_x_left,del_corner_outer_y_left];
-                        [predictors_x,predictors_y]=compensationPolynomial(predictors);
-                        %Compensating in x-direction
-                        accuracy_get=0;
-                        if length(comp_model_x_left)>0 && ~any(isnan(predictors_x))
-                                accuracy_get=accuracy_get+1;
-                                del_POG_x_tree=findCompensation(comp_model_x_left,predictors_x);
-                                    POG_x_tree_left=del_POG_x_tree+POG_x_poly_left;
-
-                        end
-
-                        if length(comp_model_y_left)>0 && ~any(isnan(predictors_y))
-                                accuracy_get=accuracy_get+1;
-                                del_POG_y_tree=findCompensation(comp_model_y_left,predictors_y);
-                                POG_y_tree_left=del_POG_y_tree+POG_y_poly_left;
-
-                        end
-
-                        if accuracy_get>=2
-                                accuracy_tree=sqrt((t_x-POG_x_tree_left)^2+(t_y-POG_y_tree_left)^2);
-                            
-                                results_row(5)=accuracy_tree;
-                        end
-                        
+                                      
     
                         
                     end
@@ -1543,9 +1520,9 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
 
         end
 
-        if exist('POG_x_tree_right','var') && exist('POG_y_tree_right','var') && exist('POG_x_tree_left','var') && exist('POG_y_tree_left','var') 
-            POG_combined_x=(POG_x_tree_right+POG_x_tree_left)/2;
-            POG_combined_y=(POG_y_tree_right+POG_y_tree_left)/2;
+        if exist('POG_x_interp_right','var') && exist('POG_y_interp_right','var') && exist('POG_x_interp_left','var') && exist('POG_y_interp_left','var') 
+            POG_combined_x=(POG_x_interp_right+POG_x_interp_left)/2;
+            POG_combined_y=(POG_y_interp_right+POG_y_interp_left)/2;
             accuracy_combined=sqrt((t_x-POG_combined_x)^2+(t_y-POG_combined_y)^2);
             results_row(6)=accuracy_combined;
 

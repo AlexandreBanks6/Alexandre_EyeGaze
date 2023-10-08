@@ -755,8 +755,10 @@ function [predictors_x,predictors_y]=compensationPolynomial(predictors)
 %predictors_y=[predictors(:,1:4),predictors(:,1).*predictors(:,2),predictors(:,3).*predictors(:,4)];
 %predictors_x=[predictors(:,1:4)];
 %predictors_y=[predictors(:,1:4)];
-predictors_x=[predictors(:,1:4)];
-predictors_y=[predictors(:,1:4)];
+%predictors_x=[predictors(:,1:4)];
+%predictors_y=[predictors(:,1:4)];
+predictors_x=predictors(:,[1,3]);
+predictors_y=predictors(:,[2,4]);
 
 end
 
