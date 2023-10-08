@@ -119,7 +119,7 @@ for m=[1:num_dir]
             data_mat=[eval_lift1_9dot;eval_lift2_9dot;eval_lift3_9dot];
             
             
-            [mean_accuracies,total_results]=evalModelsRegressComp(data_mat,model_poly,dist_cell,avg_corners,PG_Estimation_Models,max_compensation_models,poly_functions_array);
+            [mean_accuracies,total_results]=evalModelsRegressComp(data_mat,model_poly_init,dist_cell_init,avg_corners_init,PG_Estimation_Models,max_compensation_models,poly_functions_array);
             mean_acc_results=[mean_acc_results;mean_accuracies];
 
         end
@@ -1110,44 +1110,38 @@ function [d_calib,d_curr]=findScalingFactors(dist_cell,valid_header,overall_head
         dist_names={'d_12_left'};
 
     end
-    if exist('dist_names','var') 
-        dist_ind=ismember(dist_cell(:,1),dist_names);
-        if all(~dist_ind) %We don't have any corresponding distances in the calibration
-            d_calib=nan;
-            d_curr=nan;
-        else
-            dist_vec=cell2mat(dist_cell(dist_ind,2));
-            d_calib=mean(dist_vec);
-        
-            %Finding the current inter-glint distance
-        
-            valid_inds=ismember(overall_header,valid_header);
-            valid_pgs=pgs_only(valid_inds);
-            x_vals=[];
-            y_vals=[];
-            for i=[1:2:length(valid_pgs)]
-                x_vals=[x_vals,valid_pgs(i)];
-                y_vals=[y_vals,valid_pgs(i+1)];
-        
-            end
-            if length(x_vals)==2
-                d_curr=sqrt((y_vals(1)-y_vals(2)).^2+(x_vals(1)-x_vals(2)).^2);
-        
-            elseif length(x_vals)==3
-                diff_1=sqrt((y_vals(1)-y_vals(2)).^2+(x_vals(1)-x_vals(2)).^2);
-                diff_2=sqrt((y_vals(1)-y_vals(3)).^2+(x_vals(1)-x_vals(3)).^2);
-                diff_3=sqrt((y_vals(2)-y_vals(3)).^2+(x_vals(2)-x_vals(3)).^2);
-                d_curr=(diff_1+diff_2+diff_3)/3;
-            else
-                d_curr=nan;
-                d_calib=nan;
-        
-            end
-        end
-    else
-        d_curr=nan;
+    dist_ind=ismember(dist_cell(:,1),dist_names);
+    if all(~dist_ind) %We don't have any corresponding distances in the calibration
         d_calib=nan;
-
+        d_curr=nan;
+    else
+        dist_vec=cell2mat(dist_cell(dist_ind,2));
+        d_calib=mean(dist_vec);
+    
+        %Finding the current inter-glint distance
+    
+        valid_inds=ismember(overall_header,valid_header);
+        valid_pgs=pgs_only(valid_inds);
+        x_vals=[];
+        y_vals=[];
+        for i=[1:2:length(valid_pgs)]
+            x_vals=[x_vals,valid_pgs(i)];
+            y_vals=[y_vals,valid_pgs(i+1)];
+    
+        end
+        if length(x_vals)==2
+            d_curr=sqrt((y_vals(1)-y_vals(2)).^2+(x_vals(1)-x_vals(2)).^2);
+    
+        elseif length(x_vals)==3
+            diff_1=sqrt((y_vals(1)-y_vals(2)).^2+(x_vals(1)-x_vals(2)).^2);
+            diff_2=sqrt((y_vals(1)-y_vals(3)).^2+(x_vals(1)-x_vals(3)).^2);
+            diff_3=sqrt((y_vals(2)-y_vals(3)).^2+(x_vals(2)-x_vals(3)).^2);
+            d_curr=(diff_1+diff_2+diff_3)/3;
+        else
+            d_curr=nan;
+            d_calib=nan;
+    
+        end
     end
     
 
@@ -1202,7 +1196,7 @@ function [mean_accuracies,total_results]=evalModelsRegressComp(data_mat,model_ce
 
     total_results=evalAccuracyComp(model_cell,reformatted_data,right_headers,left_headers,check_model_right,check_model_left,dist_cell,avg_corners,PG_Estimation_Models,max_compensation_models,poly_functions_array);
 
-    mean_accuracies=mean(total_results(:,1:9),1,'omitnan');
+    mean_accuracies=mean(total_results(:,[1:9]),1,'omitnan');
     
 
 
@@ -1217,7 +1211,7 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
     frame_no, pg0_rightx, pg0_righty, ..., pg2_rightx, pg2_righty, pg0_leftx, pg0_lefty,..., pg2_leftx, pg2_lefty,
     right_inner_x,right_inner_y,right_outer_x,right_outer_y,left_inner_x,left_inner_y,left_outer_x,left_outer_y,
     target_x,target_y, pupil_right_x, pupil_right_y,
-    pupil_left_x,pupil_left_y,inner_corner_distance
+    pupil_left_x,pupil_left_y
 
     model_cell: contains the original polynomial model
     dist_cell: contains the distance between glints at calibration
@@ -1240,7 +1234,7 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
     [row_n,~]=size(reformatted_data);
     total_results=[];
     for i=[1:row_n]
-        results_row=nan(1,12);
+        results_row=nan(1,11);
         curr_row=reformatted_data(i,:); %Current data row
 
         t_x=curr_row(22);    %Targets
@@ -1327,7 +1321,7 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
                         %Finding interpolation results
                         if ~all(isnan(weighted_poly_x)) && ~all(isnan(weighted_poly_y))
                             POG_x_interp_right=findPOG(weighted_poly_x',predictors_x);
-                            POG_y_interp_right=findPOG(weighted_poly_y',predictors_x);
+                            POG_y_interp_right=findPOG(weighted_poly_y',predictors_y);
                             
                             accuracy_interp_right=sqrt((POG_x_interp_right-t_x)^2+(POG_y_interp_right-t_y)^2);
                             results_row(4)=accuracy_interp_right;
@@ -1457,7 +1451,7 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
                         if ~all(isnan(weighted_poly_x)) && ~all(isnan(weighted_poly_y))
                         %Finding interpolation results
                             POG_x_interp_left=findPOG(weighted_poly_x',predictors_x);
-                            POG_y_interp_left=findPOG(weighted_poly_y',predictors_x);
+                            POG_y_interp_left=findPOG(weighted_poly_y',predictors_y);
     
                             accuracy_interp_left=sqrt((POG_x_interp_left-t_x)^2+(POG_y_interp_left-t_y)^2);
                             results_row(5)=accuracy_interp_left;
@@ -1569,8 +1563,7 @@ function reformatted_data=reformatData(eval_data)
         glintspupils_left(:,8)-glintspupils_left(:,2),...
         eval_data(:,50:57),...
         eval_data(:,27),eval_data(:,28),glintspupils_right(:,1),glintspupils_right(:,2),...
-        glintspupils_left(:,1),glintspupils_left(:,2),sqrt((eval_data(:,50)-eval_data(:,54)).^2+...
-        (eval_data(:,51)-eval_data(:,55)).^2)];%Adds the inner corner distance
+        glintspupils_left(:,1),glintspupils_left(:,2)];%Adds the pupil positions
 
 end
 

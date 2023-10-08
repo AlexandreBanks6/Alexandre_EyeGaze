@@ -130,6 +130,8 @@ for m=[1:num_dir]
 
 end
 
+mean_acc_total=mean(mean_acc_results,1,'omitnan');
+disp(mean_acc_total);
 
 
 
@@ -1108,7 +1110,6 @@ function [d_calib,d_curr]=findScalingFactors(dist_cell,valid_header,overall_head
         dist_names={'d_12_left'};
 
     end
-    exist('POG_x_poly_right','var') 
     dist_ind=ismember(dist_cell(:,1),dist_names);
     if all(~dist_ind) %We don't have any corresponding distances in the calibration
         d_calib=nan;
@@ -1195,7 +1196,7 @@ function [mean_accuracies,total_results]=evalModelsRegressComp(data_mat,model_ce
 
     total_results=evalAccuracyComp(model_cell,reformatted_data,right_headers,left_headers,check_model_right,check_model_left,dist_cell,avg_corners,PG_Estimation_Models,max_compensation_models,poly_functions_array);
 
-    mean_accuracies=mean(total_results(:,1:9),1,'omitnan');
+    mean_accuracies=mean(total_results(:,[1:9]),1,'omitnan');
     
 
 
@@ -1210,7 +1211,7 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
     frame_no, pg0_rightx, pg0_righty, ..., pg2_rightx, pg2_righty, pg0_leftx, pg0_lefty,..., pg2_leftx, pg2_lefty,
     right_inner_x,right_inner_y,right_outer_x,right_outer_y,left_inner_x,left_inner_y,left_outer_x,left_outer_y,
     target_x,target_y, pupil_right_x, pupil_right_y,
-    pupil_left_x,pupil_left_y,inner_corner_distance
+    pupil_left_x,pupil_left_y
 
     model_cell: contains the original polynomial model
     dist_cell: contains the distance between glints at calibration
@@ -1233,7 +1234,7 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
     [row_n,~]=size(reformatted_data);
     total_results=[];
     for i=[1:row_n]
-        results_row=nan(1,12);
+        results_row=nan(1,11);
         curr_row=reformatted_data(i,:); %Current data row
 
         t_x=curr_row(22);    %Targets
@@ -1257,7 +1258,7 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
                 
                 valid_header=findPgWithAssociatedDistance(stripped_header,dist_cell);
     
-                if length(valid_header)>=2
+                if length(valid_header)>2
                     model_valid_indexes=ismember(model_cell(:,1),valid_header);
                     updated_model_cell=model_cell(model_valid_indexes,:);
                     [row_new,~]=size(updated_model_cell);
@@ -1318,11 +1319,13 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
                         weighted_poly_y=multivariateInterp(poly_functions_y,right_corners,closest_type,weighting_type,k,p);
 
                         %Finding interpolation results
-                        POG_x_interp_right=findPOG(weighted_poly_x',predictors_x);
-                        POG_y_interp_right=findPOG(weighted_poly_y',predictors_x);
-                        
-                        accuracy_interp_right=sqrt((POG_x_interp_right-t_x)^2+(POG_y_interp_right-t_y)^2);
-                        results_row(4)=accuracy_interp_right;
+                        if ~all(isnan(weighted_poly_x)) && ~all(isnan(weighted_poly_y))
+                            POG_x_interp_right=findPOG(weighted_poly_x',predictors_x);
+                            POG_y_interp_right=findPOG(weighted_poly_y',predictors_y);
+                            
+                            accuracy_interp_right=sqrt((POG_x_interp_right-t_x)^2+(POG_y_interp_right-t_y)^2);
+                            results_row(4)=accuracy_interp_right;
+                        end
 
                         %-----------Running Max's approach
                         if ~isempty(PG_model_x) && ~isempty(PG_model_y)
@@ -1382,7 +1385,7 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
                 
                 valid_header=findPgWithAssociatedDistance(stripped_header,dist_cell);
     
-                if length(valid_header)>=2
+                if length(valid_header)>2
                     model_valid_indexes=ismember(model_cell(:,1),valid_header);
                     updated_model_cell=model_cell(model_valid_indexes,:);
                     [row_new,~]=size(updated_model_cell);
@@ -1445,13 +1448,14 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
 
                         poly_functions_y=reformatDataMultivariateInterp(poly_functions_array,header_y,'left');
                         weighted_poly_y=multivariateInterp(poly_functions_y,left_corners,closest_type,weighting_type,k,p);
-                        
+                        if ~all(isnan(weighted_poly_x)) && ~all(isnan(weighted_poly_y))
                         %Finding interpolation results
-                        POG_x_interp_left=findPOG(weighted_poly_x',predictors_x);
-                        POG_y_interp_left=findPOG(weighted_poly_y',predictors_x);
-
-                        accuracy_interp_left=sqrt((POG_x_interp_left-t_x)^2+(POG_y_interp_left-t_y)^2);
-                        results_row(5)=accuracy_interp_left;
+                            POG_x_interp_left=findPOG(weighted_poly_x',predictors_x);
+                            POG_y_interp_left=findPOG(weighted_poly_y',predictors_y);
+    
+                            accuracy_interp_left=sqrt((POG_x_interp_left-t_x)^2+(POG_y_interp_left-t_y)^2);
+                            results_row(5)=accuracy_interp_left;
+                        end
                         
                         %-----------<Running Max's approach>--------------
                         if ~isempty(PG_model_x) && ~isempty(PG_model_y)
@@ -1559,8 +1563,7 @@ function reformatted_data=reformatData(eval_data)
         glintspupils_left(:,8)-glintspupils_left(:,2),...
         eval_data(:,50:57),...
         eval_data(:,27),eval_data(:,28),glintspupils_right(:,1),glintspupils_right(:,2),...
-        glintspupils_left(:,1),glintspupils_left(:,2),sqrt((eval_data(:,50)-eval_data(:,54)).^2+...
-        (eval_data(:,51)-eval_data(:,55)).^2)];%Adds the inner corner distance
+        glintspupils_left(:,1),glintspupils_left(:,2)];%Adds the pupil positions
 
 end
 

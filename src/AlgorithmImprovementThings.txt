@@ -1,6 +1,8 @@
 Things to try:
 - Look into dist cell, how it corresponds to the calibration functions (either recording distance for each polynomial
 and then weighting the distance as well, or scaling the PG vectors to match the initial polynomial)
+- Look into which PG vector we pick for the weighting function (maybe another pg vector is better for the weighting function)
+- Can also maybe use multiple PG vectors and take average of estimated POG
 - Filter the compensated POG
 - Take the last 80% of PG vectors for every target (for training)
 - Take the 1-dot data from 1second upwards
