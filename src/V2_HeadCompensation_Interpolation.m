@@ -716,9 +716,7 @@ trainCell={};
     %-----------------<Rescaling the PG vectors here>---------------------
     trainCell=rescalePGVectorsForInterp(dist_cell,dist_cell_calib,trainCell);
 
-
-
-    
+    %Getting rid of nan values    
     for i=[1:length(trainCell)]
 
         old_train_cell=trainCell{i}{2};
@@ -798,39 +796,66 @@ Outputs
 %}
     train_cell_pgtypes=cell(0);
     for i=[1:length(trainCell_old)]
-        train_cell_pgtypes{i}=trainCell_old{i}(1);
-    
+        train_cell_pgtypes{i}=trainCell_old{i}(1); 
     
     
     end
-    dist_cell_calib_header=dist_cell_calib{:,1};
-    dist_cell_curr=dist_cell_calib{:,2};
+    trainCell=cell(0);
+    for i=[1:length(trainCell_old)]
+        pg_type=trainCell_old{i}(1);
+        old_pg_data=trainCell_old{i}{1,2};
+        [row_n,~]=size(old_pg_data);
 
-    %Finding distance types that are possible from the 
-    %Right
-    if any(ismember(valid_header,'pg0_right_x')) && any(ismember(valid_header,'pg1_right_x')) && any(ismember(valid_header,'pg2_right_x'))
-        dist_names={'d_01_right','d_02_right','d_12_right'};
-    elseif any(ismember(valid_header,'pg0_right_x')) && any(ismember(valid_header,'pg1_right_x'))
-        dist_names={'d_01_right'};
-    elseif any(ismember(valid_header,'pg0_right_x')) && any(ismember(valid_header,'pg2_right_x'))
-        dist_names={'d_02_right'};
-    elseif any(ismember(valid_header,'pg1_right_x')) && any(ismember(valid_header,'pg2_right_x'))
-        dist_names={'d_12_right'};
+        %Getting the possible dist types
+        if strcmp(pg_type,'pg0_right') || strcmp(pg_type,'pg1_right') || strcmp(pg_type,'pg2_right')
+            dist_names={'d_01_right','d_02_right','d_12_right'};
+        elseif strcmp(pg_type,'pg0_left') || strcmp(pg_type,'pg1_left') || strcmp(pg_type,'pg2_left')
+            dist_names={'d_01_left','d_02_left','d_12_left'};
+        end
+        dist_curr_ind=ismember(dist_cell(:,1),dist_names);
+        dist_calib_ind=ismember(dist_cell_calib(:,1),dist_names);
+        %Scaling the pg vectors
+        new_pg_data=[];
+        for j=[1:row_n]
 
-    %Left
-    elseif any(ismember(valid_header,'pg0_left_x')) && any(ismember(valid_header,'pg1_left_x')) && any(ismember(valid_header,'pg2_left_x'))
-        dist_names={'d_01_left','d_02_left','d_12_left'};
-    elseif any(ismember(valid_header,'pg0_left_x')) && any(ismember(valid_header,'pg1_left_x'))
-        dist_names={'d_01_left'};
-    elseif any(ismember(valid_header,'pg0_left_x')) && any(ismember(valid_header,'pg2_left_x'))
-        dist_names={'d_02_left'};
-    elseif any(ismember(valid_header,'pg1_left_x')) && any(ismember(valid_header,'pg2_left_x'))
-        dist_names={'d_12_left'};
+            %Getting distance between current vectors
+            dist_curr_extracted=dist_cell(dist_curr_ind,2);
+            dist_curr=[];
+            for m=[1:length(dist_curr_extracted)]
+                dist_curr=[dist_curr,dist_curr_extracted{m}(j)];
+            end
+
+            %Getting distance between calibrated vectors
+            dist_calib=cell2mat(dist_cell_calib(dist_calib_ind,2));
+
+            %Getting rid of nan values
+            nan_inds_curr=~isnan(dist_curr);
+            nan_inds_calib=~isnan(dist_calib);
+
+            joint_inds=nan_inds_curr&nan_inds_calib';
+
+            dist_curr=dist_curr(joint_inds);
+            dist_calib=dist_calib(joint_inds);
+            
+            
+            %Rescaling the train_cell data
+            if sum(joint_inds)>=1 %We have distances that we can scale it with
+                scale_factor=mean(dist_calib)/mean(dist_curr);
+                new_pg_data=[new_pg_data;scale_factor.*old_pg_data(j,[1:2]),old_pg_data(j,[3:6])];
+            else
+                new_pg_data=[new_pg_data;nan(1,2),old_pg_data(j,[3:6])];
+
+            end
+            
+                       
+
+        end
+
+        trainCell{i,1}=pg_type;
+        trainCell{i,2}=new_pg_data;
+
 
     end
-
-
-
 
 
 
