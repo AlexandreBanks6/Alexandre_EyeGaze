@@ -1,6 +1,9 @@
 Things to try:
+- Different k/p values /
 - Look into dist cell, how it corresponds to the calibration functions (either recording distance for each polynomial
 and then weighting the distance as well, or scaling the PG vectors to match the initial polynomial)
+	- Scale by the mean pg distance for the calibration
+	- Try scaling each pg by it's individual pg (do this first)
 - Look into which PG vector we pick for the weighting function (maybe another pg vector is better for the weighting function)
 - Can also maybe use multiple PG vectors and take average of estimated POG
 - Filter the compensated POG

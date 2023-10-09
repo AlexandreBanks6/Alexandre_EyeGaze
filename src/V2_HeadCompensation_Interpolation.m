@@ -85,7 +85,7 @@ for m=[1:num_dir]
                 calib_data=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift',num2str(i),'_8point.csv']);
                 check_calib=checkDetection(calib_data,CALIB_THRESHOLD);
                 if (check_calib==true)
-                    [train_cell,dist_cell,avg_corners]=getRegressionData(calib_data,CALIB_THRESHOLD); %Also gets the average eye corner location at the calibration
+                    [train_cell,dist_cell,avg_corners]=getRegressionDataForInterp(calib_data,CALIB_THRESHOLD,dist_cell_init); %Also gets the average eye corner location at the calibration
                     if length(dist_cell)==0
                         continue;
                     end
@@ -216,6 +216,9 @@ trainCell={};
         end
 
     end
+
+
+
     for i=[1:length(trainCell)]
 
         old_train_cell=trainCell{i}{2};
@@ -601,17 +604,23 @@ function [new_calib_corners,new_calib_functions,new_curr_corners,bool_check]=che
         end
 
     elseif ~isnan(curr_corners(1)) && isnan(curr_corners(3)) %We have the current inner corner, but not the outer
-            joint_notnan=inds_innercorners_notnan&inds_functions_notnan; %Indexes where we have only the function
-            new_calib_functions=calibrated_functions(joint_notnan,:);
-            new_calib_corners=calibrated_corners(joint_notnan,[1:2]);
-            new_curr_corners=curr_corners([1:2]);
-            bool_check=true;
+            if sum(inds_innercorners_notnan&inds_functions_notnan)>=k %We have enough inner corners from our calibrated corners
+                joint_notnan=inds_innercorners_notnan&inds_functions_notnan; %Indexes where we have only the function
+                new_calib_functions=calibrated_functions(joint_notnan,:);
+                new_calib_corners=calibrated_corners(joint_notnan,[1:2]);
+                new_curr_corners=curr_corners([1:2]);
+                bool_check=true;
+            end
     elseif isnan(curr_corners(1)) && ~isnan(curr_corners(3)) %We don't have current inner corner, but we have the current outer
+            
+        if sum(inds_outercorners_notnan&inds_functions_notnan)>=k %We have enough outer corners from our calibrated corners
             joint_notnan=inds_outercorners_notnan&inds_functions_notnan; %Indexes where we have only the function
             new_calib_functions=calibrated_functions(joint_notnan,:);
             new_calib_corners=calibrated_corners(joint_notnan,[3:4]);
             new_curr_corners=curr_corners([3:4]);
             bool_check=true;
+        end
+
     end
 
 end
@@ -660,6 +669,173 @@ col4= number of calibration points used
 
 
 end
+
+
+function [trainCell,dist_cell,avg_corners]=getRegressionDataForInterp(data_matrix,thresh,dist_cell_calib)
+%Returns trainCell which has a cell for each of the training types, as well
+%as dist_cell which has up to six cells for the distance between each of
+%the pg vectors for the left and right eyes such that:
+%d_01_right,d_02_right,d_12_right,d_01_left,d_02_left,d_12_left
+
+%Also returns the average corner positions as a cell such that:
+%right_inner_x,right_inner_y,right_outer_x,right_outer_y,left_inner_x,...
+
+
+pg_types={'pg0_left','pg1_left','pg2_left','pg0_right','pg1_right','pg2_right'};
+trainCell={};
+
+    for i=[1:length(pg_types)]
+        trainMatrix=getIndividualRegressionData(data_matrix,pg_types{i},thresh);
+        if all(isnan(trainMatrix))
+            continue
+    
+        else
+            trainCell{end+1}={pg_types{i},trainMatrix};
+        end
+           
+    
+    
+    end
+    
+    %Finding inter-glint distance
+    dist_header={'d_01_right','d_02_right','d_12_right','d_01_left','d_02_left','d_12_left'};
+    cell_count=1;
+    for i=[1:length(dist_header)]
+        dist=findPgDistanceForInterp(dist_header{i},trainCell);
+        if all(isnan(dist))
+            continue    
+        else
+            dist_cell{cell_count,1}=dist_header{i};
+            dist_cell{cell_count,2}=dist;
+            cell_count=cell_count+1;
+
+        end
+
+    end
+
+    %-----------------<Rescaling the PG vectors here>---------------------
+    trainCell=rescalePGVectorsForInterp(dist_cell,dist_cell_calib,trainCell);
+
+
+
+    
+    for i=[1:length(trainCell)]
+
+        old_train_cell=trainCell{i}{2};
+        trainCell{i}{2}=old_train_cell(~isnan(old_train_cell(:,1)),:);
+
+
+    end
+
+    if cell_count==1
+        dist_cell=cell(0);
+    end
+
+
+    %Finding the average corner locations
+    corner_data=data_matrix(:,50:57);
+    %Change the corner locations to be in 640x480 not the 1280x480 so
+    %corner_data(:,1)=corner_data(:,1);
+    %corner_data(:,3)=corner_data(:,3);
+    avg_corners=mean(corner_data,1,'omitnan');
+    
+end
+
+function [dist]=findPgDistanceForInterp(distance_type,train_cell)
+    dist_header={'d_01_right','d_02_right','d_12_right','d_01_left','d_02_left','d_12_left'};
+    switch distance_type
+        case dist_header{1}
+            search_pgs={'pg0_right','pg1_right'};
+        case dist_header{2}
+            search_pgs={'pg0_right','pg2_right'};
+        case dist_header{3}
+            search_pgs={'pg1_right','pg2_right'};
+        case dist_header{4}
+            search_pgs={'pg0_left','pg1_left'};
+        case dist_header{5}
+            search_pgs={'pg0_left','pg2_left'};
+        case dist_header{6}
+            search_pgs={'pg1_left','pg2_left'};
+    end
+
+    ind_2=NaN;
+    ind_1=NaN;
+
+    for i=[1:length(train_cell)]
+        if strcmp(train_cell{i}(1),search_pgs(1))
+            ind_1=i;
+        end
+        if strcmp(train_cell{i}(1),search_pgs(2))
+            ind_2=i;
+        end
+
+    end
+
+    if isnan(ind_1)||isnan(ind_2)
+        dist=NaN;
+
+    else
+        dist=sqrt((train_cell{ind_2}{2}(:,1)-train_cell{ind_1}{2}(:,1)).^2+(train_cell{ind_2}{2}(:,2)-train_cell{ind_1}{2}(:,2)).^2);
+    end
+    
+
+
+
+end
+
+function [trainCell]=rescalePGVectorsForInterp(dist_cell,dist_cell_calib,trainCell_old)
+%{
+Inputs 
+    dist_cell: cell which contains the distance between vectors for the
+    current 8-point calibration
+    dist_cell_calib: cell which contains the distance between vectors for
+    the initial 8-point calibration
+    trainCell: cell with the training data
+Outputs
+    trainCell: rescaled training data based off of inter-glint distance
+    between interpolation calibrations and initial calibration
+
+%}
+    train_cell_pgtypes=cell(0);
+    for i=[1:length(trainCell_old)]
+        train_cell_pgtypes{i}=trainCell_old{i}(1);
+    
+    
+    
+    end
+    dist_cell_calib_header=dist_cell_calib{:,1};
+    dist_cell_curr=dist_cell_calib{:,2};
+
+    %Finding distance types that are possible from the 
+    %Right
+    if any(ismember(valid_header,'pg0_right_x')) && any(ismember(valid_header,'pg1_right_x')) && any(ismember(valid_header,'pg2_right_x'))
+        dist_names={'d_01_right','d_02_right','d_12_right'};
+    elseif any(ismember(valid_header,'pg0_right_x')) && any(ismember(valid_header,'pg1_right_x'))
+        dist_names={'d_01_right'};
+    elseif any(ismember(valid_header,'pg0_right_x')) && any(ismember(valid_header,'pg2_right_x'))
+        dist_names={'d_02_right'};
+    elseif any(ismember(valid_header,'pg1_right_x')) && any(ismember(valid_header,'pg2_right_x'))
+        dist_names={'d_12_right'};
+
+    %Left
+    elseif any(ismember(valid_header,'pg0_left_x')) && any(ismember(valid_header,'pg1_left_x')) && any(ismember(valid_header,'pg2_left_x'))
+        dist_names={'d_01_left','d_02_left','d_12_left'};
+    elseif any(ismember(valid_header,'pg0_left_x')) && any(ismember(valid_header,'pg1_left_x'))
+        dist_names={'d_01_left'};
+    elseif any(ismember(valid_header,'pg0_left_x')) && any(ismember(valid_header,'pg2_left_x'))
+        dist_names={'d_02_left'};
+    elseif any(ismember(valid_header,'pg1_left_x')) && any(ismember(valid_header,'pg2_left_x'))
+        dist_names={'d_12_left'};
+
+    end
+
+
+
+
+
+
+end
+
 
 %----------------<Max Head Compensation Functions>--------------------
 function [predictors_x,predictors_y]=maxPGPolynomial(predictors)
