@@ -812,15 +812,8 @@ Outputs
         elseif strcmp(pg_type,'pg0_left') || strcmp(pg_type,'pg1_left') || strcmp(pg_type,'pg2_left')
             dist_names={'d_01_left','d_02_left','d_12_left'};
         end
-        are_names_curr=ismember(dist_names,dist_cell(:,1));
-        are_names_calib=ismember(dist_names,dist_cell_calib(:,1));
-        joint_names_inds=are_names_curr&are_names_calib;
-        dist_names=dist_names(joint_names_inds);
         dist_curr_ind=ismember(dist_cell(:,1),dist_names);
         dist_calib_ind=ismember(dist_cell_calib(:,1),dist_names);
-
-
-
         %Scaling the pg vectors
         new_pg_data=[];
         for j=[1:row_n]
@@ -835,20 +828,13 @@ Outputs
             %Getting distance between calibrated vectors
             dist_calib=cell2mat(dist_cell_calib(dist_calib_ind,2));
 
-
             %Getting rid of nan values
             nan_inds_curr=~isnan(dist_curr);
             nan_inds_calib=~isnan(dist_calib);
         
             joint_inds=nan_inds_curr&nan_inds_calib';
-            %size_joint=['joint: ',num2str(size(joint_inds))];
-            %size_curr=['curr: ',num2str(size(dist_curr))];
-            %size_calib=['calib: ',num2str(size(dist_calib))];
-            %disp(size_joint);
-            %disp(size_curr);
-            %disp(size_calib);
-            %[row_calib,col_calib]=size(dist_calib);
-            %size_dist_calib=row_calib*col_calib;
+            size_joint=['size '];
+            disp()
             dist_curr=dist_curr(joint_inds);
             dist_calib=dist_calib(joint_inds);
             
