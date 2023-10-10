@@ -408,6 +408,8 @@ function [rmse_x,rmse_y,b_x,b_y]=customRegressor(train_data)
     %The tuning constant is set to 4.685 for bisquare
     REGRESS_TUNE=4.2;
     REGRESS_FUNC='huber';
+    train_data=cropTrainingData(train_data);
+
     pg_x=train_data(:,1);
     pg_y=train_data(:,2);
 
@@ -432,6 +434,36 @@ function [rmse_x,rmse_y,b_x,b_y]=customRegressor(train_data)
 
     rmse_x=sqrt(mean(residual_x.^2));
     rmse_y=sqrt(mean(residual_y.^2));
+end
+
+function train_data_new=cropTrainingData(train_data)
+    %Only keeps a final percentage (set by PERCENT_TARGET) of training points for each target
+    %Input: 
+    % train_data: col1=pg_x, col2=pg_y, col3=target_x, col4=target_y
+    PERCENT_TARGET=0.8;
+    train_data_new=[];
+    [row_n,~]=size(train_data);
+    old_tx=train_data(1,3);
+    old_ty=train_data(1,4);
+    last_switch_ind=1;
+    for i=[2:row_n]
+        %Looks for a change in the target
+        if train_data(i,3)~=old_tx || train_data(i,4)~=old_ty %The target switched locations and we update the new training data and tracking variables
+            old_tx=train_data(i,3);
+            old_ty=train_data(i,4);
+
+            curr_data_length=i-last_switch_ind;
+            plus_data_ind=floor((1-PERCENT_TARGET)*curr_data_length);
+            new_data=train_data([last_switch_ind+plus_data_ind:i-1],[1:4]);
+            train_data_new=[train_data_new;new_data];
+            last_switch_ind=i;
+
+        end
+    
+    
+    end
+
+
 end
 
 %------------------<Multivariable Interpolation Functions>-----------------

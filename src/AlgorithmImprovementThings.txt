@@ -16,11 +16,12 @@ and then weighting the distance as well, or scaling the PG vectors to match the 
 
 New Optimization Things:
 1. Interpolation Technique (do this first)
-	- Get best interpolation weighting function and k/p values /
-	- Filtering the POG of each eye /
+	- Get best interpolation weighting function and k/p values / (found optimal)
+	- Filtering the POG of each eye / (doesn't improve)
 
-	- Try picking PG vector with risiduals /
-	- Taking the last 80% of targets for training
+	- Try picking PG vector with risiduals / (improves interpolation when using IDW, makes gaussian interpolation and other approaches worse)
+	- Taking the last 80% of targets for training (last 80% of each target) / (doesn't improve)
+
 	- Trying to fix the combined POG accuracy loss (options include: weighted averaging using
 	confidence scores (maybe weighting by the standard deviation of the last x-predictions), have
 	a kalman filter to dynamically fuse the right and left eye predictions, use a machine learning
@@ -28,8 +29,9 @@ New Optimization Things:
 	- Using multiple PG vectors and then averaging them
 
 2. Compensation Technique (do this next)
-	- Take 1-dot data from 1-second onwards
 	- Am I scaling the PG vectors before training?
+	- Take 1-dot data for 20% to 90% of data
+
 
 
 	- Try picking PG vector with risiduals
