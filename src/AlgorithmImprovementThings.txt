@@ -16,8 +16,8 @@ and then weighting the distance as well, or scaling the PG vectors to match the 
 
 New Optimization Things:
 1. Interpolation Technique (do this first)
-	- Get best interpolation weighting function and k/p values
-	- Filtering the POG of each eye
+	- Get best interpolation weighting function and k/p values /
+	- Filtering the POG of each eye /
 
 	- Try picking PG vector with risiduals
 	- Taking the last 80% of targets for training

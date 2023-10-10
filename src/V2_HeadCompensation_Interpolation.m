@@ -436,7 +436,7 @@ end
 
 %------------------<Multivariable Interpolation Functions>-----------------
 
-function weighted_poly=multivariateInterp(poly_functions,curr_corners,closest_type,weighting_type,k,p)
+function weighted_poly=multivariateInterp(poly_functions,curr_corners,closest_type,weighting_type,k,p,sigma)
 %{
 Description: Performs multivariate inerpolation where we are given the
 calibrated polynomials f1...fn, and the corresponding inner/outer eye
@@ -474,17 +474,18 @@ p: order of the exponent term in inverse distance weighting function
     %Extracting values
     calibrated_functions=cell2mat(poly_functions(:,1)); %Matrix where each row are the coefficients of the fitted polynomial
     calibrated_corners=cell2mat(poly_functions(:,2));
+    rmse_errors=cell2mat(poly_functions(:,3));
     
     %Check for nan values in current inner/outer corner locations
     %if only one corner is currently found (other one is nan), only use that same corresponding
     %corner from the calibrated corner locations
     %We also check for nan values in the calibrated corner locations 
     
-    [calibrated_corners,calibrated_functions,curr_corners,bool_check]=checkCalibratedCorners(calibrated_corners,calibrated_functions,curr_corners,k);
+    [calibrated_corners,calibrated_functions,curr_corners,rmse_errors,bool_check]=checkCalibratedCorners(calibrated_corners,calibrated_functions,curr_corners,rmse_errors,k);
     if bool_check %We have an acceptable number of calibration corner locations
 
         %Finding closesness between current corners and calibrated corners 
-        score=closenessScore(calibrated_corners,curr_corners,closest_type);
+        score=closenessScore(calibrated_corners,curr_corners,rmse_errors,closest_type);
         
         %Arrange scores from lowest to highest (highest means further away)
         [ascend_scores,inds]=sort(score);
@@ -496,7 +497,7 @@ p: order of the exponent term in inverse distance weighting function
         k_corners=ascend_corners(1:k,:);
         
 
-        weights=weightingFunction(k_corners,curr_corners,weighting_type,p);
+        weights=weightingFunction(k_corners,curr_corners,weighting_type,p,sigma);
         
         %we multiply every row by the corresponding weight (row 1*weights(1)+row
         %2*weights(2) and final polynomial weights are the sum along the columns
@@ -516,7 +517,7 @@ p: order of the exponent term in inverse distance weighting function
 
 end
 
-function score=closenessScore(calibrated_corners,current_corners,closest_type)
+function score=closenessScore(calibrated_corners,current_corners,rmse_errors,closest_type)
     %input: calibrated_corners which is a matrix with each row corresponding to
     %the corner locations (inner_x, inner_y, outer_x, outer_y)for a given polynomial
     
@@ -528,6 +529,8 @@ function score=closenessScore(calibrated_corners,current_corners,closest_type)
     switch closest_type
         case 'euclidean'
             score=sqrt(sum((calibrated_corners-current_corners).^2,2));
+        case 'rmse_error'
+            score=rmse_errors;
         otherwise
             error('Incorrect Closeness Score Passed')
     
@@ -538,13 +541,15 @@ function score=closenessScore(calibrated_corners,current_corners,closest_type)
 end
 
 
-function weights=weightingFunction(calibrated_corners,current_corners,weighting_type,p)
+function weights=weightingFunction(calibrated_corners,current_corners,weighting_type,p,sigma)
     %input: top 'k' calibrated_corners which is a matrix with each row corresponding to
     %the corner locations (inner_x, inner_y, outer_x, outer_y)for a given polynomial
     %current_corners: which is the location of the current eye corners
     %weighting_type: 'idw' for inverse distance weighting
     %p is a power exponetial that controls weight decay, typically left at
     %1
+    %sigma is a positive parameter controling the influence of calibration
+    %points (smaller sigma makes the weight more localized)
     %Also normalizes the weights to sum to 1
 
     %output: the corresponding weights found from the weighting metric
@@ -552,7 +557,8 @@ function weights=weightingFunction(calibrated_corners,current_corners,weighting_
     switch weighting_type
         case 'idw'
             weights=1./(sqrt(sum((calibrated_corners-current_corners).^2,2)).^p);
-            
+        case 'gaussian'
+            weights=exp(-((sqrt(sum((calibrated_corners-current_corners).^2,2))/sigma).^2));
         otherwise
             error('incorrect weighting function type');
             
@@ -569,7 +575,7 @@ function weights=weightingFunction(calibrated_corners,current_corners,weighting_
 end
 
 
-function [new_calib_corners,new_calib_functions,new_curr_corners,bool_check]=checkCalibratedCorners(calibrated_corners,calibrated_functions,curr_corners,k)
+function [new_calib_corners,new_calib_functions,new_curr_corners,rmse_error_new,bool_check]=checkCalibratedCorners(calibrated_corners,calibrated_functions,curr_corners,rmse_errors,k)
 
     inds_innercorners_notnan=~isnan(calibrated_corners(:,1)); %Gets row index where inner corners are not nan
     inds_outercorners_notnan=~isnan(calibrated_corners(:,3)); %Gets row index where outer corners are not nan
@@ -579,18 +585,21 @@ function [new_calib_corners,new_calib_functions,new_curr_corners,bool_check]=che
     new_calib_corners=nan;
     new_calib_functions=nan;
     new_curr_corners=nan;
+    rmse_error_new=nan;
     bool_check=false;
 
     if ~isnan(curr_corners(1)) && ~isnan(curr_corners(3)) %We have both inner and outer current eye corners
         if sum(inds_innercorners_notnan&inds_functions_notnan)>=k && sum(inds_outercorners_notnan&inds_functions_notnan)>=k %We have enough calibrated for both corners
             joint_notnan=inds_innercorners_notnan&inds_outercorners_notnan&inds_functions_notnan; %Indexes where we have only the function
             new_calib_functions=calibrated_functions(joint_notnan,:);
+            rmse_error_new=rmse_errors(joint_notnan);
             new_calib_corners=calibrated_corners(joint_notnan,:);
             new_curr_corners=curr_corners;
             bool_check=true;
         elseif sum(inds_innercorners_notnan&inds_functions_notnan)>=k %We have enough inner corners from our calibrated corners
             joint_notnan=inds_innercorners_notnan&inds_functions_notnan; %Indexes where we have only the function
             new_calib_functions=calibrated_functions(joint_notnan,:);
+            rmse_error_new=rmse_errors(joint_notnan);
             new_calib_corners=calibrated_corners(joint_notnan,[1:2]);
             new_curr_corners=curr_corners([1:2]);
             bool_check=true;
@@ -598,6 +607,7 @@ function [new_calib_corners,new_calib_functions,new_curr_corners,bool_check]=che
         elseif sum(inds_outercorners_notnan&inds_functions_notnan)>=k %We have enough outer corners from our calibrated corners
             joint_notnan=inds_outercorners_notnan&inds_functions_notnan; %Indexes where we have only the function
             new_calib_functions=calibrated_functions(joint_notnan,:);
+            rmse_error_new=rmse_errors(joint_notnan);
             new_calib_corners=calibrated_corners(joint_notnan,[3:4]);
             new_curr_corners=curr_corners([3:4]);
             bool_check=true;
@@ -607,6 +617,7 @@ function [new_calib_corners,new_calib_functions,new_curr_corners,bool_check]=che
             if sum(inds_innercorners_notnan&inds_functions_notnan)>=k %We have enough inner corners from our calibrated corners
                 joint_notnan=inds_innercorners_notnan&inds_functions_notnan; %Indexes where we have only the function
                 new_calib_functions=calibrated_functions(joint_notnan,:);
+                rmse_error_new=rmse_errors(joint_notnan);
                 new_calib_corners=calibrated_corners(joint_notnan,[1:2]);
                 new_curr_corners=curr_corners([1:2]);
                 bool_check=true;
@@ -616,6 +627,7 @@ function [new_calib_corners,new_calib_functions,new_curr_corners,bool_check]=che
         if sum(inds_outercorners_notnan&inds_functions_notnan)>=k %We have enough outer corners from our calibrated corners
             joint_notnan=inds_outercorners_notnan&inds_functions_notnan; %Indexes where we have only the function
             new_calib_functions=calibrated_functions(joint_notnan,:);
+            rmse_error_new=rmse_errors(joint_notnan);
             new_calib_corners=calibrated_corners(joint_notnan,[3:4]);
             new_curr_corners=curr_corners([3:4]);
             bool_check=true;
@@ -1439,10 +1451,25 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
    %}
 
     %Interpolation parameters
-    k=3; %Number of functions which we interpolate
-    p=1; %Order of interpolation weight
+    %k=4; %Number of functions which we interpolate (best for gaussian)
+    k=3; %(best for idw)
+    p=1.5; %Order of interpolation weight
+    sigma=0.75;
     weighting_type='idw'; %Using inverse distance weighting
     closest_type='euclidean'; %Using euclidean distance as the initial similarity measure
+
+    %Filter parameters
+    %MAV_Length=3;
+    
+    %Arrays for interp POG filtering
+    %POG_x_interp_right_array=[];
+    %POG_y_interp_right_array=[];
+
+    %POG_x_interp_left_array=[];
+    %POG_y_interp_left_array=[];
+
+
+
  
     NANTHRESH=0; %Number of nan values we tolerate as input to our tree model
     [row_n,~]=size(reformatted_data);
@@ -1477,11 +1504,11 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
                     updated_model_cell=model_cell(model_valid_indexes,:);
                     [row_new,~]=size(updated_model_cell);
                     %Loops for all the number of points used and returns index of largest
-                    cur_val=updated_model_cell{1,4};
+                    cur_val=updated_model_cell{1,3};
                     cur_ind=1;
                     for j=[1:2:row_new]
-                        if (updated_model_cell{j,4}>cur_val) %Change > to < if using iteratively least squares
-                            cur_val=updated_model_cell{j,4};
+                        if (updated_model_cell{j,3}<cur_val) %Change > to < if using iteratively least squares
+                            cur_val=updated_model_cell{j,3};
                             cur_ind=j;
                         end
                     end
@@ -1527,15 +1554,28 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
 
                         %Weighted Functions in the x-direction
                         poly_functions_x=reformatDataMultivariateInterp(poly_functions_array,header_x,'right');
-                        weighted_poly_x=multivariateInterp(poly_functions_x,right_corners,closest_type,weighting_type,k,p);
+                        weighted_poly_x=multivariateInterp(poly_functions_x,right_corners,closest_type,weighting_type,k,p,sigma);
 
                         poly_functions_y=reformatDataMultivariateInterp(poly_functions_array,header_y,'right');
-                        weighted_poly_y=multivariateInterp(poly_functions_y,right_corners,closest_type,weighting_type,k,p);
+                        weighted_poly_y=multivariateInterp(poly_functions_y,right_corners,closest_type,weighting_type,k,p,sigma);
 
                         %Finding interpolation results
                         if ~all(isnan(weighted_poly_x)) && ~all(isnan(weighted_poly_y))
                             POG_x_interp_right=findPOG(weighted_poly_x',predictors_x);
                             POG_y_interp_right=findPOG(weighted_poly_y',predictors_y);
+
+                            %Filtering
+                            %{
+                            POG_x_interp_right_array=[POG_x_interp_right_array,POG_x_interp_right];
+                            POG_y_interp_right_array=[POG_y_interp_right_array,POG_y_interp_right];
+
+                            if length(POG_x_interp_right_array)>MAV_Length
+                                POG_x_interp_right_array=POG_x_interp_right_array(2:end);
+                                POG_y_interp_right_array=POG_y_interp_right_array(2:end);
+                            end
+                            POG_x_interp_right=mean(POG_x_interp_right_array,'omitnan');
+                            POG_y_interp_right=mean(POG_y_interp_right_array,'omitnan');
+                            %}
                             
                             accuracy_interp_right=sqrt((POG_x_interp_right-t_x)^2+(POG_y_interp_right-t_y)^2);
                             results_row(4)=accuracy_interp_right;
@@ -1604,11 +1644,11 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
                     updated_model_cell=model_cell(model_valid_indexes,:);
                     [row_new,~]=size(updated_model_cell);
                     %Loops for all the number of points used and returns index of largest
-                    cur_val=updated_model_cell{1,4};
+                    cur_val=updated_model_cell{1,3};
                     cur_ind=1;
                     for j=[1:2:row_new]
-                        if (updated_model_cell{j,4}>cur_val) %Change > to < if using iteratively least squares
-                            cur_val=updated_model_cell{j,4};
+                        if (updated_model_cell{j,3}<cur_val) %Change > to < if using iteratively least squares
+                            cur_val=updated_model_cell{j,3};
                             cur_ind=j;
                         end
                     end
@@ -1658,15 +1698,28 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
 
                         %Weighted Functions in the x-direction
                         poly_functions_x=reformatDataMultivariateInterp(poly_functions_array,header_x,'left');
-                        weighted_poly_x=multivariateInterp(poly_functions_x,left_corners,closest_type,weighting_type,k,p);
+                        weighted_poly_x=multivariateInterp(poly_functions_x,left_corners,closest_type,weighting_type,k,p,sigma);
 
                         poly_functions_y=reformatDataMultivariateInterp(poly_functions_array,header_y,'left');
-                        weighted_poly_y=multivariateInterp(poly_functions_y,left_corners,closest_type,weighting_type,k,p);
+                        weighted_poly_y=multivariateInterp(poly_functions_y,left_corners,closest_type,weighting_type,k,p,sigma);
                         if ~all(isnan(weighted_poly_x)) && ~all(isnan(weighted_poly_y))
                         %Finding interpolation results
                             POG_x_interp_left=findPOG(weighted_poly_x',predictors_x);
                             POG_y_interp_left=findPOG(weighted_poly_y',predictors_y);
-    
+                            
+                            %Filtering
+                            %{
+                            POG_x_interp_left_array=[POG_x_interp_left_array,POG_x_interp_left];
+                            POG_y_interp_left_array=[POG_y_interp_left_array,POG_y_interp_left];
+
+                            if length(POG_x_interp_left_array)>MAV_Length
+                                POG_x_interp_left_array=POG_x_interp_left_array(2:end);
+                                POG_y_interp_left_array=POG_y_interp_left_array(2:end);
+                            end
+                            POG_x_interp_left=mean(POG_x_interp_left_array,'omitnan');
+                            POG_y_interp_left=mean(POG_y_interp_left_array,'omitnan');
+                            %}
+
                             accuracy_interp_left=sqrt((POG_x_interp_left-t_x)^2+(POG_y_interp_left-t_y)^2);
                             results_row(5)=accuracy_interp_left;
                         end
