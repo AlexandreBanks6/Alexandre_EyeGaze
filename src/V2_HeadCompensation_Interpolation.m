@@ -1504,11 +1504,11 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
                     updated_model_cell=model_cell(model_valid_indexes,:);
                     [row_new,~]=size(updated_model_cell);
                     %Loops for all the number of points used and returns index of largest
-                    cur_val=updated_model_cell{1,3};
+                    cur_val=updated_model_cell{1,4};
                     cur_ind=1;
                     for j=[1:2:row_new]
-                        if (updated_model_cell{j,3}<cur_val) %Change > to < if using iteratively least squares
-                            cur_val=updated_model_cell{j,3};
+                        if (updated_model_cell{j,4}>cur_val) %Change > to < if using residuals
+                            cur_val=updated_model_cell{j,4};
                             cur_ind=j;
                         end
                     end
@@ -1547,40 +1547,6 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
                         POG_y_poly_right=findPOG(model_y,predictors_y);
                         accuracy_poly=sqrt((POG_x_poly_right-t_x)^2+(POG_y_poly_right-t_y)^2);
                         results_row(1)=accuracy_poly;
-                        
-                        %-----------Running Polynomial Interpolation Approcah
-
-                        right_corners=curr_row(14:17); %Gets the calues for the right corners
-
-                        %Weighted Functions in the x-direction
-                        poly_functions_x=reformatDataMultivariateInterp(poly_functions_array,header_x,'right');
-                        weighted_poly_x=multivariateInterp(poly_functions_x,right_corners,closest_type,weighting_type,k,p,sigma);
-
-                        poly_functions_y=reformatDataMultivariateInterp(poly_functions_array,header_y,'right');
-                        weighted_poly_y=multivariateInterp(poly_functions_y,right_corners,closest_type,weighting_type,k,p,sigma);
-
-                        %Finding interpolation results
-                        if ~all(isnan(weighted_poly_x)) && ~all(isnan(weighted_poly_y))
-                            POG_x_interp_right=findPOG(weighted_poly_x',predictors_x);
-                            POG_y_interp_right=findPOG(weighted_poly_y',predictors_y);
-
-                            %Filtering
-                            %{
-                            POG_x_interp_right_array=[POG_x_interp_right_array,POG_x_interp_right];
-                            POG_y_interp_right_array=[POG_y_interp_right_array,POG_y_interp_right];
-
-                            if length(POG_x_interp_right_array)>MAV_Length
-                                POG_x_interp_right_array=POG_x_interp_right_array(2:end);
-                                POG_y_interp_right_array=POG_y_interp_right_array(2:end);
-                            end
-                            POG_x_interp_right=mean(POG_x_interp_right_array,'omitnan');
-                            POG_y_interp_right=mean(POG_y_interp_right_array,'omitnan');
-                            %}
-                            
-                            accuracy_interp_right=sqrt((POG_x_interp_right-t_x)^2+(POG_y_interp_right-t_y)^2);
-                            results_row(4)=accuracy_interp_right;
-                        end
-
                         %-----------Running Max's approach
                         if ~isempty(PG_model_x) && ~isempty(PG_model_y)
 
@@ -1616,10 +1582,69 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
 
                             
                         end 
-   
-                        
                     end
-                      
+                        
+                    %-----------Running Polynomial Interpolation Approcah
+                    %We use PG's with smallest residuals for the
+                    %calibrated polynomial when doing the
+                    %interpolation approach (gives best results)
+                    cur_val=updated_model_cell{1,3};
+                    cur_ind=1;
+                    for j=[1:2:row_new]
+                        if (updated_model_cell{j,3}<cur_val) %Change > to < if using residuals
+                            cur_val=updated_model_cell{j,3};
+                            cur_ind=j;
+                        end
+                    end
+                    header_x=valid_header{cur_ind};
+                    header_y=valid_header{cur_ind+1};
+                    pg_x_ind=ismember(right_headers,header_x);
+                    pg_y_ind=ismember(right_headers,header_y);
+
+                    [d_calib,d_curr]=findScalingFactors(dist_cell,valid_header,right_headers,right_pgs);
+                
+                    if ~isnan(d_calib) && ~isnan(d_curr)
+                 
+                        pg_x=(d_calib/d_curr).*right_pgs(pg_x_ind);
+                        pg_y=(d_calib/d_curr).*right_pgs(pg_y_ind);
+
+        
+                        [predictors_x,predictors_y]=customPolynomial(pg_x,pg_y);
+
+                        right_corners=curr_row(14:17); %Gets the values for the right corners
+
+                        %Weighted Functions in the x-direction
+                        poly_functions_x=reformatDataMultivariateInterp(poly_functions_array,header_x,'right');
+                        weighted_poly_x=multivariateInterp(poly_functions_x,right_corners,closest_type,weighting_type,k,p,sigma);
+
+                        poly_functions_y=reformatDataMultivariateInterp(poly_functions_array,header_y,'right');
+                        weighted_poly_y=multivariateInterp(poly_functions_y,right_corners,closest_type,weighting_type,k,p,sigma);
+
+                        %Finding interpolation results
+                        if ~all(isnan(weighted_poly_x)) && ~all(isnan(weighted_poly_y))
+                            POG_x_interp_right=findPOG(weighted_poly_x',predictors_x);
+                            POG_y_interp_right=findPOG(weighted_poly_y',predictors_y);
+
+                            %Filtering
+                            %{
+                            POG_x_interp_right_array=[POG_x_interp_right_array,POG_x_interp_right];
+                            POG_y_interp_right_array=[POG_y_interp_right_array,POG_y_interp_right];
+
+                            if length(POG_x_interp_right_array)>MAV_Length
+                                POG_x_interp_right_array=POG_x_interp_right_array(2:end);
+                                POG_y_interp_right_array=POG_y_interp_right_array(2:end);
+                            end
+                            POG_x_interp_right=mean(POG_x_interp_right_array,'omitnan');
+                            POG_y_interp_right=mean(POG_y_interp_right_array,'omitnan');
+                            %}
+                            
+                            accuracy_interp_right=sqrt((POG_x_interp_right-t_x)^2+(POG_y_interp_right-t_y)^2);
+                            results_row(4)=accuracy_interp_right;
+                        end
+                    end       
+   
+                       
+                                   
                 end
         
             end
@@ -1644,11 +1669,11 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
                     updated_model_cell=model_cell(model_valid_indexes,:);
                     [row_new,~]=size(updated_model_cell);
                     %Loops for all the number of points used and returns index of largest
-                    cur_val=updated_model_cell{1,3};
+                    cur_val=updated_model_cell{1,4};
                     cur_ind=1;
                     for j=[1:2:row_new]
-                        if (updated_model_cell{j,3}<cur_val) %Change > to < if using iteratively least squares
-                            cur_val=updated_model_cell{j,3};
+                        if (updated_model_cell{j,4}>cur_val) %Change > to < if using iteratively least squares
+                            cur_val=updated_model_cell{j,4};
                             cur_ind=j;
                         end
                     end
@@ -1692,38 +1717,7 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
                         results_row(2)=accuracy_poly;
 
 
-                        %-----------Running Polynomial Interpolation Approcah
-
-                        left_corners=curr_row(18:21); %Gets the calues for the right corners
-
-                        %Weighted Functions in the x-direction
-                        poly_functions_x=reformatDataMultivariateInterp(poly_functions_array,header_x,'left');
-                        weighted_poly_x=multivariateInterp(poly_functions_x,left_corners,closest_type,weighting_type,k,p,sigma);
-
-                        poly_functions_y=reformatDataMultivariateInterp(poly_functions_array,header_y,'left');
-                        weighted_poly_y=multivariateInterp(poly_functions_y,left_corners,closest_type,weighting_type,k,p,sigma);
-                        if ~all(isnan(weighted_poly_x)) && ~all(isnan(weighted_poly_y))
-                        %Finding interpolation results
-                            POG_x_interp_left=findPOG(weighted_poly_x',predictors_x);
-                            POG_y_interp_left=findPOG(weighted_poly_y',predictors_y);
-                            
-                            %Filtering
-                            %{
-                            POG_x_interp_left_array=[POG_x_interp_left_array,POG_x_interp_left];
-                            POG_y_interp_left_array=[POG_y_interp_left_array,POG_y_interp_left];
-
-                            if length(POG_x_interp_left_array)>MAV_Length
-                                POG_x_interp_left_array=POG_x_interp_left_array(2:end);
-                                POG_y_interp_left_array=POG_y_interp_left_array(2:end);
-                            end
-                            POG_x_interp_left=mean(POG_x_interp_left_array,'omitnan');
-                            POG_y_interp_left=mean(POG_y_interp_left_array,'omitnan');
-                            %}
-
-                            accuracy_interp_left=sqrt((POG_x_interp_left-t_x)^2+(POG_y_interp_left-t_y)^2);
-                            results_row(5)=accuracy_interp_left;
-                        end
-                        
+                                               
                         %-----------<Running Max's approach>--------------
                         if ~isempty(PG_model_x) && ~isempty(PG_model_y)
    
@@ -1764,6 +1758,61 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
                                       
     
                         
+                    end
+                    %-----------Running Polynomial Interpolation Approcah
+                    cur_val=updated_model_cell{1,3};
+                    cur_ind=1;
+                    for j=[1:2:row_new]
+                        if (updated_model_cell{j,3}<cur_val) %Change > to < if using iteratively least squares
+                            cur_val=updated_model_cell{j,3};
+                            cur_ind=j;
+                        end
+                    end
+
+                    header_x=valid_header{cur_ind};
+                    header_y=valid_header{cur_ind+1};
+                    pg_x_ind=ismember(left_headers,header_x);
+                    pg_y_ind=ismember(left_headers,header_y);
+
+                    [d_calib,d_curr]=findScalingFactors(dist_cell,valid_header,left_headers,left_pgs);
+                    
+                    if ~isnan(d_calib) && ~isnan(d_curr)
+
+                        pg_x=(d_calib/d_curr).*left_pgs(pg_x_ind);
+                        pg_y=(d_calib/d_curr).*left_pgs(pg_y_ind);
+        
+                        [predictors_x,predictors_y]=customPolynomial(pg_x,pg_y);
+
+
+                        left_corners=curr_row(18:21); %Gets the calues for the right corners
+    
+                        %Weighted Functions in the x-direction
+                        poly_functions_x=reformatDataMultivariateInterp(poly_functions_array,header_x,'left');
+                        weighted_poly_x=multivariateInterp(poly_functions_x,left_corners,closest_type,weighting_type,k,p,sigma);
+    
+                        poly_functions_y=reformatDataMultivariateInterp(poly_functions_array,header_y,'left');
+                        weighted_poly_y=multivariateInterp(poly_functions_y,left_corners,closest_type,weighting_type,k,p,sigma);
+                        if ~all(isnan(weighted_poly_x)) && ~all(isnan(weighted_poly_y))
+                        %Finding interpolation results
+                            POG_x_interp_left=findPOG(weighted_poly_x',predictors_x);
+                            POG_y_interp_left=findPOG(weighted_poly_y',predictors_y);
+                            
+                            %Filtering
+                            %{
+                            POG_x_interp_left_array=[POG_x_interp_left_array,POG_x_interp_left];
+                            POG_y_interp_left_array=[POG_y_interp_left_array,POG_y_interp_left];
+    
+                            if length(POG_x_interp_left_array)>MAV_Length
+                                POG_x_interp_left_array=POG_x_interp_left_array(2:end);
+                                POG_y_interp_left_array=POG_y_interp_left_array(2:end);
+                            end
+                            POG_x_interp_left=mean(POG_x_interp_left_array,'omitnan');
+                            POG_y_interp_left=mean(POG_y_interp_left_array,'omitnan');
+                            %}
+    
+                            accuracy_interp_left=sqrt((POG_x_interp_left-t_x)^2+(POG_y_interp_left-t_y)^2);
+                            results_row(5)=accuracy_interp_left;
+                        end
                     end
                       
                 end

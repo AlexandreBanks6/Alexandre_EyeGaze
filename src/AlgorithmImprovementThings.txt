@@ -19,7 +19,7 @@ New Optimization Things:
 	- Get best interpolation weighting function and k/p values /
 	- Filtering the POG of each eye /
 
-	- Try picking PG vector with risiduals
+	- Try picking PG vector with risiduals /
 	- Taking the last 80% of targets for training
 	- Trying to fix the combined POG accuracy loss (options include: weighted averaging using
 	confidence scores (maybe weighting by the standard deviation of the last x-predictions), have
