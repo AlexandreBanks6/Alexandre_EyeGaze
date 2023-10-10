@@ -2,13 +2,38 @@ Things to try:
 - Different k/p values /
 - Look into dist cell, how it corresponds to the calibration functions (either recording distance for each polynomial
 and then weighting the distance as well, or scaling the PG vectors to match the initial polynomial)
-	- Scale by the mean pg distance for the calibration
-	- Try scaling each pg by it's individual pg (do this first)
-- Look into which PG vector we pick for the weighting function (maybe another pg vector is better for the weighting function)
-- Can also maybe use multiple PG vectors and take average of estimated POG
+	- Scale by the mean pg distance for the calibration /
+	- Try scaling each pg by it's individual pg (do this first) /
+- Look into which PG vector we pick for the weighting function (maybe another pg vector is better for the weighting function) /
+- Can also maybe use multiple PG vectors and take average of estimated POG 
 - Filter the compensated POG
 - Take the last 80% of PG vectors for every target (for training)
 - Take the 1-dot data from 1second upwards
 - Run compensation on average and not just individual right/left POGs
 - Maybe get average eye corner location for each pupil direction?
 - Look at my old approach, and the training data am I scaling the PG vectors?
+
+
+New Optimization Things:
+1. Interpolation Technique (do this first)
+	- Get best interpolation weighting function and k/p values
+	- Filtering the POG of each eye
+
+	- Try picking PG vector with risiduals
+	- Taking the last 80% of targets for training
+	- Trying to fix the combined POG accuracy loss (options include: weighted averaging using
+	confidence scores (maybe weighting by the standard deviation of the last x-predictions), have
+	a kalman filter to dynamically fuse the right and left eye predictions, use a machine learning
+	model with individual eye predictions as features) -> Look at this after I get the other things working
+	- Using multiple PG vectors and then averaging them
+
+2. Compensation Technique (do this next)
+	- Take 1-dot data from 1-second onwards
+	- Am I scaling the PG vectors before training?
+
+
+	- Try picking PG vector with risiduals
+	- Filtering the POG of each eye
+	- Taking the last 80% of targets for training
+	- Trying to fix the combined POG accuracy loss (options include 
+	- Using multiple PG vectors and then averaging them
