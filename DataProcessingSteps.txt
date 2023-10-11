@@ -1,0 +1,6 @@
+1) Create a 'DataCollection_ParticipantList.csv' file in the main data directory where the converted data is
+2) Run 'CollectedData_RenamerAndConverter.py' to rename all the files which we will process to the order specified in 'DataCollection_ParticipantList.csv'
+3) Run 'Data_Merger_eyeNdi.m' to merge the eye gaze data and Ndi data and also to extract only the calibration points
+4) Run 'EyeGaze_Main_Aug9.py' to run the eye corner tracking algorithm and save the eye corner locations as a pdf as well
+5) Run 'Data_Merger_corners.m' to merge the corner data with the NDI and eye gaze data
+6) Run the appropriate head compensation tracking pipeline (e.g. V2_HeadCompensation_Interpolation.m) or another of our choice

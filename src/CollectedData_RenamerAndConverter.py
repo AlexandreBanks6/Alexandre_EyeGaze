@@ -29,7 +29,7 @@ def save_time(filename):
 
 
 
-data_root='F:/Alexandre_EyeGazeProject/eyecorner_userstudy2_converted'
+data_root='E:/Alexandre_EyeGazeProject_Extra/eyecorner_userstudy2_converted'
 guide_csv_root=data_root+'/DataCollection_ParticipantList.csv'
 
 for entry in os.scandir(data_root):

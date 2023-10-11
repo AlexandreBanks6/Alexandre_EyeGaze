@@ -17,7 +17,7 @@ Affiliation: Robotics and Control Laboratory
 FREQUENCY=60; 
 PERIOD=1/FREQUENCY;
 
-DATA_DIR='F:/Alexandre_EyeGazeProject/eyecorner_userstudy2_converted';
+DATA_DIR='E:/Alexandre_EyeGazeProject_Extra/eyecorner_userstudy2_converted';
 folder_list=dir(DATA_DIR);
 dirnames={folder_list([folder_list.isdir]).name};
 num_dir=length(dirnames);

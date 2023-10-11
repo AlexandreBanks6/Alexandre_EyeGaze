@@ -2,7 +2,7 @@ clear
 clc
 close all
 
-data_root='F:/Alexandre_EyeGazeProject/eyecorner_userstudy2_converted/';
+data_root='E:/Alexandre_EyeGazeProject_Extra/eyecorner_userstudy2_converted';
 %Getting list of subfolders
 folder_list=dir(data_root);
 dirnames={folder_list([folder_list.isdir]).name};

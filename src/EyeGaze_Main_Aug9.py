@@ -840,6 +840,7 @@ def findCorners(frame,eye_images=eye_imgs(),bounding_boxes=bbxs()):
     global NON_DETECT_RIGHT_INNER
     global NON_DETECT_LEFT_OUTER
     global NON_DETECT_LEFT_INNER
+    global LIST_LAST_EYE_CORNER
     
     for field in fields(eye_images):
         field_name=field.name
@@ -962,7 +963,7 @@ def findCorners(frame,eye_images=eye_imgs(),bounding_boxes=bbxs()):
     return corners_new
 
 def constrainCorners(eye_corner_results):
-
+    global LIST_LAST_EYE_CORNER
     for corner in fields(eye_corner_results):
         corner_name=corner.name
         corner_point=getattr(eye_corner_results,corner_name)[0]
@@ -974,7 +975,7 @@ def constrainCorners(eye_corner_results):
             if corner_name=='right_eye_outer': #We do right outer
                 if not len(LIST_LAST_EYE_CORNER): #This is the first corner point
                     right_inner=getattr(eye_corner_results,'right_eye_inner')[0]
-                    if right_inner[0]>corner_point[0]: #We swap the values
+                    if right_inner[0]<corner_point[0]: #We swap the values
                         old_right_outer=corner_point
                         eye_corner_results.right_eye_outer[0]=right_inner
                         eye_corner_results.right_eye_inner[0]=old_right_outer
@@ -993,7 +994,7 @@ def constrainCorners(eye_corner_results):
                     else:
                         #the other eye corner is a number
                         right_inner=getattr(eye_corner_results,'right_eye_inner')[0]
-                        if right_inner[0]>corner_point[0]: #We swap the values
+                        if right_inner[0]<corner_point[0]: #We swap the values
                             old_right_outer=corner_point
                             eye_corner_results.right_eye_outer[0]=right_inner
                             eye_corner_results.right_eye_inner[0]=old_right_outer
@@ -1002,7 +1003,7 @@ def constrainCorners(eye_corner_results):
             elif corner_name=='right_eye_inner': #We do right inner
                 if not len(LIST_LAST_EYE_CORNER): #This is the first corner point
                     right_outer=getattr(eye_corner_results,'right_eye_outer')[0]
-                    if corner_point[0]>right_outer[0]: #We swap the values
+                    if corner_point[0]<right_outer[0]: #We swap the values
                         old_right_inner=corner_point
                         eye_corner_results.right_eye_inner[0]=right_outer
                         eye_corner_results.right_eye_outer[0]=old_right_inner
@@ -1021,7 +1022,7 @@ def constrainCorners(eye_corner_results):
                     else:
                         #the other eye corner is a number
                         right_outer=getattr(eye_corner_results,'right_eye_outer')[0]
-                        if corner_point[0]>right_outer[0]: #We swap the values
+                        if corner_point[0]<right_outer[0]: #We swap the values
                             old_right_inner=corner_point
                             eye_corner_results.right_eye_inner[0]=right_outer
                             eye_corner_results.right_eye_outer[0]=old_right_inner
@@ -1031,7 +1032,7 @@ def constrainCorners(eye_corner_results):
             if corner_name=='left_eye_inner': #We do left inner
                 if not len(LIST_LAST_EYE_CORNER): #This is the first corner point
                     left_outer=getattr(eye_corner_results,'left_eye_outer')[0]
-                    if left_outer[0]>corner_point[0]: #We swap the values
+                    if left_outer[0]<corner_point[0]: #We swap the values
                         old_left_inner=corner_point
                         eye_corner_results.left_eye_inner[0]=left_outer
                         eye_corner_results.right_eye_outer[0]=old_left_inner
@@ -1050,7 +1051,7 @@ def constrainCorners(eye_corner_results):
                     else:
                         #the other eye corner is a number
                         left_outer=getattr(eye_corner_results,'left_eye_outer')[0]
-                        if left_outer[0]>corner_point[0]: #We swap the values
+                        if left_outer[0]<corner_point[0]: #We swap the values
                             old_left_inner=corner_point
                             eye_corner_results.left_eye_inner[0]=left_outer
                             eye_corner_results.right_eye_outer[0]=old_left_inner
@@ -1059,7 +1060,7 @@ def constrainCorners(eye_corner_results):
             elif corner_name=='left_eye_outer': #We do left outer
                 if not len(LIST_LAST_EYE_CORNER): #This is the first corner point
                     left_inner=getattr(eye_corner_results,'left_eye_inner')[0]
-                    if corner_point[0]>left_inner[0]: #We swap the values
+                    if corner_point[0]<left_inner[0]: #We swap the values
                         old_left_outer=corner_point
                         eye_corner_results.left_eye_outer[0]=left_inner
                         eye_corner_results.left_eye_inner[0]=old_left_outer
@@ -1078,10 +1079,11 @@ def constrainCorners(eye_corner_results):
                     else:
                         #the other eye corner is a number
                         left_inner=getattr(eye_corner_results,'left_eye_inner')[0]
-                        if corner_point[0]>left_inner[0]: #We swap the values
+                        if corner_point[0]<left_inner[0]: #We swap the values
                             old_left_outer=corner_point
                             eye_corner_results.left_eye_outer[0]=left_inner
                             eye_corner_results.left_eye_inner[0]=old_left_outer
+    return eye_corner_results
                     
 
 
@@ -1106,23 +1108,23 @@ def showCorners(corners,frame):
         if type(corner_point) is float:
             if math.isnan(corner_point):
                 continue
-        if corner_name=='left_eye_outer':
+        if corner_name=='left_eye_inner': #blue
             pintcolor=(255,0,0)
-        elif corner_name=='left_eye_inner':
+        elif corner_name=='left_eye_outer': #green
             pintcolor=(0,255,0)
-        elif corner_name=='right_eye_inner':
+        elif corner_name=='right_eye_outer':    #red
             pintcolor=(0,0,255)
-        elif corner_name=='right_eye_outer':
+        elif corner_name=='right_eye_inner':    #white
             pintcolor=(255,255,255)
         corner_point=[int(elem) for elem in corner_point]
         frame_colour=cv2.circle(frame_colour,corner_point,radius=3,color=pintcolor,thickness=2)
     cv2.imshow('corners',frame_colour)
-    cv2.waitKey(0)
+    cv2.waitKey(2)
 
 
 #-----------------------------<Main>-------------------------------
 #if __name__=="__main__":
-device=select_device('cpu') #Sets up the GPU Cuda device
+device=select_device('0') #Sets up the GPU Cuda device
 model=attempt_load(YOLOV7_MODEL_PATH,map_location=device)
 stride_size=int(model.stride.max())
 imgsz=check_img_size(INPUT_IMAGE_SIZE,s=stride_size) #Checks that stride requirements are met
@@ -1278,6 +1280,7 @@ for entry in os.scandir(data_root):
                         #print(results_list)
                         csv_eyecorner.write('{},{},{},{},{},{},{},{},{}\n'.format(results_list[0],results_list[1],results_list[2],results_list[3],results_list[4],results_list[5],results_list[6],results_list[7],results_list[8]))
                         '''
+                        print('Frame_no: ',int(frame_no))
                         sucess,frame=video.read()
                     #csv_eyecorner.close()
                                 
