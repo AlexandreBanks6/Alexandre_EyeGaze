@@ -127,9 +127,9 @@ for m=[1:num_dir]
 
             calib_lift5_dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift5_dot.csv']);
             calib_lift5_dot=cropTrainingData(calib_lift5_dot);
-            data_cell=[calib_lift1_dot;calib_lift2_dot;calib_lift3_dot;calib_lift4_dot;calib_lift5_dot];
+            data_mat=[calib_lift1_dot;calib_lift2_dot;calib_lift3_dot;calib_lift4_dot;calib_lift5_dot];
 
-            variance_cell=findPOGVariance(model_poly_init,dist_cell_init,avg_corners_init,poly_functions_array);
+            variance_cell=findPOGVariance(data_mat,model_poly_init,dist_cell_init,avg_corners_init,poly_functions_array);
 
 
 
@@ -145,7 +145,7 @@ for m=[1:num_dir]
             data_mat=[eval_lift1_9dot;eval_lift2_9dot;eval_lift3_9dot];
             
             
-            [mean_accuracies,total_results]=evalModelsRegressComp(data_mat,model_poly_init,dist_cell_init,avg_corners_init,PG_Estimation_Models,max_compensation_models,poly_functions_array);
+            [mean_accuracies,total_results]=evalModelsRegressComp(data_mat,model_poly_init,dist_cell_init,avg_corners_init,PG_Estimation_Models,max_compensation_models,poly_functions_array,variance_cell);
             mean_acc_results=[mean_acc_results;mean_accuracies];
 
         end
@@ -1462,7 +1462,7 @@ end
 
 
 
-function [mean_accuracies,total_results]=evalModelsRegressComp(data_mat,model_cell,dist_cell,avg_corners,PG_Estimation_Models,max_compensation_models,poly_functions_array)
+function [mean_accuracies,total_results]=evalModelsRegressComp(data_mat,model_cell,dist_cell,avg_corners,PG_Estimation_Models,max_compensation_models,poly_functions_array,variance_cell)
     %{
     Inputs:
         data_mat: matrix containing the evaulation data
@@ -1500,7 +1500,7 @@ function [mean_accuracies,total_results]=evalModelsRegressComp(data_mat,model_ce
     %Outputs the data as: 
     reformatted_data=reformatData(data_mat);
 
-    total_results=evalAccuracyComp(model_cell,reformatted_data,right_headers,left_headers,check_model_right,check_model_left,dist_cell,avg_corners,PG_Estimation_Models,max_compensation_models,poly_functions_array);
+    total_results=evalAccuracyComp(model_cell,reformatted_data,right_headers,left_headers,check_model_right,check_model_left,dist_cell,avg_corners,PG_Estimation_Models,max_compensation_models,poly_functions_array,variance_cell);
 
     mean_accuracies=mean(total_results(:,[1:9]),1,'omitnan');
     
@@ -1510,7 +1510,7 @@ function [mean_accuracies,total_results]=evalModelsRegressComp(data_mat,model_ce
 end
 
 
-function total_results=evalAccuracyComp(model_cell,reformatted_data,right_headers,left_headers,check_model_right,check_model_left,dist_cell,avg_corners,PG_Estimation_Models,max_compensation_models,poly_functions_array)
+function total_results=evalAccuracyComp(model_cell,reformatted_data,right_headers,left_headers,check_model_right,check_model_left,dist_cell,avg_corners,PG_Estimation_Models,max_compensation_models,poly_functions_array,variance_cell)
    %{
     Inputs:
     reformatted_data:
@@ -1917,6 +1917,7 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
         
         %-------------------<Getting Combined Results>-----------------
         if exist('POG_x_poly_right','var') && exist('POG_y_poly_right','var') && exist('POG_x_poly_left','var') && exist('POG_y_poly_left','var') 
+          
             POG_combined_x=(POG_x_poly_right+POG_x_poly_left)/2;
             POG_combined_y=(POG_y_poly_right+POG_y_poly_left)/2;
             accuracy_combined=sqrt((t_x-POG_combined_x)^2+(t_y-POG_combined_y)^2);
@@ -1925,8 +1926,30 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
         end
 
         if exist('POG_x_interp_right','var') && exist('POG_y_interp_right','var') && exist('POG_x_interp_left','var') && exist('POG_y_interp_left','var') 
-            POG_combined_x=(POG_x_interp_right+POG_x_interp_left)/2;
-            POG_combined_y=(POG_y_interp_right+POG_y_interp_left)/2;
+           %Getting variance of corresponding POGs (var_right_x,
+            %var_right_y, var_left_x, var_left_y)
+            
+            right_x_ind=ismember('variance_right_x',variance_cell{:,1});
+            right_y_ind=ismember('variance_right_y',variance_cell{:,1});
+            left_x_ind=ismember('variance_left_x',variance_cell{:,1});
+            left_y_ind=ismember('variance_left_y',variance_cell{:,1});
+
+            var_right_x=variance_cell{right_x_ind,2};
+            var_right_y=variance_cell{right_y_ind,2};
+            var_left_x=variance_cell{left_x_ind,2};
+            var_left_y=variance_cell{left_y_ind,2};
+
+            if ~isnan(var_right_x) && ~isnan(var_right_y) && ~isnan(var_left_x) && ~isnan(var_left_y)
+                POG_combined_x=((1/var_right_x)+(1/var_left_x))/((1/var_right_x)+(1/var_left_x));
+
+            else
+
+                POG_combined_x=(POG_x_interp_right+POG_x_interp_left)/2;
+                POG_combined_y=(POG_y_interp_right+POG_y_interp_left)/2;
+            end
+            
+            
+            
             accuracy_combined=sqrt((t_x-POG_combined_x)^2+(t_y-POG_combined_y)^2);
             results_row(6)=accuracy_combined;
 
@@ -1979,3 +2002,233 @@ function reformatted_data=reformatData(eval_data)
 
 end
 
+
+
+%-----------------------<Variance Weighting Functions>---------------------
+
+function variance_cell=findPOGVariance(data_mat,model_cell,dist_cell,avg_corners,poly_functions_array)
+
+%Finds the variance of the POG estimate for the left and right eyes in the
+%x, and y directions when looking at the central dot
+
+%{
+model_poly=model array from the initial calibration
+dist_cell=corner distance from the intial calibration
+avg_corners_init=average corner positions at the intial calibration
+poly_functions_array=5 additional fitted polynomials for the interpolation
+approac
+
+output: cell with two columns:
+    col1:               col2:
+    variance_right_x    value
+    variance_right_y    value
+    variance_left_x     value
+    variance_left_y     value
+
+%}
+
+    left_headers={'pg0_left_x','pg0_left_y','pg1_left_x','pg1_left_y','pg2_left_x','pg2_left_y'};
+    right_headers={'pg0_right_x','pg0_right_y','pg1_right_x','pg1_right_y','pg2_right_x','pg2_right_y'};
+    check_model_right=any(ismember(model_cell(:,1),right_headers));
+    check_model_left=any(ismember(model_cell(:,1),left_headers));
+
+    %Outputs the data as: 
+    reformatted_data=reformatData(data_mat);
+
+    %Returns POG results as a matrix with four columns (right_x, right_y,
+    %left_x, left_y)
+    POG_Results=evalAccuracyCompVariance(model_cell,reformatted_data,right_headers,left_headers,check_model_right,check_model_left,dist_cell,avg_corners,poly_functions_array);
+    variance_results=var(POG_Results,0,1,'omitnan');
+
+    variance_headers={'variance_right_x','variance_right_y','variance_left_x','variance_left_y'};
+
+    for i=[1:4]
+        variance_cell{i,1}=variance_headers{i};
+        variance_cell{i,2}=variance_results(i);
+    end
+
+end
+
+
+function total_results=evalAccuracyCompVariance(model_cell,reformatted_data,right_headers,left_headers,check_model_right,check_model_left,dist_cell,avg_corners,poly_functions_array)
+   %{
+    Inputs:
+    reformatted_data:
+    frame_no, pg0_rightx, pg0_righty, ..., pg2_rightx, pg2_righty, pg0_leftx, pg0_lefty,..., pg2_leftx, pg2_lefty,
+    right_inner_x,right_inner_y,right_outer_x,right_outer_y,left_inner_x,left_inner_y,left_outer_x,left_outer_y,
+    target_x,target_y, pupil_right_x, pupil_right_y,
+    pupil_left_x,pupil_left_y
+
+    model_cell: contains the original polynomial model
+    dist_cell: contains the distance between glints at calibration
+    avg_corners: contains the average corner positions at calibration
+
+    Outputs:
+    
+    total_results: matrix with columns:
+    %accuracy_right_poly, accuracy_left_poly, accuracy_combined_poly (3), accuracy_right_interp, accuracy_left_interp, accuracy_combined_interp (6),
+    %accuracy_right_max, accuracy_left_max, accuracy_combined_max (9),t_x, t_y (11)
+   %}
+
+    %Interpolation parameters
+    %k=4; %Number of functions which we interpolate (best for gaussian)
+    k=3; %(best for idw)
+    p=1.5; %Order of interpolation weight
+    sigma=0.75;
+    weighting_type='idw'; %Using inverse distance weighting
+    closest_type='euclidean'; %Using euclidean distance as the initial similarity measure
+
+
+ 
+    NANTHRESH=0; %Number of nan values we tolerate as input to our tree model
+    [row_n,~]=size(reformatted_data);
+    total_results=[];
+    for i=[1:row_n]
+        results_row=nan(1,4);
+        curr_row=reformatted_data(i,:); %Current data row
+
+        t_x=curr_row(22);    %Targets
+        t_y=curr_row(23);
+
+
+
+        %--------------<Finding the right POG first>--------------
+        if check_model_right
+            right_pgs=curr_row(2:7);
+            %Index of values in row that are not NaN
+            nan_indexs=isnan(right_pgs);
+            nan_indx_values=find(nan_indexs);
+            if length(nan_indx_values)<3 %At least two x,y pairs are detected
+                stripped_header=right_headers(~nan_indexs); %Extracts the pg type that is valid for this frame
+                
+                valid_header=findPgWithAssociatedDistance(stripped_header,dist_cell);
+    
+                if length(valid_header)>2
+                    model_valid_indexes=ismember(model_cell(:,1),valid_header);
+                    updated_model_cell=model_cell(model_valid_indexes,:);
+                    [row_new,~]=size(updated_model_cell);
+                      
+                    %-----------Running Polynomial Interpolation Approcah
+                    %We use PG's with smallest residuals for the
+                    %calibrated polynomial when doing the
+                    %interpolation approach (gives best results)
+                    cur_val=updated_model_cell{1,3};
+                    cur_ind=1;
+                    for j=[1:2:row_new]
+                        if (updated_model_cell{j,3}<cur_val) %Change > to < if using residuals
+                            cur_val=updated_model_cell{j,3};
+                            cur_ind=j;
+                        end
+                    end
+                    header_x=valid_header{cur_ind};
+                    header_y=valid_header{cur_ind+1};
+                    pg_x_ind=ismember(right_headers,header_x);
+                    pg_y_ind=ismember(right_headers,header_y);
+
+                    [d_calib,d_curr]=findScalingFactors(dist_cell,valid_header,right_headers,right_pgs);
+                
+                    if ~isnan(d_calib) && ~isnan(d_curr)
+                 
+                        pg_x=(d_calib/d_curr).*right_pgs(pg_x_ind);
+                        pg_y=(d_calib/d_curr).*right_pgs(pg_y_ind);
+
+        
+                        [predictors_x,predictors_y]=customPolynomial(pg_x,pg_y);
+
+                        right_corners=curr_row(14:17); %Gets the values for the right corners
+
+                        %Weighted Functions in the x-direction
+                        poly_functions_x=reformatDataMultivariateInterp(poly_functions_array,header_x,'right');
+                        weighted_poly_x=multivariateInterp(poly_functions_x,right_corners,closest_type,weighting_type,k,p,sigma);
+
+                        poly_functions_y=reformatDataMultivariateInterp(poly_functions_array,header_y,'right');
+                        weighted_poly_y=multivariateInterp(poly_functions_y,right_corners,closest_type,weighting_type,k,p,sigma);
+
+                        %Finding interpolation results
+                        if ~all(isnan(weighted_poly_x)) && ~all(isnan(weighted_poly_y))
+                            POG_x_interp_right=findPOG(weighted_poly_x',predictors_x);
+                            POG_y_interp_right=findPOG(weighted_poly_y',predictors_y);
+                            results_row(1)=POG_x_interp_right;
+                            results_row(2)=POG_y_interp_right;
+                        end
+                    end       
+   
+                       
+                                   
+                end
+        
+            end
+
+        end
+
+
+        %-------------<Finding the left POG next>--------------
+
+        if check_model_left
+            left_pgs=curr_row(8:13);
+            %Index of values in row that are not NaN
+            nan_indexs=isnan(left_pgs);
+            nan_indx_values=find(nan_indexs);
+            if length(nan_indx_values)<3 %At least two x,y pairs are detected
+                stripped_header=left_headers(~nan_indexs); %Extracts the pg type that is valid for this frame
+                
+                valid_header=findPgWithAssociatedDistance(stripped_header,dist_cell);
+    
+                if length(valid_header)>2
+                    model_valid_indexes=ismember(model_cell(:,1),valid_header);
+                    updated_model_cell=model_cell(model_valid_indexes,:);
+                    [row_new,~]=size(updated_model_cell);
+                   
+                    %-----------Running Polynomial Interpolation Approcah
+                    cur_val=updated_model_cell{1,3};
+                    cur_ind=1;
+                    for j=[1:2:row_new]
+                        if (updated_model_cell{j,3}<cur_val) %Change > to < if using iteratively least squares
+                            cur_val=updated_model_cell{j,3};
+                            cur_ind=j;
+                        end
+                    end
+
+                    header_x=valid_header{cur_ind};
+                    header_y=valid_header{cur_ind+1};
+                    pg_x_ind=ismember(left_headers,header_x);
+                    pg_y_ind=ismember(left_headers,header_y);
+
+                    [d_calib,d_curr]=findScalingFactors(dist_cell,valid_header,left_headers,left_pgs);
+                    
+                    if ~isnan(d_calib) && ~isnan(d_curr)
+
+                        pg_x=(d_calib/d_curr).*left_pgs(pg_x_ind);
+                        pg_y=(d_calib/d_curr).*left_pgs(pg_y_ind);
+        
+                        [predictors_x,predictors_y]=customPolynomial(pg_x,pg_y);
+
+
+                        left_corners=curr_row(18:21); %Gets the calues for the right corners
+    
+                        %Weighted Functions in the x-direction
+                        poly_functions_x=reformatDataMultivariateInterp(poly_functions_array,header_x,'left');
+                        weighted_poly_x=multivariateInterp(poly_functions_x,left_corners,closest_type,weighting_type,k,p,sigma);
+    
+                        poly_functions_y=reformatDataMultivariateInterp(poly_functions_array,header_y,'left');
+                        weighted_poly_y=multivariateInterp(poly_functions_y,left_corners,closest_type,weighting_type,k,p,sigma);
+                        if ~all(isnan(weighted_poly_x)) && ~all(isnan(weighted_poly_y))
+                        %Finding interpolation results
+                            POG_x_interp_left=findPOG(weighted_poly_x',predictors_x);
+                            POG_y_interp_left=findPOG(weighted_poly_y',predictors_y);                       
+                            results_row(3)=POG_x_interp_left;
+                            results_row(4)=POG_y_interp_left;
+                        end
+                    end
+                      
+                end
+        
+            end
+
+        end
+        
+        total_results=[total_results;results_row];
+
+    end
+
+end
