@@ -88,6 +88,9 @@ LIST_EYE_CORNERS.right_eye_outer=[]
 LIST_EYE_CORNERS.right_eye_inner=[]
 #LIST_EYE_CORNERS.bbox_centers=[]
 
+#List that contains the results from the previous eye corner
+LIST_LAST_EYE_CORNER=[]
+
 
 NON_DETECT_RIGHT_INNER=0
 NON_DETECT_RIGHT_OUTER=0
@@ -849,8 +852,14 @@ def findCorners(frame,eye_images=eye_imgs(),bounding_boxes=bbxs()):
             eye_corner_results.left_eye_inner.append(singleCornerDetector(eye_images.left_eye,bounding_boxes.left_eye_inner,bounding_boxes.left_eye,frame,LIST_EYE_CORNERS.left_eye_inner,'left'))
             eye_corner_results.left_eye_outer.append(singleCornerDetector(eye_images.left_eye,bounding_boxes.left_eye_outer,bounding_boxes.left_eye,frame,LIST_EYE_CORNERS.left_eye_outer,'left'))
             #eye_corner_results.left_eye_outer.append([-1,-1])
+
+    #We put the constraint that right_outer_x is > right_inner_x and left_inner_x>left_outer_x with this function:
+    eye_corner_results=constrainCorners(eye_corner_results)
+    LIST_LAST_EYE_CORNER=[eye_corner_results.left_eye_outer[0],eye_corner_results.left_eye_inner[0],eye_corner_results.right_eye_inner[0],eye_corner_results.right_eye_outer[0]]
+
     #Now that we have found all current eye corners, we filter them, and check for lost eye corners, then we return the eye_corner_results dataclass
     corners_new=eye_corners()
+
     for corner in fields(eye_corner_results):
         corner_name=corner.name
         corner_point=getattr(eye_corner_results,corner_name)[0]
@@ -951,7 +960,143 @@ def findCorners(frame,eye_images=eye_imgs(),bounding_boxes=bbxs()):
                 else:
                     corners_new.left_eye_outer.append(corner_point)
     return corners_new
+
+def constrainCorners(eye_corner_results):
+
+    for corner in fields(eye_corner_results):
+        corner_name=corner.name
+        corner_point=getattr(eye_corner_results,corner_name)[0]
+        if (not len(corner_point)) or (corner_point==[-1,-1]): #We don't have a corner point (it's nan) and continue
+            continue
+        else: #We have a corner detection
+
+            #Right Outer
+            if corner_name=='right_eye_outer': #We do right outer
+                if not len(LIST_LAST_EYE_CORNER): #This is the first corner point
+                    right_inner=getattr(eye_corner_results,'right_eye_inner')[0]
+                    if right_inner[0]>corner_point[0]: #We swap the values
+                        old_right_outer=corner_point
+                        eye_corner_results.right_eye_outer[0]=right_inner
+                        eye_corner_results.right_eye_inner[0]=old_right_outer
+                else:   #We had a previous corner point
+                 
+                    if (not len(getattr(eye_corner_results,'right_eye_inner')[0])) or (getattr(eye_corner_results,'right_eye_inner')[0]==[-1,-1]):
+                        #The other eye corner is nan                                                 
+                        if (len(LIST_LAST_EYE_CORNER[2]) or (not LIST_LAST_EYE_CORNER[2]==[-1,-1])) or (len(LIST_LAST_EYE_CORNER[3]) or (not LIST_LAST_EYE_CORNER[3]==[-1,-1])):
+                             #We had two detections last time
+                            dist_to_inner=abs(corner_point[0]-LIST_LAST_EYE_CORNER[2][0]) #Distance in x-direction 
+                            dist_to_outer=abs(corner_point[0]-LIST_LAST_EYE_CORNER[3][0])
+                            if dist_to_inner<dist_to_outer: #We swap the values
+                                old_right_outer=corner_point
+                                eye_corner_results.right_eye_outer[0]=eye_corner_results.right_eye_inner[0]
+                                eye_corner_results.right_eye_inner[0]=old_right_outer
+                    else:
+                        #the other eye corner is a number
+                        right_inner=getattr(eye_corner_results,'right_eye_inner')[0]
+                        if right_inner[0]>corner_point[0]: #We swap the values
+                            old_right_outer=corner_point
+                            eye_corner_results.right_eye_outer[0]=right_inner
+                            eye_corner_results.right_eye_inner[0]=old_right_outer
             
+            #Right Inner
+            elif corner_name=='right_eye_inner': #We do right inner
+                if not len(LIST_LAST_EYE_CORNER): #This is the first corner point
+                    right_outer=getattr(eye_corner_results,'right_eye_outer')[0]
+                    if corner_point[0]>right_outer[0]: #We swap the values
+                        old_right_inner=corner_point
+                        eye_corner_results.right_eye_inner[0]=right_outer
+                        eye_corner_results.right_eye_outer[0]=old_right_inner
+                else:   #We had a previous corner point
+                 
+                    if (not len(getattr(eye_corner_results,'right_eye_outer')[0])) or (getattr(eye_corner_results,'right_eye_outer')[0]==[-1,-1]):
+                        #The other eye corner is nan                                                 
+                        if (len(LIST_LAST_EYE_CORNER[2]) or (not LIST_LAST_EYE_CORNER[2]==[-1,-1])) or (len(LIST_LAST_EYE_CORNER[3]) or (not LIST_LAST_EYE_CORNER[3]==[-1,-1])):
+                             #We had two detections last time
+                            dist_to_inner=abs(corner_point[0]-LIST_LAST_EYE_CORNER[2][0]) #Distance in x-direction 
+                            dist_to_outer=abs(corner_point[0]-LIST_LAST_EYE_CORNER[3][0])
+                            if dist_to_inner>dist_to_outer: #We swap the values
+                                old_right_inner=corner_point
+                                eye_corner_results.right_eye_inner[0]=eye_corner_results.right_eye_outer[0]
+                                eye_corner_results.right_eye_outer[0]=old_right_inner
+                    else:
+                        #the other eye corner is a number
+                        right_outer=getattr(eye_corner_results,'right_eye_outer')[0]
+                        if corner_point[0]>right_outer[0]: #We swap the values
+                            old_right_inner=corner_point
+                            eye_corner_results.right_eye_inner[0]=right_outer
+                            eye_corner_results.right_eye_outer[0]=old_right_inner
+
+
+            #Left Inner
+            if corner_name=='left_eye_inner': #We do left inner
+                if not len(LIST_LAST_EYE_CORNER): #This is the first corner point
+                    left_outer=getattr(eye_corner_results,'left_eye_outer')[0]
+                    if left_outer[0]>corner_point[0]: #We swap the values
+                        old_left_inner=corner_point
+                        eye_corner_results.left_eye_inner[0]=left_outer
+                        eye_corner_results.right_eye_outer[0]=old_left_inner
+                else:   #We had a previous corner point
+                 
+                    if (not len(getattr(eye_corner_results,'left_eye_outer')[0])) or (getattr(eye_corner_results,'left_eye_outer')[0]==[-1,-1]):
+                        #The other eye corner is nan                                                 
+                        if (len(LIST_LAST_EYE_CORNER[0]) or (not LIST_LAST_EYE_CORNER[0]==[-1,-1])) or (len(LIST_LAST_EYE_CORNER[1]) or (not LIST_LAST_EYE_CORNER[1]==[-1,-1])):
+                             #We had two detections last time
+                            dist_to_inner=abs(corner_point[0]-LIST_LAST_EYE_CORNER[1][0]) #Distance in x-direction 
+                            dist_to_outer=abs(corner_point[0]-LIST_LAST_EYE_CORNER[0][0])
+                            if dist_to_inner>dist_to_outer: #We swap the values
+                                old_left_inner=corner_point
+                                eye_corner_results.left_eye_inner[0]=left_outer
+                                eye_corner_results.right_eye_outer[0]=old_left_inner
+                    else:
+                        #the other eye corner is a number
+                        left_outer=getattr(eye_corner_results,'left_eye_outer')[0]
+                        if left_outer[0]>corner_point[0]: #We swap the values
+                            old_left_inner=corner_point
+                            eye_corner_results.left_eye_inner[0]=left_outer
+                            eye_corner_results.right_eye_outer[0]=old_left_inner
+            
+            #Left Outer
+            elif corner_name=='left_eye_outer': #We do left outer
+                if not len(LIST_LAST_EYE_CORNER): #This is the first corner point
+                    left_inner=getattr(eye_corner_results,'left_eye_inner')[0]
+                    if corner_point[0]>left_inner[0]: #We swap the values
+                        old_left_outer=corner_point
+                        eye_corner_results.left_eye_outer[0]=left_inner
+                        eye_corner_results.left_eye_inner[0]=old_left_outer
+                else:   #We had a previous corner point
+                 
+                    if (not len(getattr(eye_corner_results,'left_eye_inner')[0])) or (getattr(eye_corner_results,'left_eye_inner')[0]==[-1,-1]):
+                        #The other eye corner is nan                                                 
+                        if (len(LIST_LAST_EYE_CORNER[0]) or (not LIST_LAST_EYE_CORNER[0]==[-1,-1])) or (len(LIST_LAST_EYE_CORNER[1]) or (not LIST_LAST_EYE_CORNER[1]==[-1,-1])):
+                             #We had two detections last time
+                            dist_to_inner=abs(corner_point[0]-LIST_LAST_EYE_CORNER[1][0]) #Distance in x-direction 
+                            dist_to_outer=abs(corner_point[0]-LIST_LAST_EYE_CORNER[0][0])
+                            if dist_to_inner<dist_to_outer: #We swap the values
+                                old_left_outer=corner_point
+                                eye_corner_results.left_eye_outer[0]=left_inner
+                                eye_corner_results.left_eye_inner[0]=old_left_outer
+                    else:
+                        #the other eye corner is a number
+                        left_inner=getattr(eye_corner_results,'left_eye_inner')[0]
+                        if corner_point[0]>left_inner[0]: #We swap the values
+                            old_left_outer=corner_point
+                            eye_corner_results.left_eye_outer[0]=left_inner
+                            eye_corner_results.left_eye_inner[0]=old_left_outer
+                    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     
 def showCorners(corners,frame):
     frame_colour=np.copy(frame)
@@ -961,15 +1106,23 @@ def showCorners(corners,frame):
         if type(corner_point) is float:
             if math.isnan(corner_point):
                 continue
+        if corner_name=='left_eye_outer':
+            pintcolor=(255,0,0)
+        elif corner_name=='left_eye_inner':
+            pintcolor=(0,255,0)
+        elif corner_name=='right_eye_inner':
+            pintcolor=(0,0,255)
+        elif corner_name=='right_eye_outer':
+            pintcolor=(255,255,255)
         corner_point=[int(elem) for elem in corner_point]
-        frame_colour=cv2.circle(frame_colour,corner_point,radius=3,color=(0,0,255),thickness=2)
+        frame_colour=cv2.circle(frame_colour,corner_point,radius=3,color=pintcolor,thickness=2)
     cv2.imshow('corners',frame_colour)
     cv2.waitKey(0)
 
 
 #-----------------------------<Main>-------------------------------
 #if __name__=="__main__":
-device=select_device('0') #Sets up the GPU Cuda device
+device=select_device('cpu') #Sets up the GPU Cuda device
 model=attempt_load(YOLOV7_MODEL_PATH,map_location=device)
 stride_size=int(model.stride.max())
 imgsz=check_img_size(INPUT_IMAGE_SIZE,s=stride_size) #Checks that stride requirements are met
@@ -1003,6 +1156,7 @@ for entry in os.scandir(data_root):
                         print("video "+file+" cannot be opened")
                         continue
                     #Creates a csv file to store the eyecorners
+                    '''
                     csv_name=data_root+'/'+part_name+'/'+'eyecorners_'+root[9:]+'.csv'
                     #print('Current File:',csv_name)
                     if os.path.isfile(csv_name):    #Enters if the csv alread exists and opens for appending
@@ -1027,10 +1181,10 @@ for entry in os.scandir(data_root):
                         csv_eyecorner=open(csv_name,mode='w')
                         #Writing Header:
                         csv_eyecorner.write('Frame_No,Right_Inner_x,Right_Inner_y,Right_Outer_x,Right_Outer_y,Left_Outer_x,Left_Outer_y,Left_Inner_x,Left_Inner_y\n')
-                    
+                    '''
                     sucess,frame=video.read()
                     #frame_count=0
-                    print('Current File is: ',csv_name)
+                    #print('Current File is: ',csv_name)
                     while(sucess):
                         frame_no=video.get(cv2.CAP_PROP_POS_FRAMES)
                         #frame_count+=1
@@ -1072,7 +1226,7 @@ for entry in os.scandir(data_root):
                         
                         #if frame_count==50:
                         #showBoxes(frame,bounding_boxes)
-                        #showCorners(eye_corner_results,frame)
+                        showCorners(eye_corner_results,frame)
                         #print(frame_count)
                         #frame_count=0
                         
@@ -1080,6 +1234,8 @@ for entry in os.scandir(data_root):
                         #del eye_corner_results.left_eye_inner[0]
                         #eye_corner_results.left_eye_inner.append(math.nan)
                         #print(eye_corner_results)
+
+                        '''
                         results_list=[math.nan]*9 #Initializes our results list
                         results_list[0]=int(frame_no)
                         for corner in fields(eye_corner_results):
@@ -1121,8 +1277,9 @@ for entry in os.scandir(data_root):
                         print('Frame_no: ',results_list[0])
                         #print(results_list)
                         csv_eyecorner.write('{},{},{},{},{},{},{},{},{}\n'.format(results_list[0],results_list[1],results_list[2],results_list[3],results_list[4],results_list[5],results_list[6],results_list[7],results_list[8]))
+                        '''
                         sucess,frame=video.read()
-                    csv_eyecorner.close()
+                    #csv_eyecorner.close()
                                 
                             
                             
