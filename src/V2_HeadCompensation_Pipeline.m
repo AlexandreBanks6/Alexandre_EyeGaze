@@ -49,10 +49,20 @@ for m=[1:num_dir]
 
                 
                 calib_lift1_dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift1_dot.csv']);
+                %Only keeps central percentage of data
+                calib_lift1_dot=cropTrainingData(calib_lift1_dot);
+
                 calib_lift2_dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift2_dot.csv']);
+                calib_lift2_dot=cropTrainingData(calib_lift2_dot);
+
                 calib_lift3_dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift3_dot.csv']);
+                calib_lift3_dot=cropTrainingData(calib_lift3_dot);
+
                 calib_lift4_dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift4_dot.csv']);
+                calib_lift4_dot=cropTrainingData(calib_lift4_dot);   
+
                 calib_lift5_dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift5_dot.csv']);
+                calib_lift5_dot=cropTrainingData(calib_lift5_dot);
                 data_cell={calib_lift1_dot,calib_lift2_dot,calib_lift3_dot,calib_lift4_dot,calib_lift5_dot};
                 
                 %{
@@ -70,6 +80,7 @@ for m=[1:num_dir]
                 compensation_data_onedot=prepCompensationData(data_cell,model_poly,dist_cell,avg_corners);
 
                 right_data=compensation_data_onedot{1};
+
                 left_data=compensation_data_onedot{2};
 
                 del_POG_x_right=right_data(:,1);
@@ -358,20 +369,20 @@ function robust_regressor_output=robustRegressor(train_cell)
     if num_pg_detect==0
         robust_regressor_output=nan;
     else %We have detections and proceed
-        robust_regressor_output=cell(num_pg_detect*2,3); %Final entry are the model parameters
+        robust_regressor_output=cell(num_pg_detect*2,4); %Final entry are the model parameters
         for i=[1:num_pg_detect] %Looping for the detections
             train_data=train_cell{i}{2};
             [rmse_x,rmse_y,b_x,b_y]=customRegressor(train_data);
             %Saving x-results
             robust_regressor_output{i*2-1,1}=strcat(train_cell{i}{1},'_x');
-            %robust_regressor_output{i*2-1,2}=(rmse_x+rmse_y)/2;
             robust_regressor_output{i*2-1,2}=size(train_data,1);
             robust_regressor_output{i*2-1,3}=b_x;
+            robust_regressor_output{i*2-1,4}=(rmse_x+rmse_y)/2;
 
             robust_regressor_output{i*2,1}=strcat(train_cell{i}{1},'_y');
-            %robust_regressor_output{i*2,2}=(rmse_x+rmse_y)/2;
             robust_regressor_output{i*2,2}=size(train_data,1);
             robust_regressor_output{i*2,3}=b_y;
+            robust_regressor_output{i*2,4}=(rmse_x+rmse_y)/2;
 
         end
         
@@ -782,6 +793,57 @@ mdl_y=robustfit(predictors_y,del_POG_y,REGRESS_FUNC,REGRESS_TUNE); %Uses iterati
 
 end
 
+function train_data_new=cropTrainingData(train_data)
+    %Only keeps a central portion of data
+    % The start crop is determined by PERCENT_START and the end crop by
+    % PERCENT_END
+    % of training points for each target
+    %Input:
+    PERCENT_START=0.15;
+    PERCENT_END=0.85;
+
+    train_data_new=[];
+    [row_n,~]=size(train_data);
+    old_tx=train_data(1,27);
+    old_ty=train_data(1,28);
+    seg_data=[];
+
+    for i=[1:row_n]
+        %Looks for a change in the target
+        
+
+        if train_data(i,27)~=old_tx || train_data(i,28)~=old_ty %The target switched locations and we update the new training data and tracking variables
+            old_tx=train_data(i,27);
+            old_ty=train_data(i,28);
+            [row_seg,~]=size(seg_data);
+            start_ind=floor(row_seg*PERCENT_START);
+            end_ind=floor(row_seg*PERCENT_END);
+            if ~mod(start_ind,1) && ~mod(end_ind,1) && start_ind>0 && end_ind>0
+                train_data_new=[train_data_new;seg_data(start_ind:end_ind,:)];
+                seg_data=[];
+            else
+                seg_data=[];
+            end
+
+
+
+        end
+        seg_data=[seg_data;train_data(i,:)]; %Updates current segment data
+    
+    end
+
+    %One more update, because we don't have a switch at the end
+    [row_seg,~]=size(seg_data);
+    start_ind=floor(row_seg*PERCENT_START);
+    end_ind=floor(row_seg*PERCENT_END);
+    if ~mod(start_ind,1) && ~mod(end_ind,1) && start_ind>0 && end_ind>0
+        train_data_new=[train_data_new;seg_data(start_ind:end_ind,:)];
+    else
+        disp('nan vals');
+    end
+
+
+end
 
 
 function [mean_accuracies,total_results]=evalModelsRegressComp(data_mat,model_cell,dist_cell,avg_corners,comp_model_x_right,comp_model_y_right,comp_model_x_left,comp_model_y_left,PG_Estimation_Models,max_compensation_models)

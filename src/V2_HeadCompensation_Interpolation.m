@@ -108,6 +108,32 @@ for m=[1:num_dir]
             max_compensation_models=maxCompensationTraining(max_compensation_data);
 
 
+            %---------Using 1-dot data to find variance in POG estimates for
+            %combining the POG estimates
+
+            %Extracting one-dot data:
+            calib_lift1_dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift1_dot.csv']);
+            %Only keeps central percentage of data
+            calib_lift1_dot=cropTrainingData(calib_lift1_dot);
+
+            calib_lift2_dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift2_dot.csv']);
+            calib_lift2_dot=cropTrainingData(calib_lift2_dot);
+
+            calib_lift3_dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift3_dot.csv']);
+            calib_lift3_dot=cropTrainingData(calib_lift3_dot);
+
+            calib_lift4_dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift4_dot.csv']);
+            calib_lift4_dot=cropTrainingData(calib_lift4_dot);   
+
+            calib_lift5_dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Comp_Lift5_dot.csv']);
+            calib_lift5_dot=cropTrainingData(calib_lift5_dot);
+            data_cell=[calib_lift1_dot;calib_lift2_dot;calib_lift3_dot;calib_lift4_dot;calib_lift5_dot];
+
+            variance_cell=findPOGVariance(model_poly_init,dist_cell_init,avg_corners_init,poly_functions_array);
+
+
+
+
 
             %avg_corners in the format: right_inner_x,right_inner_y,right_outer_x,right_outer_y,left_inner_x,...
                 
@@ -408,7 +434,7 @@ function [rmse_x,rmse_y,b_x,b_y]=customRegressor(train_data)
     %The tuning constant is set to 4.685 for bisquare
     REGRESS_TUNE=4.2;
     REGRESS_FUNC='huber';
-    train_data=cropTrainingData(train_data);
+    %train_data=cropTrainingData(train_data);
 
     pg_x=train_data(:,1);
     pg_y=train_data(:,2);
@@ -437,30 +463,52 @@ function [rmse_x,rmse_y,b_x,b_y]=customRegressor(train_data)
 end
 
 function train_data_new=cropTrainingData(train_data)
-    %Only keeps a final percentage (set by PERCENT_TARGET) of training points for each target
-    %Input: 
-    % train_data: col1=pg_x, col2=pg_y, col3=target_x, col4=target_y
-    PERCENT_TARGET=0.8;
+    %Only keeps a central portion of data
+    % The start crop is determined by PERCENT_START and the end crop by
+    % PERCENT_END
+    % of training points for each target
+    %Input:
+    PERCENT_START=0.15;
+    PERCENT_END=0.85;
+
     train_data_new=[];
     [row_n,~]=size(train_data);
-    old_tx=train_data(1,3);
-    old_ty=train_data(1,4);
-    last_switch_ind=1;
-    for i=[2:row_n]
-        %Looks for a change in the target
-        if train_data(i,3)~=old_tx || train_data(i,4)~=old_ty %The target switched locations and we update the new training data and tracking variables
-            old_tx=train_data(i,3);
-            old_ty=train_data(i,4);
+    old_tx=train_data(1,27);
+    old_ty=train_data(1,28);
+    seg_data=[];
 
-            curr_data_length=i-last_switch_ind;
-            plus_data_ind=floor((1-PERCENT_TARGET)*curr_data_length);
-            new_data=train_data([last_switch_ind+plus_data_ind:i-1],[1:4]);
-            train_data_new=[train_data_new;new_data];
-            last_switch_ind=i;
+    for i=[1:row_n]
+        %Looks for a change in the target
+        
+
+        if train_data(i,27)~=old_tx || train_data(i,28)~=old_ty %The target switched locations and we update the new training data and tracking variables
+            old_tx=train_data(i,27);
+            old_ty=train_data(i,28);
+            [row_seg,~]=size(seg_data);
+            start_ind=floor(row_seg*PERCENT_START);
+            end_ind=floor(row_seg*PERCENT_END);
+            if ~mod(start_ind,1) && ~mod(end_ind,1) && start_ind>0 && end_ind>0
+                train_data_new=[train_data_new;seg_data(start_ind:end_ind,:)];
+                seg_data=[];
+            else
+                seg_data=[];
+            end
+
+
 
         end
+        seg_data=[seg_data;train_data(i,:)]; %Updates current segment data
     
-    
+    end
+
+    %One more update, because we don't have a switch at the end
+    [row_seg,~]=size(seg_data);
+    start_ind=floor(row_seg*PERCENT_START);
+    end_ind=floor(row_seg*PERCENT_END);
+    if ~mod(start_ind,1) && ~mod(end_ind,1) && start_ind>0 && end_ind>0
+        train_data_new=[train_data_new;seg_data(start_ind:end_ind,:)];
+    else
+        disp('nan vals');
     end
 
 
@@ -1491,7 +1539,10 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
     closest_type='euclidean'; %Using euclidean distance as the initial similarity measure
 
     %Filter parameters
-    %MAV_Length=3;
+    %MAV_Length=15;
+    %past_tx=reformatted_data(1,22);
+    %past_ty=reformatted_data(1,23);
+    
     
     %Arrays for interp POG filtering
     %POG_x_interp_right_array=[];
@@ -1656,9 +1707,14 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
                         if ~all(isnan(weighted_poly_x)) && ~all(isnan(weighted_poly_y))
                             POG_x_interp_right=findPOG(weighted_poly_x',predictors_x);
                             POG_y_interp_right=findPOG(weighted_poly_y',predictors_y);
-
-                            %Filtering
                             %{
+                            %Filtering
+                            if t_x~=past_tx||t_y~=past_ty
+                                    POG_x_interp_right_array=[];
+                                    POG_y_interp_right_array=[];
+                            end
+
+                            
                             POG_x_interp_right_array=[POG_x_interp_right_array,POG_x_interp_right];
                             POG_y_interp_right_array=[POG_y_interp_right_array,POG_y_interp_right];
 
@@ -1831,6 +1887,12 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
                             
                             %Filtering
                             %{
+                                                        
+                            if t_x~=past_tx||t_y~=past_ty
+                                    POG_x_interp_left_array=[];
+                                    POG_y_interp_left_array=[];
+                            end
+                            
                             POG_x_interp_left_array=[POG_x_interp_left_array,POG_x_interp_left];
                             POG_y_interp_left_array=[POG_y_interp_left_array,POG_y_interp_left];
     
@@ -1840,8 +1902,8 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
                             end
                             POG_x_interp_left=mean(POG_x_interp_left_array,'omitnan');
                             POG_y_interp_left=mean(POG_y_interp_left_array,'omitnan');
+                            
                             %}
-    
                             accuracy_interp_left=sqrt((POG_x_interp_left-t_x)^2+(POG_y_interp_left-t_y)^2);
                             results_row(5)=accuracy_interp_left;
                         end
@@ -1884,6 +1946,8 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
 
 
         total_results=[total_results;results_row];
+        past_tx=t_x;
+        past_ty=t_y;
     end
 
 end
@@ -1915,3 +1979,32 @@ function reformatted_data=reformatData(eval_data)
 
 end
 
+
+
+%-----------------------<Variance Weighting Functions>---------------------
+
+function variance_cell=findPOGVariance(model_poly_init,dist_cell_init,avg_corners_init,poly_functions_array)
+%Finds the variance of the POG estimate for the left and right eyes in the
+%x, and y directions when looking at the central dot
+
+%{
+model_poly=model array from the initial calibration
+dist_cell=corner distance from the intial calibration
+avg_corners_init=average corner positions at the intial calibration
+poly_functions_array=5 additional fitted polynomials for the interpolation
+approac
+
+output: cell with two columns:
+    col1:               col2:
+    variance_right_x    value
+    variance_right_y    value
+    variance_left_x     value
+    variance_left_y     value
+
+%}
+
+
+
+
+
+end
