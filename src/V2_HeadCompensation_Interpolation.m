@@ -48,7 +48,8 @@ weighted_poly=multivariateInterp(poly_functions,curr_corners,closest_type,weight
 %% Testing on Actual Data
 
 %Looping Through All Participants
-data_root='F:/Alexandre_EyeGazeProject/eyecorner_userstudy2_converted';
+data_root='E:/Alexandre_EyeGazeProject_Extra/eyecorner_userstudy2_converted';
+results_folder='C:/Users/playf/OneDrive/Documents/UBC/Thesis/Paper_FiguresAndResults/Interpolation_IDW_WithResiduals_Results';
 %Getting list of subfolders
 folder_list=dir(data_root);
 dirnames={folder_list([folder_list.isdir]).name};
@@ -58,6 +59,7 @@ num_dir=length(dirnames);
 CALIB_THRESHOLD=5;
 EVAL_THRESHOLD=3; %Threshold to be considered a valid evaluation trial
 
+mean_acc_target_results=[];
 mean_acc_results=[];
 %Looping for all participants
 for m=[1:num_dir]
@@ -146,7 +148,17 @@ for m=[1:num_dir]
             
             
             [mean_accuracies,total_results]=evalModelsRegressComp(data_mat,model_poly_init,dist_cell_init,avg_corners_init,PG_Estimation_Models,max_compensation_models,poly_functions_array,variance_cell);
-            mean_acc_results=[mean_acc_results;mean_accuracies];
+            
+            mean_per_target=findMeanPerTarget(total_results);
+
+
+
+            %Participant Number
+            part_string=dirnames{m}(2:3);
+            part_num=str2double(part_string);
+
+            mean_acc_target_results=[mean_acc_target_results;[part_num,mean_per_target]];
+            mean_acc_results=[mean_acc_results;[part_num,mean_accuracies]];
 
         end
 
@@ -155,6 +167,21 @@ for m=[1:num_dir]
     end
 
 end
+
+%Saving Results:
+%Saving the per-target results
+per_target_results_file=[results_folder,'/per_target_results.csv'];
+csvwrite(per_target_results_file,mean_acc_target_results);
+
+%Saving the mean acc results
+mean_table=array2table(mean_acc_results);
+mean_table.Properties.VariableNames(1:10)={'participant','acc_right_poly',...
+    'acc_left_poly','acc_combined_poly','acc_right_interp','acc_left_interp',...
+    'acc_combined_interp','acc_right_max','acc_left_max','acc_combined_max'};
+mean_results_file=[results_folder,'/mean_acc_results.csv'];
+writetable(mean_table,mean_results_file);
+
+
 
 mean_acc_total=mean(mean_acc_results,1,'omitnan');
 disp(mean_acc_total);
@@ -171,6 +198,48 @@ disp(mean_acc_total);
 
 
 %##########################Function Definitions############################
+function mean_per_target=findMeanPerTarget(total_results)
+%Returns a vector mean_per_target which has elements: 
+% mean_poly, mean_comp, mean_max, target_x, target_y, mean_poly,
+% mean_comp,... and repeats for all targets
+%Each of the means is for right/left/combined
+
+%{
+        total_results: matrix with columns:
+    accuracy_right_poly, accuracy_left_poly, accuracy_combined_poly (3), accuracy_right_interp, accuracy_left_interp, accuracy_combined_interp (6),
+    accuracy_right_max, accuracy_left_max, accuracy_combined_max (9),t_x, t_y (11),
+%}
+    mean_per_target=[];
+    [row_n,~]=size(total_results);
+    old_tx=total_results(1,10);
+    old_ty=total_results(1,11);
+
+    curr_seg=[];
+    for i=[1:row_n]
+        
+        curr_seg=[curr_seg;total_results(i,:)];
+        if old_tx~=total_results(i,10) || old_ty~=total_results(i,11)   %We have a new target point
+
+            mean_per_target=[mean_per_target,mean(curr_seg(:,[1:9]),1,'omitnan'),old_tx,old_ty];
+            
+            old_tx=total_results(i,10);
+            old_ty=total_results(i,11);
+            curr_seg=[];
+        end
+
+
+
+    end
+    mean_per_target=[mean_per_target,mean(curr_seg(:,[1:9]),1,'omitnan'),old_tx,old_ty];
+
+
+
+
+
+end
+
+
+
 
 %---------------------<Initial Calibration Functions>----------------------
 function valid=checkDetection(calib_data,thresh)
