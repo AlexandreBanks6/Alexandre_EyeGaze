@@ -989,7 +989,7 @@ def constrainCorners(eye_corner_results):
                             dist_to_outer=abs(corner_point[0]-LIST_LAST_EYE_CORNER[3][0])
                             if dist_to_inner<dist_to_outer: #We swap the values
                                 old_right_outer=corner_point
-                                eye_corner_results.right_eye_outer[0]=eye_corner_results.right_eye_inner[0]
+                                eye_corner_results.right_eye_outer[0]=getattr(eye_corner_results,'right_eye_inner')[0]
                                 eye_corner_results.right_eye_inner[0]=old_right_outer
                     else:
                         #the other eye corner is a number
@@ -1017,7 +1017,7 @@ def constrainCorners(eye_corner_results):
                             dist_to_outer=abs(corner_point[0]-LIST_LAST_EYE_CORNER[3][0])
                             if dist_to_inner>dist_to_outer: #We swap the values
                                 old_right_inner=corner_point
-                                eye_corner_results.right_eye_inner[0]=eye_corner_results.right_eye_outer[0]
+                                eye_corner_results.right_eye_inner[0]=getattr(eye_corner_results,'right_eye_outer')[0]
                                 eye_corner_results.right_eye_outer[0]=old_right_inner
                     else:
                         #the other eye corner is a number
@@ -1046,7 +1046,7 @@ def constrainCorners(eye_corner_results):
                             dist_to_outer=abs(corner_point[0]-LIST_LAST_EYE_CORNER[0][0])
                             if dist_to_inner>dist_to_outer: #We swap the values
                                 old_left_inner=corner_point
-                                eye_corner_results.left_eye_inner[0]=left_outer
+                                eye_corner_results.left_eye_inner[0]=getattr(eye_corner_results,'left_eye_outer')[0]
                                 eye_corner_results.right_eye_outer[0]=old_left_inner
                     else:
                         #the other eye corner is a number
@@ -1074,7 +1074,7 @@ def constrainCorners(eye_corner_results):
                             dist_to_outer=abs(corner_point[0]-LIST_LAST_EYE_CORNER[0][0])
                             if dist_to_inner<dist_to_outer: #We swap the values
                                 old_left_outer=corner_point
-                                eye_corner_results.left_eye_outer[0]=left_inner
+                                eye_corner_results.left_eye_outer[0]=getattr(eye_corner_results,'left_eye_inner')[0]
                                 eye_corner_results.left_eye_inner[0]=old_left_outer
                     else:
                         #the other eye corner is a number
