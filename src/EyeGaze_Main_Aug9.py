@@ -36,7 +36,7 @@ from utils.torch_utils import select_device
 
 #---------------<Initializing Variables>--------------------
 
-data_root="F:/Alexandre_EyeGazeProject/eyecorner_userstudy2_converted"
+data_root="E:/Alexandre_EyeGazeProject_Extra/eyecorner_userstudy2_converted"
 YOLOV7_MODEL_PATH='resources/eyegaze_model_new_aug18.pt'
 PI=3.1415926535
 
@@ -1158,7 +1158,7 @@ for entry in os.scandir(data_root):
                         print("video "+file+" cannot be opened")
                         continue
                     #Creates a csv file to store the eyecorners
-                    '''
+                    
                     csv_name=data_root+'/'+part_name+'/'+'eyecorners_'+root[9:]+'.csv'
                     #print('Current File:',csv_name)
                     if os.path.isfile(csv_name):    #Enters if the csv alread exists and opens for appending
@@ -1183,10 +1183,10 @@ for entry in os.scandir(data_root):
                         csv_eyecorner=open(csv_name,mode='w')
                         #Writing Header:
                         csv_eyecorner.write('Frame_No,Right_Inner_x,Right_Inner_y,Right_Outer_x,Right_Outer_y,Left_Outer_x,Left_Outer_y,Left_Inner_x,Left_Inner_y\n')
-                    '''
+                    
                     sucess,frame=video.read()
                     #frame_count=0
-                    #print('Current File is: ',csv_name)
+                    print('Current File is: ',csv_name)
                     while(sucess):
                         frame_no=video.get(cv2.CAP_PROP_POS_FRAMES)
                         #frame_count+=1
@@ -1228,7 +1228,7 @@ for entry in os.scandir(data_root):
                         
                         #if frame_count==50:
                         #showBoxes(frame,bounding_boxes)
-                        showCorners(eye_corner_results,frame)
+                        #showCorners(eye_corner_results,frame)
                         #print(frame_count)
                         #frame_count=0
                         
@@ -1237,7 +1237,7 @@ for entry in os.scandir(data_root):
                         #eye_corner_results.left_eye_inner.append(math.nan)
                         #print(eye_corner_results)
 
-                        '''
+                        
                         results_list=[math.nan]*9 #Initializes our results list
                         results_list[0]=int(frame_no)
                         for corner in fields(eye_corner_results):
@@ -1279,10 +1279,10 @@ for entry in os.scandir(data_root):
                         print('Frame_no: ',results_list[0])
                         #print(results_list)
                         csv_eyecorner.write('{},{},{},{},{},{},{},{},{}\n'.format(results_list[0],results_list[1],results_list[2],results_list[3],results_list[4],results_list[5],results_list[6],results_list[7],results_list[8]))
-                        '''
-                        print('Frame_no: ',int(frame_no))
+                        
+                        #print('Frame_no: ',int(frame_no))
                         sucess,frame=video.read()
-                    #csv_eyecorner.close()
+                    csv_eyecorner.close()
                                 
                             
                             

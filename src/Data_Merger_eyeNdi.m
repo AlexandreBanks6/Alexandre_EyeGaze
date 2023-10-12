@@ -23,6 +23,8 @@ dirnames={folder_list([folder_list.isdir]).name};
 num_dir=length(dirnames);
 for m=[1:num_dir]
     if dirnames{m}(1)=='P'
+        p_num=str2double(dirnames{m}(2:end));
+        if p_num>26
         NDI_ROOT=[DATA_DIR,'/',dirnames{m},'/','NDI_Data'];
         NDI_list=dir(NDI_ROOT);
         NDI_names={NDI_list(~[NDI_list.isdir]).name};
@@ -296,6 +298,9 @@ for m=[1:num_dir]
             for i=[1:num_tools]
                 sample_time=ndi_data_new{i}(:,2);
                 query_time=gaze_data_new(:,1); %Time that we want to interpolate to
+                if length(sample_time)<2
+                    continue;
+                end
                 interp_trans=interp1(sample_time,ndi_data_new{i}(:,4:6),query_time,'spline');
                 ndi_data_interp{i}(:,4:6)=interp_trans;
             end
@@ -327,7 +332,10 @@ for m=[1:num_dir]
 
                     
                     interval_frac=(gaze_data_new(j,1)-ndi_data_new{i}(ndi_count-1,2))/(ndi_data_new{i}(ndi_count,2)-ndi_data_new{i}(ndi_count-1,2));
-                    
+                    if isnan(interval_frac)
+                        continue;
+                    end
+                     
                     quat_array=quatinterp(quat_start,quat_end,interval_frac,'slerp');
                     %quat_array=compact(qi);
                     ndi_data_interp{i}(j,7:10)=quat_array; %Updates quaternion
@@ -411,6 +419,10 @@ for m=[1:num_dir]
                 data_header=[data_header,{['Tool ID',num2str(i)],['NDI Frame',num2str(i)],['Tx',num2str(i)],['Ty',num2str(i)],['Tz',num2str(i)],['Q0',num2str(i)],['Qx',num2str(i)],['Qy',num2str(i)],['Qz',num2str(i)],['Track Quality',num2str(i)]}];
             
             end
+            [row_dat,col_dat]=size(full_data);
+            if col_dat<49
+                continue;
+            end
             %Saving Full Data
             full_data_table=array2table(full_data,'VariableNames',data_header);
             %full_data_table.Properties.VariableNames(1:length(data_header))=data_header;
@@ -420,6 +432,7 @@ for m=[1:num_dir]
             calib_only_table=array2table(calib_only_data,'VariableNames',data_header);
             %calib_only_table.VariableNames=data_header;
             writetable(calib_only_table,CALIB_ONLY_DATAPATH);
+        end
         end
     end
 end
