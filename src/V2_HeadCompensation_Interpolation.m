@@ -1181,7 +1181,7 @@ function compensation_data=prepMaxCompensationData(data_matrix,model_cell,dist_c
                         PG_Estimation_Headers=PG_Estimation_Models(:,1);
                         pg_estimation_indx=ismember(PG_Estimation_Headers,header_x);
                         pg_estimation_indy=ismember(PG_Estimation_Headers,header_y);
-    
+                        if sum(pg_estimation_indx)>0 && sum(pg_estimation_indy)>0
                         PG_model_x=PG_Estimation_Models{pg_estimation_indx,2};
                         PG_model_y=PG_Estimation_Models{pg_estimation_indy,2};
                         if ~isempty(PG_model_x) && ~isempty(PG_model_y)
@@ -1235,6 +1235,7 @@ function compensation_data=prepMaxCompensationData(data_matrix,model_cell,dist_c
 
 
                         end   
+                        end
     
                     end
                 end
@@ -1680,8 +1681,6 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
                     pg_estimation_indx=ismember(PG_Estimation_Headers,header_x);
                     pg_estimation_indy=ismember(PG_Estimation_Headers,header_y);
 
-                    PG_model_x=PG_Estimation_Models{pg_estimation_indx,2};
-                    PG_model_y=PG_Estimation_Models{pg_estimation_indy,2};
     
                     [d_calib,d_curr]=findScalingFactors(dist_cell,valid_header,right_headers,right_pgs);
                     
@@ -1700,6 +1699,9 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
                         accuracy_poly=sqrt((POG_x_poly_right-t_x)^2+(POG_y_poly_right-t_y)^2);
                         results_row(1)=accuracy_poly;
                         %-----------Running Max's approach
+                        if sum(pg_estimation_indx)>0 && sum(pg_estimation_indy)>0
+                            PG_model_x=PG_Estimation_Models{pg_estimation_indx,2};
+                            PG_model_y=PG_Estimation_Models{pg_estimation_indy,2};
                         if ~isempty(PG_model_x) && ~isempty(PG_model_y)
 
                             %Estimating PG
@@ -1734,6 +1736,7 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
 
                             
                         end 
+                        end
                     end
                         
                     %-----------Running Polynomial Interpolation Approcah
@@ -1852,8 +1855,6 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
                     pg_estimation_indx=ismember(PG_Estimation_Headers,header_x);
                     pg_estimation_indy=ismember(PG_Estimation_Headers,header_y);
 
-                    PG_model_x=PG_Estimation_Models{pg_estimation_indx,2};
-                    PG_model_y=PG_Estimation_Models{pg_estimation_indy,2};
 
 
                     [d_calib,d_curr]=findScalingFactors(dist_cell,valid_header,left_headers,left_pgs);
@@ -1876,6 +1877,9 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
 
                                                
                         %-----------<Running Max's approach>--------------
+                        if sum(pg_estimation_indx)>0 && sum(pg_estimation_indy)>0
+                            PG_model_x=PG_Estimation_Models{pg_estimation_indx,2};
+                            PG_model_y=PG_Estimation_Models{pg_estimation_indy,2};
                         if ~isempty(PG_model_x) && ~isempty(PG_model_y)
    
                             %Estimating PG
@@ -1910,6 +1914,7 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
                              end
 
                             
+                        end
                         end
 
                                       

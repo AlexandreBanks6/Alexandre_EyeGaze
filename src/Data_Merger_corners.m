@@ -9,7 +9,9 @@ dirnames={folder_list([folder_list.isdir]).name};
 num_dir=length(dirnames);
 
 for m=[1:num_dir]
-    if strcmp(dirnames{m}(1),'P01')
+    if strcmp(dirnames{m}(1),'P')
+        p_num=str2double(dirnames{m}(2:end));
+        if p_num>22
         participant_root=[data_root,'/',dirnames{m}];
         file_list=dir(participant_root);
         file_names={file_list(~[file_list.isdir]).name};
@@ -46,6 +48,12 @@ for m=[1:num_dir]
                         old_names(50:57)={'right_inner_x','right_inner_y',...
                             'right_outer_x','right_outer_y','left_inner_x','left_inner_y',...
                             'left_outer_x','left_outer_y'};
+                        for i=[1:length(old_names)]
+                            if(isempty(old_names{i}))
+                                old_names{i}=['Blank',num2str(i)];
+                            end
+                        end
+
                         output_table=array2table(calib_only_data,'VariableNames',old_names);
                         writetable(output_table,current_file_fullpath)
 
@@ -94,6 +102,7 @@ for m=[1:num_dir]
             end
        
         
+        end
         end
     end
 

@@ -24,7 +24,7 @@ num_dir=length(dirnames);
 for m=[1:num_dir]
     if dirnames{m}(1)=='P'
         p_num=str2double(dirnames{m}(2:end));
-        if p_num>22
+        if p_num==22
         NDI_ROOT=[DATA_DIR,'/',dirnames{m},'/','NDI_Data'];
         NDI_list=dir(NDI_ROOT);
         NDI_names={NDI_list(~[NDI_list.isdir]).name};
@@ -51,9 +51,6 @@ for m=[1:num_dir]
             
             %%Loading Data
             gaze_data=readmatrix(GAZE_DATAPATH);
-            if p_num==25 && p==11
-                gaze_data=gaze_data(2:end,:);
-            end
             ndi_data=readmatrix(NDI_DATAPATH);
             %video_data=VideoReader(VIDEO_DATAPATH);
             
@@ -377,15 +374,12 @@ for m=[1:num_dir]
             %frame, Tx,Ty,Tz,Q0,Qx,Qy,Qz,tracking quality, Tool ID 2, NDI Frame, Tx,...
             [data_rows,~]=size(gaze_data_new);
             full_data=gaze_data_new;
-            non_tools=0;
             for i=[1:num_tools]
                 if isempty(ndi_data_interp{i})
-                    non_tools=non_tools+1;
                     continue;
                 end
                 full_data=[full_data,ndi_data_interp{i}(:,1),ndi_data_interp{i}(:,3:end)];
             end
-            num_tools=num_tools-non_tools;
             
             
             %%Calibration Only Data
@@ -426,7 +420,7 @@ for m=[1:num_dir]
                 'glint2_left_x','glint2_left_y','calib_x','calib_y','calib_valid'};
             tool_id_ind=30;
             for i=[1:num_tools]
-                tool_id_number=num2str(full_data(1,tool_id_ind));
+                tool_id_number=full_data(1,tool_id_ind);
                 data_header=[data_header,{['Tool ID',tool_id_number,],['NDI Frame',tool_id_number],['Tx',tool_id_number],['Ty',tool_id_number],['Tz',tool_id_number],['Q0',tool_id_number],['Qx',tool_id_number],['Qy',tool_id_number],['Qz',tool_id_number],['Track Quality',tool_id_number]}];
                 tool_id_ind=tool_id_ind+10;
             end
