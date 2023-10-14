@@ -22,7 +22,7 @@ mean_acc_target_results=[];
 for m=[1:num_dir]
     if dirnames{m}(1)=='P' %We have a participant and run calibrations and/evaluations
         disp(dirnames{m})
-        if strcmp(dirnames{m},'P22')||strcmp(dirnames{m},'P23')||strcmp(dirnames{m},'P24')||strcmp(dirnames{m},'P25')||strcmp(dirnames{m},'P26')||strcmp(dirnames{m},'P27')||strcmp(dirnames{m},'P28')
+        %if strcmp(dirnames{m},'P22')||strcmp(dirnames{m},'P23')||strcmp(dirnames{m},'P24')||strcmp(dirnames{m},'P25')||strcmp(dirnames{m},'P26')||strcmp(dirnames{m},'P27')||strcmp(dirnames{m},'P28')
             %Reading In Data
             calib_init_data=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Init.csv']);
             check_calib=checkDetection(calib_init_data,CALIB_THRESHOLD);
@@ -170,7 +170,7 @@ for m=[1:num_dir]
 
                 mean_acc_results=[mean_acc_results;[part_num,mean_accuracies]];
             end
-        end
+        %end
     end
 
 end

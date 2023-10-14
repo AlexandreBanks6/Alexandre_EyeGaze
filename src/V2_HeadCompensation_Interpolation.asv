@@ -64,6 +64,8 @@ mean_acc_results=[];
 %Looping for all participants
 for m=[1:num_dir]
     if dirnames{m}(1)=='P' %We have a participant and run calibrations and/evaluations
+        pnum=str2double(dirnames{m}(2:end));
+        %if pnum==13
         disp(dirnames{m})
         calib_init_data=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Init.csv']);
         check_calib=checkDetection(calib_init_data,CALIB_THRESHOLD);
@@ -91,13 +93,37 @@ for m=[1:num_dir]
                     if length(dist_cell)==0
                         continue;
                     end
-                    model_poly=robustRegressor(train_cell); %Get the vanilla model from the initial calibration
+                    row_train=length(train_cell);
+
+                    empty_ind=[];
+                    new_train_cell={};
+                    for l=1:row_train
+                        if isempty(train_cell{l}{1,2})
+                            empty_ind=[empty_ind,l];
+                        else
+                            new_train_cell=[new_train_cell,train_cell(l)];
+                        end
+                    end
+                    if length(empty_ind)==row_train
+                        continue;
+                    end
+                            
+                    model_poly=robustRegressor(new_train_cell); %Get the vanilla model from the initial calibration
                     poly_functions_array{i+1,1}=model_poly;
                     poly_functions_array{i+1,2}=avg_corners;
 
                 end
             end
+            %Getting rid of blanks in poly functions array
+            empty_inds=[];
+            [row_arr,~]=size(poly_functions_array);
+            for i=[1:row_arr]
+                if isempty(poly_functions_array{i,1})
+                    empty_inds=[empty_inds,i];
+                end
+            end
 
+            poly_functions_array(empty_inds,:)=[];
             %training Max's PG Estimator (for PG_hat)
             
             PG_Estimation_Models=maxFitPGRegressor(train_cell_init);
@@ -132,7 +158,7 @@ for m=[1:num_dir]
             data_mat=[calib_lift1_dot;calib_lift2_dot;calib_lift3_dot;calib_lift4_dot;calib_lift5_dot];
 
             variance_cell=findPOGVariance(data_mat,model_poly_init,dist_cell_init,avg_corners_init,poly_functions_array);
-
+            variance_cell={};
 
 
 
@@ -161,6 +187,7 @@ for m=[1:num_dir]
             mean_acc_results=[mean_acc_results;[part_num,mean_accuracies]];
 
         end
+        %end
 
 
 
@@ -1181,7 +1208,7 @@ function compensation_data=prepMaxCompensationData(data_matrix,model_cell,dist_c
                         PG_Estimation_Headers=PG_Estimation_Models(:,1);
                         pg_estimation_indx=ismember(PG_Estimation_Headers,header_x);
                         pg_estimation_indy=ismember(PG_Estimation_Headers,header_y);
-                                                if sum(pg_estimation_indx)>0 && sum(pg_estimation_indy)>0
+                        if sum(pg_estimation_indx)>0 && sum(pg_estimation_indy)>0
                         PG_model_x=PG_Estimation_Models{pg_estimation_indx,2};
                         PG_model_y=PG_Estimation_Models{pg_estimation_indy,2};
                         if ~isempty(PG_model_x) && ~isempty(PG_model_y)
@@ -1235,6 +1262,7 @@ function compensation_data=prepMaxCompensationData(data_matrix,model_cell,dist_c
 
 
                         end   
+                        end
     
                     end
                 end
@@ -1285,6 +1313,8 @@ function compensation_data=prepMaxCompensationData(data_matrix,model_cell,dist_c
                         pg_estimation_indx=ismember(PG_Estimation_Headers,header_x);
                         pg_estimation_indy=ismember(PG_Estimation_Headers,header_y);
     
+
+                        if sum(pg_estimation_indx)>0 && sum(pg_estimation_indy)>0
                         PG_model_x=PG_Estimation_Models{pg_estimation_indx,2};
                         PG_model_y=PG_Estimation_Models{pg_estimation_indy,2};
                         if ~isempty(PG_model_x) && ~isempty(PG_model_y)
@@ -1337,7 +1367,8 @@ function compensation_data=prepMaxCompensationData(data_matrix,model_cell,dist_c
                             compensation_data{results_ind_y,2}=data_y;
 
 
-                        end   
+                        end  
+                        end
     
                     end
                 end
@@ -1347,7 +1378,15 @@ function compensation_data=prepMaxCompensationData(data_matrix,model_cell,dist_c
 
     end
 
+    data_vec=compensation_data(:,2);
+    rm_ind=[];
+    for i=1:length(data_vec)
+        if isempty(data_vec{i})
+            rm_ind=[rm_ind,i];
+        end
+    end
 
+    compensation_data(rm_ind,:)=[];
    
     
 
@@ -2012,15 +2051,15 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
             var_left_x=variance_cell{left_x_ind,2};
             var_left_y=variance_cell{left_y_ind,2};
 
-            if ~isnan(var_right_x) && ~isnan(var_right_y) && ~isnan(var_left_x) && ~isnan(var_left_y)
-                POG_combined_x=(POG_x_interp_right*(1/var_right_x)+POG_x_interp_left*(1/var_left_x))/((1/var_right_x)+(1/var_left_x));
-                POG_combined_y=(POG_y_interp_right*(1/var_right_y)+POG_y_interp_left*(1/var_left_y))/((1/var_right_y)+(1/var_left_y));
+            %if ~isnan(var_right_x) && ~isnan(var_right_y) && ~isnan(var_left_x) && ~isnan(var_left_y)
+               % POG_combined_x=(POG_x_interp_right*(1/var_right_x)+POG_x_interp_left*(1/var_left_x))/((1/var_right_x)+(1/var_left_x));
+                %POG_combined_y=(POG_y_interp_right*(1/var_right_y)+POG_y_interp_left*(1/var_left_y))/((1/var_right_y)+(1/var_left_y));
 
-            else
+            %else
 
                 POG_combined_x=(POG_x_interp_right+POG_x_interp_left)/2;
                 POG_combined_y=(POG_y_interp_right+POG_y_interp_left)/2;
-            end
+            %end
             
             
             
