@@ -6,7 +6,7 @@ close all
 %Looping Through All Participants
 data_root='E:/Alexandre_EyeGazeProject_Extra/eyecorner_userstudy2_converted';
 %data_root='F:/Alexandre_EyeGazeProject/eyecorner_userstudy2_converted';
-results_folder='C:/Users/playf/OneDrive/Documents/UBC/Thesis/Paper_FiguresAndResults/Model_Based_Results';
+results_folder='C:/Users/playf/OneDrive/Documents/UBC/Thesis/Paper_FiguresAndResults/Poly_InitEval_RawResults';
 %Getting list of subfolders
 folder_list=dir(data_root);
 dirnames={folder_list([folder_list.isdir]).name};
@@ -144,24 +144,24 @@ for m=[1:num_dir]
                 data_mat=[eval_lift1_8dot;eval_lift2_8dot;eval_lift3_8dot];
                 %}
                 
-                eval_lift1_9dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Eval_Lift1_9Point.csv']);
+                %eval_lift1_9dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Eval_Lift1_9Point.csv']);
 %                 bool_check=checkEvalData(eval_lift1_9dot);
 %                 if ~bool_check
 %                     eval_lift1_9dot=[];
 %                 end
-                eval_lift2_9dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Eval_Lift2_9Point.csv']);
+                %eval_lift2_9dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Eval_Lift2_9Point.csv']);
 %                 bool_check=checkEvalData(eval_lift2_9dot);
 %                 if ~bool_check
 %                     eval_lift2_9dot=[];
 %                 end
-                eval_lift3_9dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Eval_Lift3_9Point.csv']);
+                %eval_lift3_9dot=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Eval_Lift3_9Point.csv']);
 
 %                 bool_check=checkEvalData(eval_lift3_9dot);
 %                 if ~bool_check
 %                     eval_lift3_9dot=[];
 %                 end
-
-                data_mat=[eval_lift1_9dot;eval_lift2_9dot;eval_lift3_9dot];
+                data_mat=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Eval_Init_9Point.csv']);
+                %data_mat=[eval_lift1_9dot;eval_lift2_9dot;eval_lift3_9dot];
                 
                 
                 [mean_accuracies,total_results]=evalModelsRegressComp(data_mat,model_poly,dist_cell,avg_corners,mdl_right_x,mdl_right_y,mdl_left_x,mdl_left_y,PG_Estimation_Models,max_compensation_models,variance_cell_poly,variance_cell_max,variance_cell_comp);
@@ -2003,7 +2003,7 @@ function total_results=evalAccuracyCompVariance(model_cell,reformatted_data,righ
     
                     [d_calib,d_curr]=findScalingFactors(dist_cell,valid_header,right_headers,right_pgs);
                     
-                    if ~isnan(d_calib) && ~isnan(d_curr) && d_curr>0
+                    if ~isnan(d_calib) && ~isnan(d_curr)
                         
                         %----------Running Classic Polynomial
                     
@@ -2073,9 +2073,6 @@ function total_results=evalAccuracyCompVariance(model_cell,reformatted_data,righ
                                 del_POG_x_tree=findCompensation(comp_model_x_right,predictors_x);
                                 del_POG_x_tree=del_POG_x_tree;
                                 POG_x_tree_right=del_POG_x_tree+POG_x_poly_right;
-                                if strcmp(variance_type,'comp')
-                                    results_row(1)=POG_x_tree_right;
-                                end
 
                         end
 
@@ -2084,10 +2081,11 @@ function total_results=evalAccuracyCompVariance(model_cell,reformatted_data,righ
                                 del_POG_y_tree=findCompensation(comp_model_y_right,predictors_y);
                                 del_POG_y_tree=del_POG_y_tree;                             
                                 POG_y_tree_right=del_POG_y_tree+POG_y_poly_right;
-                                if strcmp(variance_type,'comp')
-                                    results_row(2)=POG_y_tree_right;
-                                end
 
+                        end
+                        if accuracy_get>=2 && strcmp(variance_type,'comp')
+                            results_row(1)=POG_x_tree_right;
+                            results_row(2)=POG_y_tree_right;
                         end
                     end
                       
@@ -2149,7 +2147,7 @@ function total_results=evalAccuracyCompVariance(model_cell,reformatted_data,righ
 
                     [d_calib,d_curr]=findScalingFactors(dist_cell,valid_header,left_headers,left_pgs);
                     
-                    if ~isnan(d_calib) && ~isnan(d_curr) && d_curr>0
+                    if ~isnan(d_calib) && ~isnan(d_curr)
 
                         %------------Running Typicaly POG Approach
                         pg_x=(d_calib/d_curr).*left_pgs(pg_x_ind);
@@ -2221,9 +2219,6 @@ function total_results=evalAccuracyCompVariance(model_cell,reformatted_data,righ
                                 del_POG_x_tree=findCompensation(comp_model_x_left,predictors_x);
                                 del_POG_x_tree=del_POG_x_tree;
                                 POG_x_tree_left=del_POG_x_tree+POG_x_poly_left;
-                                if strcmp(variance_type,'comp')
-                                    results_row(3)=POG_x_tree_left;
-                                end
 
                         end
 
@@ -2231,13 +2226,14 @@ function total_results=evalAccuracyCompVariance(model_cell,reformatted_data,righ
                                 accuracy_get=accuracy_get+1;
                                 del_POG_y_tree=findCompensation(comp_model_y_left,predictors_y);
                                 del_POG_y_tree=del_POG_y_tree;
-                                results_row(15)=del_POG_y_tree;
                                 POG_y_tree_left=del_POG_y_tree+POG_y_poly_left;
-                                if strcmp(variance_type,'comp')
-                                    results_row(4)=POG_y_tree_left;
-                                end
 
                         end
+                        if accuracy_get>=2 && strcmp(variance_type,'comp')
+                            results_row(3)=POG_x_tree_left;
+                            results_row(4)=POG_y_tree_left;
+                        end
+
 
                                       
     

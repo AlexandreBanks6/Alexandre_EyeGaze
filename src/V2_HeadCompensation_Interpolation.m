@@ -49,7 +49,7 @@ weighted_poly=multivariateInterp(poly_functions,curr_corners,closest_type,weight
 
 %Looping Through All Participants
 data_root='E:/Alexandre_EyeGazeProject_Extra/eyecorner_userstudy2_converted';
-results_folder='C:/Users/playf/OneDrive/Documents/UBC/Thesis/Paper_FiguresAndResults/Interpolation_IDW_WithResiduals_Results';
+results_folder='C:/Users/playf/OneDrive/Documents/UBC/Thesis/Paper_FiguresAndResults/Interpolation_Gaussian_Results';
 %Getting list of subfolders
 folder_list=dir(data_root);
 dirnames={folder_list([folder_list.isdir]).name};
@@ -200,7 +200,7 @@ for m=[1:num_dir]
 
 end
 
-%Saving Results:
+%% Saving Results:
 %Saving the per-target results
 per_target_results_file=[results_folder,'/per_target_results.csv'];
 csvwrite(per_target_results_file,mean_acc_target_results);
@@ -1660,11 +1660,11 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
    %}
 
     %Interpolation parameters
-    %k=4; %Number of functions which we interpolate (best for gaussian)
-    k=3; %(best for idw)
+    k=4; %Number of functions which we interpolate (best for gaussian)
+    %k=3; %(best for idw)
     p=1.5; %Order of interpolation weight
     sigma=0.75;
-    weighting_type='idw'; %Using inverse distance weighting
+    weighting_type='gaussian'; %Using inverse distance weighting
     closest_type='euclidean'; %Using euclidean distance as the initial similarity measure
 
     %Filter parameters
@@ -1801,11 +1801,11 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
                     %We use PG's with smallest residuals for the
                     %calibrated polynomial when doing the
                     %interpolation approach (gives best results)
-                    cur_val=updated_model_cell{1,3};
+                    cur_val=updated_model_cell{1,4};
                     cur_ind=1;
                     for j=[1:2:row_new]
-                        if (updated_model_cell{j,3}<cur_val) %Change > to < if using residuals
-                            cur_val=updated_model_cell{j,3};
+                        if (updated_model_cell{j,4}>cur_val) %Change > to < if using residuals
+                            cur_val=updated_model_cell{j,4};
                             cur_ind=j;
                         end
                     end
@@ -1977,11 +1977,11 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
                         
                     end
                     %-----------Running Polynomial Interpolation Approcah
-                    cur_val=updated_model_cell{1,3};
+                    cur_val=updated_model_cell{1,4};
                     cur_ind=1;
                     for j=[1:2:row_new]
-                        if (updated_model_cell{j,3}<cur_val) %Change > to < if using iteratively least squares
-                            cur_val=updated_model_cell{j,3};
+                        if (updated_model_cell{j,4}>cur_val) %Change > to < if using iteratively least squares
+                            cur_val=updated_model_cell{j,4};
                             cur_ind=j;
                         end
                     end
@@ -2334,11 +2334,11 @@ function total_results=evalAccuracyCompVariance(model_cell,reformatted_data,righ
                     %We use PG's with smallest residuals for the
                     %calibrated polynomial when doing the
                     %interpolation approach (gives best results)
-                    cur_val=updated_model_cell{1,3};
+                    cur_val=updated_model_cell{1,4};
                     cur_ind=1;
                     for j=[1:2:row_new]
-                        if (updated_model_cell{j,3}<cur_val) %Change > to < if using residuals
-                            cur_val=updated_model_cell{j,3};
+                        if (updated_model_cell{j,4}>cur_val) %Change > to < if using residuals
+                            cur_val=updated_model_cell{j,4};
                             cur_ind=j;
                         end
                     end
@@ -2503,11 +2503,11 @@ if check_model_left
                         
                     end
                     %-----------Running Polynomial Interpolation Approcah
-                    cur_val=updated_model_cell{1,3};
+                    cur_val=updated_model_cell{1,4};
                     cur_ind=1;
                     for j=[1:2:row_new]
-                        if (updated_model_cell{j,3}<cur_val) %Change > to < if using iteratively least squares
-                            cur_val=updated_model_cell{j,3};
+                        if (updated_model_cell{j,4}>cur_val) %Change > to < if using iteratively least squares
+                            cur_val=updated_model_cell{j,4};
                             cur_ind=j;
                         end
                     end
