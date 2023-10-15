@@ -164,7 +164,7 @@ for m=[1:num_dir]
                 data_mat=[eval_lift1_9dot;eval_lift2_9dot;eval_lift3_9dot];
                 
                 
-                [mean_accuracies,total_results]=evalModelsRegressComp(data_mat,model_poly,dist_cell,avg_corners,mdl_right_x,mdl_right_y,mdl_left_x,mdl_left_y,PG_Estimation_Models,max_compensation_models,variance_cell_poly,variance_cell_max,variance_cell_comp);
+                [mean_accuracies,total_results]=evalModelsRegressComp(data_mat,model_poly,dist_cell,avg_corners,mdl_right_x,mdl_right_y,mdl_left_x,mdl_left_y,PG_Estimation_Models,max_compensation_models,variance_cell_poly,variance_cell_max,variance_cell_interp);
                 
                
                 mean_per_target=findMeanPerTarget(total_results);
@@ -1405,7 +1405,7 @@ function total_results=evalAccuracyComp(model_cell,reformatted_data,right_header
         end
 
         if exist('POG_x_tree_right','var') && exist('POG_y_tree_right','var') && exist('POG_x_tree_left','var') && exist('POG_y_tree_left','var') 
-            [POG_combined_x,POG_combined_y]=findCombinedWithVariance(variance_cell_comp,POG_x_tree_right,POG_x_tree_left,POG_y_tree_right,POG_y_tree_left);   
+            [POG_combined_x,POG_combined_y]=findCombinedWithVariance(variance_cell_interp,POG_x_tree_right,POG_x_tree_left,POG_y_tree_right,POG_y_tree_left);   
             accuracy_combined=getAccuracy_mm(t_x,t_y,POG_combined_x,POG_combined_y); 
             results_row(7)=accuracy_combined;
 
@@ -1976,16 +1976,16 @@ function total_results=evalAccuracyCompVariance(model_cell,reformatted_data,righ
                     updated_model_cell=model_cell(model_valid_indexes,:);
                     [row_new,~]=size(updated_model_cell);
                     %Loops for all the number of points used and returns index of largest
-                    cur_val=updated_model_cell{1,2};
+                    cur_val=updated_model_cell{1,4};
                     cur_ind=1;
                     for j=[1:2:row_new]
-                        if (updated_model_cell{j,2}>cur_val) %Change > to < if using residuals
-                            cur_val=updated_model_cell{j,2};
+                        if (updated_model_cell{j,4}>cur_val) %Change > to < if using residuals
+                            cur_val=updated_model_cell{j,4};
                             cur_ind=j;
                         end
                     end
-                    model_x=updated_model_cell{cur_ind,3};
-                    model_y=updated_model_cell{cur_ind+1,3};
+                    model_x=updated_model_cell{cur_ind,2};
+                    model_y=updated_model_cell{cur_ind+1,2};
                     header_x=valid_header{cur_ind};
                     header_y=valid_header{cur_ind+1};
                     pg_x_ind=ismember(right_headers,header_x);
@@ -2119,16 +2119,16 @@ function total_results=evalAccuracyCompVariance(model_cell,reformatted_data,righ
                     updated_model_cell=model_cell(model_valid_indexes,:);
                     [row_new,~]=size(updated_model_cell);
                     %Loops for all the number of points used and returns index of largest
-                    cur_val=updated_model_cell{1,2};
+                    cur_val=updated_model_cell{1,4};
                     cur_ind=1;
                     for j=[1:2:row_new]
-                        if (updated_model_cell{j,2}>cur_val) %Change > to < if using iteratively least squares
-                            cur_val=updated_model_cell{j,2};
+                        if (updated_model_cell{j,4}>cur_val) %Change > to < if using iteratively least squares
+                            cur_val=updated_model_cell{j,4};
                             cur_ind=j;
                         end
                     end
-                    model_x=updated_model_cell{cur_ind,3};
-                    model_y=updated_model_cell{cur_ind+1,3};
+                    model_x=updated_model_cell{cur_ind,2};
+                    model_y=updated_model_cell{cur_ind+1,2};
                     header_x=valid_header{cur_ind};
                     header_y=valid_header{cur_ind+1};
                     pg_x_ind=ismember(left_headers,header_x);
@@ -2149,7 +2149,7 @@ function total_results=evalAccuracyCompVariance(model_cell,reformatted_data,righ
 
                     [d_calib,d_curr]=findScalingFactors(dist_cell,valid_header,left_headers,left_pgs);
                     
-                    if ~isnan(d_calib) && ~isnan(d_curr) && d_curr>0
+                    if ~isnan(d_calib) && ~isnan(d_curr) && d_curr>
 
                         %------------Running Typicaly POG Approach
                         pg_x=(d_calib/d_curr).*left_pgs(pg_x_ind);
@@ -2257,27 +2257,3 @@ function total_results=evalAccuracyCompVariance(model_cell,reformatted_data,righ
 
 end
 
-function [POG_combined_x,POG_combined_y]=findCombinedWithVariance(variance_cell,POG_x_right,POG_x_left,POG_y_right,POG_y_left)
-        right_x_ind=ismember(variance_cell(:,1),'variance_right_x');
-        right_y_ind=ismember(variance_cell(:,1),'variance_right_y');
-        left_x_ind=ismember(variance_cell(:,1),'variance_left_x');
-        left_y_ind=ismember(variance_cell(:,1),'variance_left_y');
-
-        var_right_x=variance_cell{right_x_ind,2};
-        var_right_y=variance_cell{right_y_ind,2};
-        var_left_x=variance_cell{left_x_ind,2};
-        var_left_y=variance_cell{left_y_ind,2};
-        %-------------------<Getting Combined Results>-----------------
-        if ~isnan(var_right_x) && ~isnan(var_right_y) && ~isnan(var_left_x) && ~isnan(var_left_y)
-            POG_combined_x=(POG_x_right*(1/var_right_x)+POG_x_left*(1/var_left_x))/((1/var_right_x)+(1/var_left_x));
-            POG_combined_y=(POG_y_right*(1/var_right_y)+POG_y_left*(1/var_left_y))/((1/var_right_y)+(1/var_left_y));
-
-        else
-
-            POG_combined_x=(POG_x_right+POG_x_left)/2;
-            POG_combined_y=(POG_y_right+POG_y_left)/2;
-        end
-
-
-
-end
