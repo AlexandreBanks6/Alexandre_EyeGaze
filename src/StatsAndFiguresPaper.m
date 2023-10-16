@@ -66,4 +66,9 @@ posthoc_res_left = array2table(posthoc_res_left,"VariableNames", ...
 
 
 %% Plotting Model BasedMean acc's with violin plot
-vs_right=violinplot(mean_acc_modelbased(:,[2,5,8]),grp_right);
+grp_right={'Poly_{r}','Li_{r}','CCHC_{r}'};
+%vs_right=violinplot(mean_acc_modelbased(:,[2,8,5]),grp_right,'ShowData',false,'Bandwidth',range(mean_acc_modelbased(:,2))*0.1,'Width',0.3);
+%data=num2cell(mean_acc_modelbased(:,[2,8,5]));
+%customViolin(mean_acc_modelbased(:,2),0.7,2,'k',parula(numel(data)))
+%KernelBoxPlot(mean_acc_modelbased(:,5),'Poly_r');
+customViolin(mean_acc_modelbased(:,[2,8,5]),0.5,grp_right,'violin plot');

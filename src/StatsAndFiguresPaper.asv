@@ -40,10 +40,33 @@ mean_acc_modelbased(p22_ind,[5:7])=nan(1,3);
 p26_ind=mean_acc_modelbased(:,1)==26;
 mean_acc_modelbased(p26_ind,[7])=nan;
 
+mean_acc_modelbased(12,5)=nan;
+mean_acc_modelbased(26,5)=nan;
 %% Initial plotting
 %Test bargraph
 boxplot(mean_acc_modelbased(:,[2,5,8]));
 
 %% Running anova and post-hoc analysis for model-based (IPCAI)
 %Doing it for right eyes
-[]=anova1(mean_acc_modelbased(:,[2,5,8]));
+grp_right={'poly_right','model_right','max_right'};
+[p_right,tbl_right,stats_right]=anova1(mean_acc_modelbased(:,[2,5,8]));
+
+%Doing it for left eyes
+grp_right={'poly_left','model_left','max_left'};
+[p_left,tbl_left,stats_left]=anova1(mean_acc_modelbased(:,[3,6,9]));
+
+[posthoc_res_right,~,~,~]=multcompare(stats_right,'Alpha',0.05,'CriticalValueType','tukey-kramer');
+posthoc_res_right = array2table(posthoc_res_right,"VariableNames", ...
+    ["Group A","Group B","Lower Limit","A-B","Upper Limit","P-value"]);
+
+
+[posthoc_res_left,~,~,~]=multcompare(stats_left,'Alpha',0.05,'CriticalValueType','tukey-kramer');
+posthoc_res_left = array2table(posthoc_res_left,"VariableNames", ...
+    ["Group A","Group B","Lower Limit","A-B","Upper Limit","P-value"]);
+
+
+%% Plotting Model BasedMean acc's with violin plot
+%grp_right={'Poly_{r}','Li_{r}','CCHC_{r}'};
+%vs_right=violinplot(mean_acc_modelbased(:,[2,8,5]),grp_right,'ShowData',false,'Bandwidth',range(mean_acc_modelbased(:,2))*0.1,'Width',0.3);
+data=num2cell(mean_acc_modelbased(:,[2,8,5]));
+customViolin(data,0.7,2,'k',parula())
