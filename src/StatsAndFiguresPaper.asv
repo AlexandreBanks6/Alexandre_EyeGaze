@@ -119,12 +119,14 @@ left_stds=std(left_results,1,'omitnan');
 
 %targets
 targets=targets(1:9,:);
+%Converting targets to the correct coordinates
+targets(1:9,2)=100-targets(1:9,2);
 %Converting targets to mm
 targets([1,4,7],1)=targets([1,4,7],1)-10;
 targets([3,6,9],1)=targets([3,6,9],1)+10;
 
-targets([1,2,3],2)=targets([1,2,3],2)-10;
-targets([7,8,9],2)=targets([7,8,9],2)+10;
+targets([1,2,3],2)=targets([1,2,3],2)+10;
+targets([7,8,9],2)=targets([7,8,9],2)-10;
 
 targets(:,1)=(targets(:,1)./100)*284.48;
 targets(:,2)=(targets(:,2)./100)*213.36;
@@ -140,13 +142,37 @@ inner_radius=right_means./2-right_stds./4;
 figure;
 hold on
 for i=[1:9]
-    circle(targets(i,1),targets(i,2),outer_radius(i),'b','g'); %Outer radius
-    circle(targets(i,1),targets(i,2),inner_radius(i),'b','w'); %Inner radius
+    patchcolor='b'; %Doesn't influence anything, but needed
+    
+    dash_type='-';
+    facecolor='none';
+    edgecolor="#0072BD";
+    facealpha=0;
+    linewidth=1;
+    circle(targets(i,1),targets(i,2),mean_radius(i),patchcolor,facecolor,edgecolor,facealpha,linewidth,dash_type); %Mean line
 
-    circle(targets(i,1),targets(i,2),mean_radius(i),'b','none'); %Mean line
-
+    dash_type='-';
+    facecolor='#98cce5';
+    edgecolor=facecolor;
+    facealpha=0.5;
+    linewidth=1;
+    circle(targets(i,1),targets(i,2),outer_radius(i),patchcolor,facecolor,edgecolor,facealpha,linewidth,dash_type); %Outer radius
+    
+    facecolor='w';
+    edgecolor='#98cce5';
+    facealpha=1;
+    linewidth=1;
+    
+    circle(targets(i,1),targets(i,2),inner_radius(i),patchcolor,facecolor,edgecolor,facealpha,linewidth,dash_type); %Inner radius
+    
 end
+target_radi=[2,2,2,2,2,2,2,2,2].*0.1;
+viscircles(targets,target_radi);
+rectangle('position',[0,0,284.48,213.36]);
+xlabel('Screen Width (mm)');
+y
 hold off
+axis equal
 %viscircles(targets,right_means./2+right_stds./4,'Color','r','LineWidth',1); %Outer radius
 %viscircles(targets,right_means./2-right_stds./4,'Color','r','LineWidth',1,'ObjectPolarity','r'); %Inner radius
 %viscircles(targets,right_means./2,'Color','k','LineWidth',1); %Mean line
@@ -156,12 +182,12 @@ hold off
 
 
 %---------------------------<Helper Function Definitions>-----------------
-function circles = circle(x,y,r,patchcolor,facecolor,edgecolor)
+function circles = circle(x,y,r,patchcolor,facecolor,edgecolor,facealpha,linewidth,line_type)
 
 th = 0:pi/50:2*pi;
 x_circle = r * cos(th) + x;
 y_circle = r * sin(th) + y;
 circles = plot(x_circle, y_circle);
-fill(x_circle, y_circle, patchcolor,'FaceColor',facecolor,'EdgeColor',,);
+fill(x_circle, y_circle, patchcolor,'FaceColor',facecolor,'EdgeColor',edgecolor,'FaceAlpha',facealpha,'LineWidth',linewidth,'LineStyle',line_type);
 
 end

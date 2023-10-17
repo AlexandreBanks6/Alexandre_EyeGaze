@@ -113,18 +113,19 @@ right_stds=std(right_results,1,'omitnan');
 %Left targets accuracies
 left_results=[left_results(:,1:9);left_results(:,10:18);left_results(:,19:27)];
 %Converting to degrees of visual angle
-left_results=atan(left_results./457.2).*(180/pi);
 left_means=mean(left_results,1,'omitnan');
 left_stds=std(left_results,1,'omitnan');
 
 %targets
 targets=targets(1:9,:);
+%Converting targets to the correct coordinates
+targets(1:9,2)=100-targets(1:9,2);
 %Converting targets to mm
 targets([1,4,7],1)=targets([1,4,7],1)-10;
 targets([3,6,9],1)=targets([3,6,9],1)+10;
 
-targets([1,2,3],2)=targets([1,2,3],2)-10;
-targets([7,8,9],2)=targets([7,8,9],2)+10;
+targets([1,2,3],2)=targets([1,2,3],2)+10;
+targets([7,8,9],2)=targets([7,8,9],2)-10;
 
 targets(:,1)=(targets(:,1)./100)*284.48;
 targets(:,2)=(targets(:,2)./100)*213.36;
@@ -162,16 +163,68 @@ for i=[1:9]
     linewidth=1;
     
     circle(targets(i,1),targets(i,2),inner_radius(i),patchcolor,facecolor,edgecolor,facealpha,linewidth,dash_type); %Inner radius
-
     
 end
+target_radi=[2,2,2,2,2,2,2,2,2].*0.1;
+viscircles(targets,target_radi);
+%rectangle('position',[0,0,284.48,213.36]);
+xlabel('x-screen (mm)','FontName','Times New Roman','FontSize',14,'FontWeight','bold');
+ylabel('y-screen (mm)','FontName','Times New Roman','FontSize',14,'FontWeight','bold');
+title('Error Per Target of Right Eye','FontName','Times New Roman','FontSize',16)
 hold off
 axis equal
+
+
+
 %viscircles(targets,right_means./2+right_stds./4,'Color','r','LineWidth',1); %Outer radius
 %viscircles(targets,right_means./2-right_stds./4,'Color','r','LineWidth',1,'ObjectPolarity','r'); %Inner radius
 %viscircles(targets,right_means./2,'Color','k','LineWidth',1); %Mean line
 %xaxis([0,284.48]);
 %yaxis([0,213.36]);
+
+
+%% Plotting acc per target for left eye
+%We plot each center as the target location, then a solid circle around
+%this as the mean accuracy, and a dashed filled circle around this as the
+%standard deviation
+mean_radius=left_means./2;
+outer_radius=left_means./2+left_stds./4;
+inner_radius=left_means./2-left_stds./4;
+figure;
+hold on
+for i=[1:9]
+    patchcolor='b'; %Doesn't influence anything, but needed
+    
+    dash_type='-';
+    facecolor='none';
+    edgecolor="#0072BD";
+    facealpha=0;
+    linewidth=1;
+    circle(targets(i,1),targets(i,2),mean_radius(i),patchcolor,facecolor,edgecolor,facealpha,linewidth,dash_type); %Mean line
+
+    dash_type='-';
+    facecolor='#98dddd';
+    edgecolor=facecolor;
+    facealpha=0.5;
+    linewidth=1;
+    circle(targets(i,1),targets(i,2),outer_radius(i),patchcolor,facecolor,edgecolor,facealpha,linewidth,dash_type); %Outer radius
+    
+    facecolor='w';
+    edgecolor='#98dddd';
+    facealpha=1;
+    linewidth=1;
+    
+    circle(targets(i,1),targets(i,2),inner_radius(i),patchcolor,facecolor,edgecolor,facealpha,linewidth,dash_type); %Inner radius
+    
+end
+target_radi=[2,2,2,2,2,2,2,2,2].*0.1;
+viscircles(targets,target_radi);
+%rectangle('position',[0,0,284.48,213.36]);
+xlabel('x-screen (mm)','FontName','Times New Roman','FontSize',14,'FontWeight','bold');
+ylabel('y-screen (mm)','FontName','Times New Roman','FontSize',14,'FontWeight','bold');
+title('Error Per Target of Right Eye','FontName','Times New Roman','FontSize',16)
+hold off
+axis equal
 
 
 
