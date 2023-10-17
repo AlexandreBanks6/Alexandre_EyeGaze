@@ -106,6 +106,18 @@ end
 
 %Right target accuracies
 right_results=[right_results(:,1:9);right_results(:,10:18);right_results(:,19:27)];
+right_results(53,3)=nan;
+right_results(32,3)=nan;
+right_results(11,3)=nan;
+right_results(18,6)=nan;
+right_results(32,6)=nan;
+right_results(18,3)=nan;
+right_results(18,7)=nan;
+right_results(34,7)=nan;
+right_results(12,9)=nan;
+right_results(13,9)=nan;
+right_results(20,9)=nan;
+
 %Converting to degrees of visual angle
 right_means=mean(right_results,1,'omitnan');
 right_stds=std(right_results,1,'omitnan');
@@ -124,8 +136,9 @@ targets(1:9,2)=100-targets(1:9,2);
 targets([1,4,7],1)=targets([1,4,7],1)-10;
 targets([3,6,9],1)=targets([3,6,9],1)+10;
 
-targets([1,2,3],2)=targets([1,2,3],2)+10;
-targets([7,8,9],2)=targets([7,8,9],2)-10;
+%targets([1,2,3],2)=targets([1,2,3],2)+10;
+%targets([7,8,9],2)=targets([7,8,9],2)-10;
+
 
 targets(:,1)=(targets(:,1)./100)*284.48;
 targets(:,2)=(targets(:,2)./100)*213.36;
@@ -157,9 +170,9 @@ for i=[1:9]
     linewidth=1;
     circle(targets(i,1),targets(i,2),outer_radius(i),patchcolor,facecolor,edgecolor,facealpha,linewidth,dash_type); %Outer radius
     
-    facecolor='w';
+    facecolor='#98cce5';
     edgecolor='#98cce5';
-    facealpha=1;
+    facealpha=0;
     linewidth=1;
     
     circle(targets(i,1),targets(i,2),inner_radius(i),patchcolor,facecolor,edgecolor,facealpha,linewidth,dash_type); %Inner radius
@@ -209,9 +222,9 @@ for i=[1:9]
     linewidth=1;
     circle(targets(i,1),targets(i,2),outer_radius(i),patchcolor,facecolor,edgecolor,facealpha,linewidth,dash_type); %Outer radius
     
-    facecolor='w';
+    facecolor='#98dddd';
     edgecolor='#98dddd';
-    facealpha=1;
+    facealpha=0;
     linewidth=1;
     
     circle(targets(i,1),targets(i,2),inner_radius(i),patchcolor,facecolor,edgecolor,facealpha,linewidth,dash_type); %Inner radius
@@ -222,9 +235,20 @@ viscircles(targets,target_radi);
 %rectangle('position',[0,0,284.48,213.36]);
 xlabel('x-screen (mm)','FontName','Times New Roman','FontSize',14,'FontWeight','bold');
 ylabel('y-screen (mm)','FontName','Times New Roman','FontSize',14,'FontWeight','bold');
-title('Error Per Target of Right Eye','FontName','Times New Roman','FontSize',16)
+title('Error Per Target of Left Eye','FontName','Times New Roman','FontSize',16)
 hold off
 axis equal
+
+
+
+
+
+%% Plot for interpolation
+boxplot([mean_acc_interpolation(:,[3,6,9]),mean_acc_modelbased(:,6)]);
+
+
+
+
 
 
 
