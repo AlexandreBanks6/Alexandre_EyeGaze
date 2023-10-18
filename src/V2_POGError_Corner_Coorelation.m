@@ -16,7 +16,7 @@ EVAL_THRESHOLD=3; %Threshold to be considered a valid evaluation trial
 %Looping for all participants
 for m=[1:num_dir]
     if dirnames{m}(1)=='P' %We have a participant and run calibrations and/evaluations
-        if strcmp(dirnames{m},'P02')
+        if strcmp(dirnames{m},'P05')
 
             %Reading In Data
             calib_init_data=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Init.csv']);
@@ -107,8 +107,8 @@ del_corner_inner_y=comp_data_right(:,4);
 del_corner_outer_x=comp_data_right(:,5);
 del_corner_outer_y=comp_data_right(:,6);
 
-%fig_1=plotErrorCornerCoorelation(del_corner_inner_x,del_corner_inner_y,...
- %   del_corner_outer_x,del_corner_outer_y,del_POG_x_right,'Right Eye Error in POG Estimate vs Shift in Eye Corners','x');
+% plotErrorCornerCoorelation(del_corner_inner_x,del_corner_outer_x,del_POG_x_right,'\delta C_{inner,x}','\delta C_{outer,x}','\delta POG_{x}','Right Eye POG Error vs Corner Shifts in x');
+% plotErrorCornerCoorelation(del_corner_inner_y,del_corner_outer_x,del_POG_x_right,'\delta C_{inner,x}','\delta C_{outer,x}','\delta POG_{x}','Right Eye POG Error vs Corner Shifts in x');
 
 %fig_2=plotErrorCornerCoorelation(del_corner_inner_x,del_corner_inner_y,...
  %   del_corner_outer_x,del_corner_outer_y,del_POG_y_right,'Right Eye Error in POG Estimate vs Shift in Eye Corners','y');
@@ -124,12 +124,15 @@ del_corner_inner_x=comp_data_left(:,3);
 del_corner_inner_y=comp_data_left(:,4);
 del_corner_outer_x=comp_data_left(:,5);
 del_corner_outer_y=comp_data_left(:,6);
+plotErrorCornerCoorelation(del_corner_inner_x,del_corner_outer_x,del_POG_x_left,'\delta C_{inner,x}','\delta C_{outer,x}','\delta POG_{x}','Left Eye POG Error vs Corner Shifts in x');
+plotErrorCornerCoorelation(del_corner_inner_y,del_corner_outer_y,del_POG_y_left,'\delta C_{inner,y}','\delta C_{outer,y}','\delta POG_{y}','Left Eye POG Error vs Corner Shifts in y');
+
 
 %fig_3=plotErrorCornerCoorelation(del_corner_inner_x,del_corner_inner_y,...
  %   del_corner_outer_x,del_corner_outer_y,del_POG_x_left,'Left Eye Error in POG Estimate vs Shift in Eye Corners','x');
 
-fig_4=plotErrorCornerCoorelation(del_corner_inner_x,del_corner_inner_y,...
-    del_corner_outer_x,del_corner_outer_y,del_POG_y_left,'Left Eye Error in POG Estimate vs Shift in Eye Corners','y');
+%fig_4=plotErrorCornerCoorelation(del_corner_inner_x,del_corner_inner_y,...
+ %   del_corner_outer_x,del_corner_outer_y,del_POG_y_left,'Left Eye Error in POG Estimate vs Shift in Eye Corners','y');
 
 %Saving Plots:
 %save_dir='C:/Users/playf/OneDrive/Documents/UBC/Thesis/Paper_FiguresAndResults/';
@@ -205,11 +208,11 @@ del_corner_inner_y=comp_data_left(:,4);
 del_corner_outer_x=comp_data_left(:,5);
 del_corner_outer_y=comp_data_left(:,6);
 
-fig_3=plotErrorCornerCoorelation(del_corner_inner_x,del_corner_inner_y,...
-    del_corner_outer_x,del_corner_outer_y,del_POG_x_left,'Left Eye Error in POG Estimate vs Shift in Eye Corners','x');
+%fig_3=plotErrorCornerCoorelation(del_corner_inner_x,del_corner_inner_y,...
+    %del_corner_outer_x,del_corner_outer_y,del_POG_x_left,'Left Eye Error in POG Estimate vs Shift in Eye Corners','x');
 
-fig_4=plotErrorCornerCoorelation(del_corner_inner_y,del_corner_inner_y,...
-    del_corner_outer_x,del_corner_outer_y,del_POG_x_left,'Left Eye Error in POG Estimate vs Shift in Eye Corners','y');
+%fig_4=plotErrorCornerCoorelation(del_corner_inner_y,del_corner_inner_y,...
+    %del_corner_outer_x,del_corner_outer_y,del_POG_x_left,'Left Eye Error in POG Estimate vs Shift in Eye Corners','y');
 
 
 
@@ -815,7 +818,29 @@ end
 
 
 %--------------------<Plotting Functions>-----------------------
-function fig_handle=plotErrorCornerCoorelation(inner_x,inner_y,outer_x,outer_y,del_pog,title_name,del_pog_direction)
+function plotErrorCornerCoorelation(pred_1,pred_2,del_pog,x_label,y_label,z_label,fig_tite)
+[del_pog,ind_rem]=rmoutliers(del_pog,'mean');
+pred_1=pred_1(~ind_rem);
+pred_2=pred_2(~ind_rem);
+
+marker_type='o';
+marker_raw_color='#4A7BB7';
+
+figure;
+plot3(pred_1,pred_2,del_pog,'o','Color',marker_raw_color);
+hold on
+showBestFitPlane(pred_1,pred_2,del_pog,['\',x_label],['\',y_label],['\',z_label]);
+hold off
+
+xlabel(x_label,'FontName','Times New Roman','FontSize',15,'Color','k','FontWeight','bold');
+ylabel(y_label,'FontName','Times New Roman','FontSize',15,'Color','k','FontWeight','bold');
+zlabel(z_label,'FontName','Times New Roman','FontSize',15,'Color','k','FontWeight','bold');
+
+title(fig_tite,'FontName','Times New Roman','FontSize',17,'FontWeight','bold');
+
+plottools
+
+%{
 %Init Variables
 MM_PER_PIXEL=0.27781;
 fit_offset=2;
@@ -998,36 +1023,42 @@ ylabel(t,['\deltaPOG ',del_pog_direction,' (mm)'],'FontName','Times New Roman','
 xlabel(t,'Corner Shift (mm)','FontName','Times New Roman','FontSize',15,'FontWeight','bold');
 
 plottools
+%}
 
 
 end
 
 
-
-function [y_line,x_line,R_squared,line_model]=showBestFitLine(x_data,y_data,fit_offset)
-marker_lin_color='#A50026';
+function showBestFitPlane(x_data,y_data,z_data,x_label,y_label,z_label)
 x_nans=isnan(x_data);
 y_nans=isnan(y_data);
-joint_nans=x_nans|y_nans;
+z_nans=isnan(z_data);
+joint_nans=x_nans|y_nans|z_nans;
 x_data(joint_nans)=[];
 y_data(joint_nans)=[];
-line_model=polyfit(x_data,y_data,2);
-r_squared_y=line_model(1).*(x_data.^2)+line_model(2).*x_data+line_model(3);
-R_squared=1-sum((y_data-r_squared_y).^2,'omitnan')./sum((y_data-mean(y_data,'omitnan')).^2,'omitnan');
+z_data(joint_nans)=[];
+B = [x_data, y_data, ones(length(z_data),1)] \ z_data;
+[X,Y] = meshgrid(linspace(min(x_data),max(x_data),50), linspace(min(y_data),max(y_data),50));
+Z = B(1)*X + B(2)*Y + B(3)*ones(size(X));
 
-x_line=[min(x_data)-fit_offset:0.001:max(x_data)+fit_offset];
-y_line=line_model(1).*(x_line.^2)+line_model(2).*x_line+line_model(3);
+r_squared_z=B(1)*x_data + B(2)*y_data + B(3)*ones(size(x_data));
+R_squared=1-sum((z_data-r_squared_z).^2,'omitnan')./sum((z_data-mean(z_data,'omitnan')).^2,'omitnan');
 
 
 
-eq=sprintf('y=%.2f x^{2} + %.2f x + %.2f \nR^2=%.2f',line_model(1),line_model(2),line_model(3),R_squared);
-xl = xlim;
-yl = ylim;
-xt = xl(1);
-yt = yl(1);
-plot(x_line,y_line,'LineWidth',2,'Color',marker_lin_color,'LineStyle','--');
-text(xt,yt,eq,'FontSize',12);
+
+mesh(X, Y, Z,'FaceAlpha',0.1,'EdgeColor','#FFB52E','FaceColor','none');
+%eq=[z_label,'=',num2str(B(1)),' ',x_label,' + ',num2str(B(2)),' ',y_label,'+ ',num2str(B(3)),' \n R^2=',num2str(R_squared)];
+eq=sprintf([z_label,'=','%.2f ',' ',x_label,' + ', '%.2f', ' ',y_label,'+ ','%.2f',' \nR^2=%.2f'],B(1),B(2),B(3),R_squared);
+text(0,0,0,eq,'FontSize',12);
+
+%B = [x_data, y_data, ones(length(z_data),1)] \ z_data;
+
+%xv = [min(x_data) max(y_data)];
+%yv = [min(y_data) max(y_data)];
+%zv = [xv(:), yv(:), ones(2,1)] * B; 
+
+%patch([min(xv) min(xv) max(xv) max(xv)], [min(yv) max(yv) max(yv) min(yv)], [min(zv) min(zv) max(zv) max(zv)], 'r', 'FaceAlpha',0.5)
+
 
 end
-
-

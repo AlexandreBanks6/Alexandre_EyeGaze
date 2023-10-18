@@ -2,8 +2,8 @@ clear
 clc
 close all
 
-%% Init Parameters and Reading Data
-data_root='F:/Alexandre_EyeGazeProject/eyecorner_userstudy2_converted';
+%%Init Parameters and Reading Data
+data_root='E:/Alexandre_EyeGazeProject_Extra/eyecorner_userstudy2_converted';
 part_num='P01';
 
 calib_init_data=readmatrix([data_root,'/',part_num,'/calib_only_merged_Calib_Init.csv']); %Initial calibration data
@@ -19,8 +19,9 @@ for i=[1:length(lift_names)]
     calib_comp_lifts_data=[calib_comp_lifts_data;readmatrix([data_root,'/',part_num,'/',lift_root,lift_names{i}])];
 end
 
-%% Computing delta corner and delta head
-
+%%Computing delta corner and delta head
+WIDTH_CONVERSION=284.48;
+HEIGHT_CONVERSION=213.36;
 %----------<Delta Corners>----------
 %Corners are in format: right_inner_x,right_inner_y,
 % right_outer_x,right_outer_y,left_inner_x,...
@@ -29,7 +30,11 @@ avg_corners=mean(calib_init_data(:,[50:57]),1,'omitnan');
 corners_onedot=calib_onedot_data(:,[50:57]); 
 corners_lifts=calib_comp_lifts_data(:,[50:57]);
 delta_c_onedot=avg_corners-corners_onedot;  %delta_c=corner_calib-corner_movement
+delta_c_onedot(:,[1,3,5,7])=(delta_c_onedot(:,[1,3,5,7])./100).*WIDTH_CONVERSION;
+delta_c_onedot(:,[2,4,6,8])=(delta_c_onedot(:,[2,4,6,8])./100).*HEIGHT_CONVERSION;
 delta_c_lifts=avg_corners-corners_lifts;
+delta_c_lifts(:,[1,3,5,7])=(delta_c_lifts(:,[1,3,5,7])./100).*WIDTH_CONVERSION;
+delta_c_lifts(:,[2,4,6,8])=(delta_c_lifts(:,[2,4,6,8])./100).*HEIGHT_CONVERSION;
 
 %------------<Delta Head>------------
 %Tool 1 is not moving, tool 2 is moving
@@ -66,17 +71,28 @@ t2_lifts=calib_comp_lifts_data(:,[42:44]);
 [lifts_rotations,lifts_translations]=getMovedPositions(q1_lifts,q2_lifts,t1_lifts,t2_lifts,calib_quat_avg,calib_t12_avg);
 
 
-%% Plotting Coorelation with head rotations for all corners
-save_dir='C:/Users/playf/OneDrive/Documents/UBC/Thesis/Paper_FiguresAndResults/';
+%%Plotting Coorelation with head rotations for all corners
+%save_dir='C:/Users/playf/OneDrive/Documents/UBC/Thesis/Paper_FiguresAndResults/';
 titles={'Right Eye Inner','Right Eye Outer','Left Eye Inner','Left Eye Outer'};
-save_titles={'InnerRight','OuterRight','InnerLeft','OuterLeft'};
+%save_titles={'InnerRight','OuterRight','InnerLeft','OuterLeft'};
+%{
 for i=[1:4]
     fig_handle_x=headCornerPlotter(dot_rotations,dot_translations,delta_c_onedot(:,i*2-1),[titles{i},' Corner Change vs Head Pose For ',part_num],'x');
     fig_handle_y=headCornerPlotter(dot_rotations,dot_translations,delta_c_onedot(:,i*2),[titles{i},' Corner Change vs Head Pose For ',part_num],'y');
-    saveas(fig_handle_x,[save_dir,'V2_CornerToHead_Rough_',save_titles{i},'x.png']);
-    saveas(fig_handle_y,[save_dir,'V2_CornerToHead_Rough_',save_titles{i},'y.png']);
+    %fig_handle_x=headCornerPlotter(lifts_rotations,lifts_translations,delta_c_lifts(:,i*2-1),[titles{i},' Corner Change vs Head Pose For ',part_num],'x');
+    %fig_handle_y=headCornerPlotter(lifts_rotations,lifts_translations,delta_c_lifts(:,i*2),[titles{i},' Corner Change vs Head Pose For ',part_num],'y');
+
+    %saveas(fig_handle_x,[save_dir,'V2_CornerToHead_Rough_',save_titles{i},'x.png']);
+    %saveas(fig_handle_y,[save_dir,'V2_CornerToHead_Rough_',save_titles{i},'y.png']);
 
 end
+%}
+
+fig_handle_x=headCornerPlotter(dot_rotations,dot_translations,delta_c_onedot(:,5),[titles{3},' Corner Change vs Head Pose For ',part_num],'x');
+fig_handle_y=headCornerPlotter(dot_rotations,dot_translations,delta_c_onedot(:,6),[titles{3},' Corner Change vs Head Pose For ',part_num],'y');
+
+
+
 %% Plotting a single head-corner coorelation
 save_dir='C:/Users/playf/OneDrive/Documents/UBC/Thesis/Paper_FiguresAndResults/';
 marker_size=5;
@@ -185,6 +201,10 @@ t=tiledlayout(3,2,'TileSpacing','compact');
 %x-translation
 nexttile
 plot(moved_translations(:,1),delta_corner,'color',marker_color,'Marker',marker_type,'LineWidth',1,'MarkerSize',marker_size,'LineStyle',"none");
+hold on
+showBestFitLine(moved_translations(:,1),delta_corner,10);
+hold off
+
 
 title('translation (x)','FontName','Times New Roman','FontSize',13);
 a = get(gca,'XTickLabel');  
@@ -196,6 +216,10 @@ set(gca,'XTickLabelMode','auto')
 nexttile
 
 plot(moved_rotations(:,1),delta_corner,'color',marker_color,'Marker',marker_type,'LineWidth',1,'MarkerSize',marker_size,'LineStyle',"none");
+hold on
+showBestFitLine(moved_rotations(:,1),delta_corner,0.1);
+hold off
+
 
 title('roll','FontName','Times New Roman','FontSize',13);
 a = get(gca,'XTickLabel');  
@@ -206,6 +230,10 @@ set(gca,'XTickLabelMode','auto')
 nexttile
 
 plot(moved_translations(:,2),delta_corner,'color',marker_color,'Marker',marker_type,'LineWidth',1,'MarkerSize',marker_size,'LineStyle',"none");
+hold on
+showBestFitLine(moved_translations(:,2),delta_corner,10);
+hold off
+
 
 title('translation (y)','FontName','Times New Roman','FontSize',13);
 a = get(gca,'XTickLabel');  
@@ -217,6 +245,10 @@ set(gca,'XTickLabelMode','auto')
 nexttile
 
 plot(moved_rotations(:,3),delta_corner,'color',marker_color,'Marker',marker_type,'LineWidth',1,'MarkerSize',marker_size,'LineStyle',"none");
+hold on
+showBestFitLine(moved_rotations(:,3),delta_corner,0.1);
+hold off
+
 
 title('pitch','FontName','Times New Roman','FontSize',13);
 a = get(gca,'XTickLabel');  
@@ -229,9 +261,12 @@ set(gca,'XTickLabelMode','auto')
 nexttile
 
 plot(moved_translations(:,3),delta_corner,'color',marker_color,'Marker',marker_type,'LineWidth',1,'MarkerSize',marker_size,'LineStyle',"none");
+hold on
+showBestFitLine(moved_translations(:,3),delta_corner,10);
+hold off
 
 title('translation (z)','FontName','Times New Roman','FontSize',13);
-xlabel('translation (mm)','FontName','Times New Roman','FontSize',13)
+xlabel('translation (mm)','FontName','Times New Roman','FontSize',20,'FontWeight','bold')
 a = get(gca,'XTickLabel');  
 set(gca,'XTickLabel',a,'fontsize',10)
 set(gca,'XTickLabelMode','auto')
@@ -240,10 +275,12 @@ set(gca,'XTickLabelMode','auto')
 nexttile
 
 plot(moved_rotations(:,2),delta_corner,'color',marker_color,'Marker',marker_type,'LineWidth',1,'MarkerSize',marker_size,'LineStyle',"none");
-
+hold on
+showBestFitLine(moved_rotations(:,2),delta_corner,0.1);
+hold off
 
 title('yaw','FontName','Times New Roman','FontSize',13);
-xlabel('angle (degrees)','FontName','Times New Roman','FontSize',13)
+xlabel('angle (degrees)','FontName','Times New Roman','FontSize',20,'FontWeight','bold')
 
 a = get(gca,'XTickLabel');  
 set(gca,'XTickLabel',a,'fontsize',10)
@@ -259,10 +296,34 @@ han.Visible = 'off';
 
 % Left label
 yyaxis(ax, 'left');
-ylabel(['\deltaC ',delta_c_direction,' (px)'],'FontName','Times New Roman','FontSize',15,'Color','k')
+ylabel(['\deltaC ',delta_c_direction,' (mm)'],'FontName','Times New Roman','FontSize',15,'Color','k','FontWeight','bold');
 han.YLabel.Visible = 'on';
 
+plottools %Opening in plot tools
 
 
+
+
+end
+
+
+function [y_line,x_line,R_squared,line_model]=showBestFitLine(x_data,y_data,fit_offset)
+marker_lin_color='#A50026';
+line_model=polyfit(x_data,y_data,2);
+r_squared_y=line_model(1).*(x_data.^2)+line_model(2).*x_data+line_model(3);
+R_squared=1-sum((y_data-r_squared_y).^2,'omitnan')./sum((y_data-mean(y_data,'omitnan')).^2,'omitnan');
+
+x_line=[min(x_data)-fit_offset:0.001:max(x_data)+fit_offset];
+y_line=line_model(1).*(x_line.^2)+line_model(2).*x_line+line_model(3);
+
+
+
+eq=sprintf('y=%.2f x^{2} + %.2f x + %.2f \nR^2=%.2f',line_model(1),line_model(2),line_model(3),R_squared);
+xl = xlim;
+yl = ylim;
+xt = xl(1);
+yt = yl(1);
+plot(x_line,y_line,'LineWidth',2,'Color',marker_lin_color,'LineStyle','--');
+text(xt,yt,eq,'FontSize',12);
 
 end
