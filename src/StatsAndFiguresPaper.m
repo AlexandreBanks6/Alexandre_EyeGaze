@@ -247,8 +247,28 @@ axis equal
 boxplot([mean_acc_interpolation(:,[3,6,9]),mean_acc_modelbased(:,6)]);
 
 
+%% Polynomial on Initial Data stats
+path_modelbased='C:/Users/playf/OneDrive/Documents/UBC/Thesis/Paper_FiguresAndResults/Poly_InitEval_RawResults';
+mean_acc_init=readmatrix([path_modelbased,'/mean_acc_results.csv']);
+mean_acc_init(13,:)=[];
+
+p20_ind=mean_acc_init(:,1)==20;
+mean_acc_init(p20_ind,:)=[];
+
+p21_ind=mean_acc_init(:,1)==21;
+mean_acc_init(p21_ind,:)=[];
+
+p22_ind=mean_acc_init(:,1)==22;
+mean_acc_init(p22_ind,:)=[];
+
+p26_ind=mean_acc_init(:,1)==26;
+mean_acc_init(p26_ind,:)=[];
 
 
+
+mean_acc_init=atan(mean_acc_init./457.2).*(180/pi);
+mean_init=mean(mean_acc_init,1,'omitnan');
+std_init=std(mean_acc_init,1,'omitnan');
 
 
 

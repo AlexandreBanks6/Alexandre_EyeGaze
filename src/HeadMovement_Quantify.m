@@ -4,86 +4,8 @@ close all
 
 %%Init Parameters and Reading Data
 data_root='E:/Alexandre_EyeGazeProject_Extra/eyecorner_userstudy2_converted';
-%Getting list of subfolders
-folder_list=dir(data_root);
-dirnames={folder_list([folder_list.isdir]).name};
-num_dir=length(dirnames);
+part_num='P01';
 
-
-head_movement_results=[]; %Matrix containing 3 columns for the range of motion in 3 axes of each participant
-%Looping for all participants
-for m=[1:num_dir]
-    if dirnames{m}(1)=='P' %We have a participant and run calibrations and/evaluations
-        disp(dirnames{m});
-        calib_init_data=readmatrix([data_root,'/',dirnames{m},'/calib_only_merged_Calib_Init.csv']);
-
-        calib_comp_lifts_data=[]; %Lift and replace calibration data
-        lift_names={'Lift1_9point.csv','Lift2_9point.csv','Lift3_9point.csv'};
-        lift_root='calib_only_merged_Eval_';
-
-        for i=[1:length(lift_names)]
-            calib_comp_lifts_data=[calib_comp_lifts_data;readmatrix([data_root,'/',dirnames{m},'/',lift_root,lift_names{i}])];
-        end
-
-       
-        %Getting average head position at calibration
-        q1_calib=calib_init_data(:,[35:38]);
-        q2_calib=calib_init_data(:,[45:48]);
-        
-        t1_calib=calib_init_data(:,[32:34]);
-        t2_calib=calib_init_data(:,[42:44]);
-        
-        [calib_quat_avg,calib_t12_avg]=getCalibPose(q1_calib,q2_calib,t1_calib,t2_calib);
-
-
-
-        %Getting head movement for lifts
-        q1_lifts=calib_comp_lifts_data(:,[35:38]);
-        q2_lifts=calib_comp_lifts_data(:,[45:48]);
-        
-        t1_lifts=calib_comp_lifts_data(:,[32:34]);
-        t2_lifts=calib_comp_lifts_data(:,[42:44]);
-        
-        [lifts_rotations,lifts_translations]=getMovedPositions(q1_lifts,q2_lifts,t1_lifts,t2_lifts,calib_quat_avg,calib_t12_avg);
-
-        max_x=max(lifts_translations(:,1));
-        min_x=min(lifts_translations(:,1));
-
-        max_y=max(lifts_translations(:,2));
-        min_y=min(lifts_translations(:,2));
-
-        max_z=max(lifts_translations(:,3));
-        min_z=min(lifts_translations(:,3));
-
-        x_range=max_x-min_x;
-        y_range=max_y-min_y;
-        z_range=max_z-min_z;
-
-        max_roll=max(lifts_rotations(:,1));
-        min_roll=min(lifts_rotations(:,1));
-
-        max_pitch=max(lifts_rotations(:,2));
-        min_pitch=min(lifts_rotations(:,2));
-
-        max_yaw=max(lifts_rotations(:,3));
-        min_yaw=min(lifts_rotations(:,3));
-        range_roll=max_roll-min_roll;
-        range_pitch=max_pitch-min_pitch;
-        range_yaw=max_yaw-min_yaw;
-
-        head_movement_results=[head_movement_results;[x_range,y_range,z_range,range_roll,range_pitch,range_yaw]];
-
-
-    end
-end
-
-%% Taking mean and std of head movement results
-mean_head_ranges=mean(head_movement_results,1,'omitnan');
-std_head_ranges=std(head_movement_results,1,'omitnan');
-
-
-
-%% 
 calib_init_data=readmatrix([data_root,'/',part_num,'/calib_only_merged_Calib_Init.csv']); %Initial calibration data
 
 
