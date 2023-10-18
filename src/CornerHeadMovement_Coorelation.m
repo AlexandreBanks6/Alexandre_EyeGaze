@@ -77,13 +77,13 @@ for m=[1:num_dir]
     end
 end
 
-%% Taking mean and std of head movement results
+%%Taking mean and std of head movement results
 mean_head_ranges=mean(head_movement_results,1,'omitnan');
 std_head_ranges=std(head_movement_results,1,'omitnan');
 
 
 
-%% 
+ 
 calib_init_data=readmatrix([data_root,'/',part_num,'/calib_only_merged_Calib_Init.csv']); %Initial calibration data
 
 

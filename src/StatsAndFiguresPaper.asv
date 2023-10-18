@@ -275,34 +275,7 @@ predicted_corners=readmatrix('E:/Alexandre_EyeGazeProject_Extra/EvaluatingCorner
 predicted_corners=predicted_corners(:,[2:end]);
 annotated_corners=readmatrix('E:/Alexandre_EyeGazeProject_Extra/EvaluatingCornerDetection_Accuracy/annotated_corners.csv');
 
-%Re-ordering the annotated_corners based on the file number
-[~,sort_ind]=sort(annotated_corners(:,end));
-annotated_corners=annotated_corners(sort_ind,:);
-annotated_corners=annotated_corners(:,[1:end-1]);
-
-right_inner_acc=sqrt((annotated_corners(:,1)-predicted_corners(:,1)).^2+(annotated_corners(:,2)-predicted_corners(:,2)).^2);
-right_outer_acc=sqrt((annotated_corners(:,3)-predicted_corners(:,3)).^2+(annotated_corners(:,4)-predicted_corners(:,4)).^2);
-left_outer_acc=sqrt((annotated_corners(:,5)-predicted_corners(:,5)).^2+(annotated_corners(:,6)-predicted_corners(:,6)).^2);
-left_inner_acc=sqrt((annotated_corners(:,7)-predicted_corners(:,7)).^2+(annotated_corners(:,8)-predicted_corners(:,8)).^2);
-total_res=[right_inner_acc,right_outer_acc,left_outer_acc,left_inner_acc];
-mean_acc=mean(total_res,1,'omitnan');
-std_acc=std(total_res,1,'omitnan');
-
-%Doing it in percentage of screen size
-annotated_corners(:,[1,3,5,7])=annotated_corners(:,[1,3,5,7])./1280; %Ratio of width
-annotated_corners(:,[2,4,6,8])=annotated_corners(:,[1,3,5,7])./480; %Ratio of height
-
-predicted_corners(:,[1,3,5,7])=predicted_corners(:,[1,3,5,7])./1280; %Ratio of width
-predicted_corners(:,[2,4,6,8])=predicted_corners(:,[1,3,5,7])./480; %Ratio of height
-
-right_inner_acc=sqrt((annotated_corners(:,1)-predicted_corners(:,1)).^2+(annotated_corners(:,2)-predicted_corners(:,2)).^2);
-right_outer_acc=sqrt((annotated_corners(:,3)-predicted_corners(:,3)).^2+(annotated_corners(:,4)-predicted_corners(:,4)).^2);
-left_outer_acc=sqrt((annotated_corners(:,5)-predicted_corners(:,5)).^2+(annotated_corners(:,6)-predicted_corners(:,6)).^2);
-left_inner_acc=sqrt((annotated_corners(:,7)-predicted_corners(:,7)).^2+(annotated_corners(:,8)-predicted_corners(:,8)).^2);
-total_res=[right_inner_acc,right_outer_acc,left_outer_acc,left_inner_acc];
-mean_acc_perc=mean(total_res,1,'omitnan').*100;
-std_acc_perc=std(total_res,1,'omitnan').*100;
-
+right_inner_acc=sqrt(().^2+().^2)
 
 
 %---------------------------<Helper Function Definitions>-----------------

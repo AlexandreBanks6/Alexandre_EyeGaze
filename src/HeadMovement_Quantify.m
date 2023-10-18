@@ -202,7 +202,7 @@ t=tiledlayout(3,2,'TileSpacing','compact');
 nexttile
 plot(moved_translations(:,1),delta_corner,'color',marker_color,'Marker',marker_type,'LineWidth',1,'MarkerSize',marker_size,'LineStyle',"none");
 hold on
-showBestFitLine(moved_translations(:,1),delta_corner,10);
+showBestFitLine(moved_translations(:,1),delta_corner,5);
 hold off
 
 
@@ -217,7 +217,7 @@ nexttile
 
 plot(moved_rotations(:,1),delta_corner,'color',marker_color,'Marker',marker_type,'LineWidth',1,'MarkerSize',marker_size,'LineStyle',"none");
 hold on
-showBestFitLine(moved_rotations(:,1),delta_corner,0.1);
+showBestFitLine(moved_rotations(:,1),delta_corner,0.025);
 hold off
 
 
@@ -231,7 +231,7 @@ nexttile
 
 plot(moved_translations(:,2),delta_corner,'color',marker_color,'Marker',marker_type,'LineWidth',1,'MarkerSize',marker_size,'LineStyle',"none");
 hold on
-showBestFitLine(moved_translations(:,2),delta_corner,10);
+showBestFitLine(moved_translations(:,2),delta_corner,5);
 hold off
 
 
@@ -246,7 +246,7 @@ nexttile
 
 plot(moved_rotations(:,3),delta_corner,'color',marker_color,'Marker',marker_type,'LineWidth',1,'MarkerSize',marker_size,'LineStyle',"none");
 hold on
-showBestFitLine(moved_rotations(:,3),delta_corner,0.1);
+showBestFitLine(moved_rotations(:,3),delta_corner,0.025);
 hold off
 
 
@@ -262,7 +262,7 @@ nexttile
 
 plot(moved_translations(:,3),delta_corner,'color',marker_color,'Marker',marker_type,'LineWidth',1,'MarkerSize',marker_size,'LineStyle',"none");
 hold on
-showBestFitLine(moved_translations(:,3),delta_corner,10);
+showBestFitLine(moved_translations(:,3),delta_corner,5);
 hold off
 
 title('translation (z)','FontName','Times New Roman','FontSize',13);
@@ -276,7 +276,7 @@ nexttile
 
 plot(moved_rotations(:,2),delta_corner,'color',marker_color,'Marker',marker_type,'LineWidth',1,'MarkerSize',marker_size,'LineStyle',"none");
 hold on
-showBestFitLine(moved_rotations(:,2),delta_corner,0.1);
+showBestFitLine(moved_rotations(:,2),delta_corner,0.025);
 hold off
 
 title('yaw','FontName','Times New Roman','FontSize',13);
