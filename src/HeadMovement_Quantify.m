@@ -206,11 +206,14 @@ showBestFitLine(moved_translations(:,1),delta_corner,5);
 hold off
 
 
-title('translation (x)','FontName','Times New Roman','FontSize',13);
+title('translation (x)','FontName','Helvetica','FontSize',14);
 a = get(gca,'XTickLabel');  
-set(gca,'XTickLabel',a,'fontsize',10)
+set(gca,'XTickLabel',a,'fontsize',14)
 set(gca,'XTickLabelMode','auto')
 
+ax = gca;
+ax.XAxis.FontSize = 10;
+ax.YAxis.FontSize = 10;
 
 %roll
 nexttile
@@ -221,10 +224,14 @@ showBestFitLine(moved_rotations(:,1),delta_corner,0.025);
 hold off
 
 
-title('roll','FontName','Times New Roman','FontSize',13);
+title('roll','FontName','Helvetica','FontSize',14);
 a = get(gca,'XTickLabel');  
-set(gca,'XTickLabel',a,'fontsize',10)
-set(gca,'XTickLabelMode','auto')
+set(gca,'XTickLabel',a,'fontsize',14)
+set(gca,'XTickLabelMode','auto');
+
+ax = gca;
+ax.XAxis.FontSize = 10;
+ax.YAxis.FontSize = 10;
 
 %y-translation
 nexttile
@@ -235,11 +242,14 @@ showBestFitLine(moved_translations(:,2),delta_corner,5);
 hold off
 
 
-title('translation (y)','FontName','Times New Roman','FontSize',13);
+title('translation (y)','FontName','Helvetica','FontSize',14);
 a = get(gca,'XTickLabel');  
-set(gca,'XTickLabel',a,'fontsize',10)
+set(gca,'XTickLabel',a,'fontsize',14)
 set(gca,'XTickLabelMode','auto')
 
+ax = gca;
+ax.XAxis.FontSize = 10;
+ax.YAxis.FontSize = 10;
 
 %pitch
 nexttile
@@ -250,12 +260,14 @@ showBestFitLine(moved_rotations(:,3),delta_corner,0.025);
 hold off
 
 
-title('pitch','FontName','Times New Roman','FontSize',13);
+title('pitch','FontName','Helvetica','FontSize',14);
 a = get(gca,'XTickLabel');  
-set(gca,'XTickLabel',a,'fontsize',10)
+set(gca,'XTickLabel',a,'fontsize',14)
 set(gca,'XTickLabelMode','auto')
 
-
+ax = gca;
+ax.XAxis.FontSize = 10;
+ax.YAxis.FontSize = 10;
 
 %z-translation
 nexttile
@@ -265,12 +277,15 @@ hold on
 showBestFitLine(moved_translations(:,3),delta_corner,5);
 hold off
 
-title('translation (z)','FontName','Times New Roman','FontSize',13);
-xlabel('translation (mm)','FontName','Times New Roman','FontSize',20,'FontWeight','bold')
+title('translation (z)','FontName','Helvetica','FontSize',14);
+xlabel('translation (mm)','FontName','Helvetica','FontSize',20,'FontWeight','bold')
 a = get(gca,'XTickLabel');  
-set(gca,'XTickLabel',a,'fontsize',10)
+set(gca,'XTickLabel',a,'fontsize',14)
 set(gca,'XTickLabelMode','auto')
 
+ax = gca;
+ax.XAxis.FontSize = 10;
+ax.YAxis.FontSize = 10;
 %yaw
 nexttile
 
@@ -279,16 +294,18 @@ hold on
 showBestFitLine(moved_rotations(:,2),delta_corner,0.025);
 hold off
 
-title('yaw','FontName','Times New Roman','FontSize',13);
-xlabel('angle (degrees)','FontName','Times New Roman','FontSize',20,'FontWeight','bold')
+title('yaw','FontName','Helvetica','FontSize',14);
+xlabel('angle (degrees)','FontName','Helvetica','FontSize',20,'FontWeight','bold')
 
 a = get(gca,'XTickLabel');  
-set(gca,'XTickLabel',a,'fontsize',10)
+set(gca,'XTickLabel',a,'fontsize',14)
 set(gca,'XTickLabelMode','auto')
 
+ax = gca;
+ax.XAxis.FontSize = 10;
+ax.YAxis.FontSize = 10;
 
-
-title(t,title_name,'FontName','Times New Roman','FontSize',17,'FontWeight','bold');
+title(t,title_name,'FontName','Helvetica','FontSize',17,'FontWeight','bold');
 
 ax = axes(fig);
 han = gca;
@@ -296,7 +313,7 @@ han.Visible = 'off';
 
 % Left label
 yyaxis(ax, 'left');
-ylabel(['\deltaC ',delta_c_direction,' (mm)'],'FontName','Times New Roman','FontSize',15,'Color','k','FontWeight','bold');
+ylabel(['\deltaC ',delta_c_direction,' (mm)'],'FontName','Helvetica','FontSize',14,'Color','k','FontWeight','bold');
 han.YLabel.Visible = 'on';
 
 plottools %Opening in plot tools

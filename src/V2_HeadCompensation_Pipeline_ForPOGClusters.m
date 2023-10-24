@@ -255,10 +255,10 @@ for i=[1:9]
     linewidth=1;
     circle(targets(i,1),targets(i,2),4,patchcolor,facecolor,edgecolor,facealpha,linewidth,dash_type); %Outer radius
 end
-legend('Poly','Li','CCHC','FontName','Times New Roman','FontSize',14);
-title('Example of POG Estimates after Head Lift','FontName','Times New Roman','FontSize',16);
-xlabel('x-screen (mm)','FontName','Times New Roman','FontSize',14,'FontWeight','bold');
-ylabel('y-screen (mm)','FontName','Times New Roman','FontSize',14,'FontWeight','bold');
+legend('Poly','Li','CCHC','FontName','Helvectica','FontSize',14);
+title('Example of POG Estimates after Head Lift','FontName','Helvectica','FontSize',16);
+xlabel('x-screen (mm)','FontName','Helvectica','FontSize',14,'FontWeight','bold');
+ylabel('y-screen (mm)','FontName','Helvectica','FontSize',14,'FontWeight','bold');
 hold off
 axis equal
 

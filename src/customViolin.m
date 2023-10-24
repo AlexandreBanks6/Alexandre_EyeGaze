@@ -78,16 +78,16 @@ figure;
 
     % x-labels
     left_ind=mean(tick_numbers(1:middle_group));
-    t=text(left_ind,-3.5,'Left Eye','HorizontalAlignment','center','FontName','Times New Roman','FontSize',15,'FontWeight','bold');
+    t=text(left_ind,-3.5,'Left Eye','HorizontalAlignment','center','FontName','Helvetica','FontSize',14,'FontWeight','bold');
 
     right_ind=mean(tick_numbers(middle_group+1:end));
-    t=text(right_ind,-3.5,'Right Eye','HorizontalAlignment','center','FontName','Times New Roman','FontSize',15,'FontWeight','bold');
+    t=text(right_ind,-3.5,'Right Eye','HorizontalAlignment','center','FontName','Helvetica','FontSize',14,'FontWeight','bold');
 
-    title(plotTitle,'FontName','Times New Roman','FontSize',16);
+    title(plotTitle,'FontName','Helvetica','FontSize',16);
     a = get(gca,'XTickLabel');
-    set(gca,'XTickLabel',a,'FontName','Times','fontsize',12.5)
+    set(gca,'XTickLabel',a,'FontName','Helvetica','fontsize',12)
 
     %y-label
-    ylabel('DVA Error (degrees)','FontName','Times New Roman','FontSize',14,'FontWeight','bold')
+    ylabel('DVA Error (degrees)','FontName','Helvetica','FontSize',14,'FontWeight','bold')
 
 end

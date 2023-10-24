@@ -181,9 +181,9 @@ end
 target_radi=[2,2,2,2,2,2,2,2,2].*0.1;
 viscircles(targets,target_radi);
 %rectangle('position',[0,0,284.48,213.36]);
-xlabel('x-screen (mm)','FontName','Times New Roman','FontSize',14,'FontWeight','bold');
-ylabel('y-screen (mm)','FontName','Times New Roman','FontSize',14,'FontWeight','bold');
-title('Error Per Target of Right Eye','FontName','Times New Roman','FontSize',16)
+xlabel('x-screen (mm)','FontName','Helvetica','FontSize',14,'FontWeight','bold');
+ylabel('y-screen (mm)','FontName','Helvetica','FontSize',14,'FontWeight','bold');
+title('Error Per Target of Right Eye','FontName','Helvetica','FontSize',16)
 hold off
 axis equal
 
@@ -233,9 +233,9 @@ end
 target_radi=[2,2,2,2,2,2,2,2,2].*0.1;
 viscircles(targets,target_radi);
 %rectangle('position',[0,0,284.48,213.36]);
-xlabel('x-screen (mm)','FontName','Times New Roman','FontSize',14,'FontWeight','bold');
-ylabel('y-screen (mm)','FontName','Times New Roman','FontSize',14,'FontWeight','bold');
-title('Error Per Target of Left Eye','FontName','Times New Roman','FontSize',16)
+xlabel('x-screen (mm)','FontName','Helvetica','FontSize',14,'FontWeight','bold');
+ylabel('y-screen (mm)','FontName','Helvetica','FontSize',14,'FontWeight','bold');
+title('Error Per Target of Left Eye','FontName','Helvetica','FontSize',16)
 hold off
 axis equal
 

@@ -832,11 +832,11 @@ hold on
 showBestFitPlane(pred_1,pred_2,del_pog,['\',x_label],['\',y_label],['\',z_label]);
 hold off
 
-xlabel(x_label,'FontName','Times New Roman','FontSize',15,'Color','k','FontWeight','bold');
-ylabel(y_label,'FontName','Times New Roman','FontSize',15,'Color','k','FontWeight','bold');
-zlabel(z_label,'FontName','Times New Roman','FontSize',15,'Color','k','FontWeight','bold');
+xlabel(x_label,'FontName','Helvetica','FontSize',15,'Color','k','FontWeight','bold');
+ylabel(y_label,'FontName','Helvetica','FontSize',15,'Color','k','FontWeight','bold');
+zlabel(z_label,'FontName','Helvetica','FontSize',15,'Color','k','FontWeight','bold');
 
-title(fig_tite,'FontName','Times New Roman','FontSize',17,'FontWeight','bold');
+title(fig_tite,'FontName','Helvetica','FontSize',17,'FontWeight','bold');
 
 plottools
 
