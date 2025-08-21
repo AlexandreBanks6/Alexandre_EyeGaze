@@ -1,7 +1,10 @@
 # Reference
 
 This analysis code was used for publication of: 
-Banks A, Eldin Abdelaal A, Salcudean S. Head motion-corrected eye gaze tracking with the da Vinci surgical system. Int J Comput Assist Radiol Surg. 2024 Jul;19(7):1459-1467. doi: 10.1007/s11548-024-03173-4. Epub 2024 Jun 18. PMID: 38888820.
+
+Banks A, Eldin Abdelaal A, Salcudean S. Head motion-corrected eye gaze tracking with the da Vinci surgical system. Int J Comput Assist Radiol Surg. 2024 Jul;19(7):1459-1467. doi: 10.1007/s11548-024-03173-4. Epub 2024 Jun 18. PMID: 38888820. 
+
+[https://pubmed.ncbi.nlm.nih.gov/38888820/](https://pubmed.ncbi.nlm.nih.gov/38888820/)
 
 # Eye Gaze Calibration Steps
 
